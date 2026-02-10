@@ -1,0 +1,139 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resume - {{name}}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans">
+  <div class="max-w-5xl mx-auto my-10 bg-white shadow-lg rounded-lg overflow-hidden">
+    <div class="grid grid-cols-3">
+
+      <!-- Left Column -->
+      <div class="bg-gray-100 p-6 col-span-1 flex flex-col items-center">
+        <img
+          src="{{photo_url}}"
+          alt="Profile Photo"
+          class="w-32 h-32 rounded-full object-cover mb-4 border-4 border-white shadow"
+        >
+
+        <div class="text-center">
+          <h1 class="text-2xl font-bold">{{name}}</h1>
+          <p class="text-gray-500">{{role}}</p>
+        </div>
+
+        <div class="mt-6 w-full text-sm">
+          <div class="flex items-center space-x-2 mb-2">
+            <i class="fa fa-phone text-gray-500"></i>
+            <span>{{phone}}</span>
+          </div>
+          <div class="flex items-center space-x-2 mb-2">
+            <i class="fa fa-envelope text-gray-500"></i>
+            <span>{{email}}</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <i class="fa fa-map-marker-alt text-gray-500"></i>
+            <span>{{address}}</span>
+          </div>
+        </div>
+
+        <div class="mt-8 w-full">
+          <h2 class="text-lg font-semibold border-b border-gray-400 pb-1 mb-2">EDUCATION</h2>
+          <p class="font-medium">{{education_degree}}</p>
+          <p class="text-sm text-gray-600">{{education_school}}</p>
+          <p class="text-sm text-gray-600 mb-3">{{education_years}}</p>
+        </div>
+
+        <div class="mt-8 w-full">
+          <h2 class="text-lg font-semibold border-b border-gray-400 pb-1 mb-2">SKILLS</h2>
+          <ul class="list-disc pl-5 text-sm text-gray-700 space-y-1">
+            <li>{{skill_1}}</li>
+            <li>{{skill_2}}</li>
+            <li>{{skill_3}}</li>
+            <li>{{skill_4}}</li>
+            <li>{{skill_5}}</li>
+            <li>{{skill_6}}</li>
+          </ul>
+        </div>
+
+        <div class="mt-8 w-full">
+          <h2 class="text-lg font-semibold border-b border-gray-400 pb-1 mb-2">LANGUAGE</h2>
+          <ul class="text-sm text-gray-700 space-y-1">
+            <li>{{language_1}}</li>
+            <li>{{language_2}}</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div class="col-span-2 p-8">
+        <section>
+          <h2 class="text-xl font-semibold border-b-2 border-gray-300 pb-1 mb-3">About Me</h2>
+          <p class="text-gray-700 leading-relaxed whitespace-pre-line">{{summary}}</p>
+        </section>
+
+        <section class="mt-8">
+          <h2 class="text-xl font-semibold border-b-2 border-gray-300 pb-1 mb-3">Work Experience</h2>
+
+          <div class="mb-6">
+            <p class="text-gray-500 text-sm">{{experience_1_dates}}</p>
+            <h3 class="font-semibold text-gray-800">{{experience_1_company}}</h3>
+            <p class="text-gray-700 font-medium mb-2">{{experience_1_role}}</p>
+            <ul class="list-disc pl-5 text-sm text-gray-700 space-y-1">
+              <li>{{experience_1_bullet_1}}</li>
+              <li>{{experience_1_bullet_2}}</li>
+              <li>{{experience_1_bullet_3}}</li>
+            </ul>
+          </div>
+
+          <div class="mb-6">
+            <p class="text-gray-500 text-sm">{{experience_2_dates}}</p>
+            <h3 class="font-semibold text-gray-800">{{experience_2_company}}</h3>
+            <p class="text-gray-700 font-medium mb-2">{{experience_2_role}}</p>
+            <ul class="list-disc pl-5 text-sm text-gray-700 space-y-1">
+              <li>{{experience_2_bullet_1}}</li>
+              <li>{{experience_2_bullet_2}}</li>
+              <li>{{experience_2_bullet_3}}</li>
+            </ul>
+          </div>
+
+          <div>
+            <p class="text-gray-500 text-sm">{{experience_3_dates}}</p>
+            <h3 class="font-semibold text-gray-800">{{experience_3_company}}</h3>
+            <p class="text-gray-700 font-medium mb-2">{{experience_3_role}}</p>
+            <ul class="list-disc pl-5 text-sm text-gray-700 space-y-1">
+              <li>{{experience_3_bullet_1}}</li>
+              <li>{{experience_3_bullet_2}}</li>
+              <li>{{experience_3_bullet_3}}</li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="mt-8">
+          <h2 class="text-xl font-semibold border-b-2 border-gray-300 pb-1 mb-3">References</h2>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p class="font-semibold">{{reference_1_name}}</p>
+              <p class="text-sm text-gray-700">{{reference_1_title}}</p>
+              <p class="text-sm text-gray-700"><b>Phone:</b> {{reference_1_phone}}</p>
+              <p class="text-sm text-gray-700"><b>Email:</b> {{reference_1_email}}</p>
+            </div>
+
+            <div>
+              <p class="font-semibold">{{reference_2_name}}</p>
+              <p class="text-sm text-gray-700">{{reference_2_title}}</p>
+              <p class="text-sm text-gray-700"><b>Phone:</b> {{reference_2_phone}}</p>
+              <p class="text-sm text-gray-700"><b>Email:</b> {{reference_2_email}}</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+</body>
+</html>

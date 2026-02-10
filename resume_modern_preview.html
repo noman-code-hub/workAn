@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Resume - Noman Khan</title>
+  <style>
+    :root {
+      --accent-color: #5695cd;
+      --light-accent-color: #d9e7f7;
+      --progress-background: #d1d9e1;
+      --text-muted: #666;
+    }
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    body {
+      color-adjust: exact;
+      background-color: #fff;
+      font-family: 'Open Sans', sans-serif;
+      font-weight: 300;
+      display: flex;
+      justify-content: center;
+      margin: 0;
+    }
+    .resume {
+      display: block;
+      font-family: 'Roboto', sans-serif;
+      font-size: 13px;
+      font-weight: 400;
+      line-height: 1.5;
+      min-height: 1123px;
+      width: 794px;
+      position: relative;
+      padding-bottom: 3em;
+    }
+    .resume h1 { font-size: 2.6em; font-weight: 600; letter-spacing: -0.5px; margin: 0 0 0.2em 0; }
+    .resume h2 { font-size: 1.4em; font-weight: 600; line-height: 1.2; margin: 0 0 0.4em 0; }
+    .resume p { margin: 0 0 1em 0; }
+    .resume ul { padding-left: 20px; margin: 0; }
+    .resume__header { padding: 5em 4em 0; }
+    .resume__header-content { display: flex; align-items: center; gap: 1.5em; }
+    .header-photo {
+      width: 92px;
+      height: 92px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 4px solid var(--light-accent-color);
+    }
+    .resume__section { margin-bottom: 3em; }
+    .resume__section-title { display: flex; align-items: center; margin-bottom: 1.2em; }
+    .resume__section-title > span {
+      margin-right: 0.6em;
+      font-size: 0.9em;
+      background-color: var(--accent-color);
+      color: white;
+      border: 0.25em solid var(--light-accent-color);
+      border-radius: 50%;
+      width: 2.4em;
+      height: 2.4em;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+    }
+    .resume__columns { overflow: hidden; padding: 3.5em 4em 4em; padding-top: 2em; }
+    .resume__main { float: left; width: 72%; padding-right: 4em; }
+    .resume__side { float: left; width: 28%; }
+    .info-item { margin-bottom: 0.4em; font-weight: 300; display: flex; align-items: center; }
+    .info-text { font-size: 1em; }
+    .info-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2em;
+      height: 2em;
+      border-radius: 50%;
+      background: var(--accent-color);
+      color: #fff;
+      margin-right: 0.6em;
+      font-size: 0.8em;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .xp-item { margin-bottom: 2.2em; }
+    .xp-job { font-size: 1.08em; font-weight: 600; line-height: 1.25; }
+    .xp-job span, .xp-job small { font-weight: 400; }
+    .xp-job small { font-size: 0.9em; color: var(--text-muted); display: block; }
+    .xp-date { font-size: 0.85em; margin-top: 0.3em; margin-bottom: 0.8em; color: var(--accent-color); }
+    .section-list { list-style: disc; padding-left: 1.2em; }
+    .section-list li { margin-bottom: 0.4em; }
+    .extra { margin-bottom: 1.5em; }
+    .extra small { color: var(--text-muted); display: inline-block; font-size: 0.85em; }
+    @media print {
+      body { min-width: initial !important; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="resume">
+    <section class="resume__section resume__header">
+      <div class="resume__header-content">
+        <div class="resume__content">
+          <h1>Noman Khan</h1>
+          <h2>React Native Developer</h2>
+          <div class="info-item">
+            <span class="info-icon">L</span>
+            <span class="info-text">Pakistan</span>
+          </div>
+          <div class="info-item">
+            <span class="info-icon">@</span>
+            <span class="info-text">nomankhan@gmail.com</span>
+          </div>
+          <div class="info-item">
+            <span class="info-icon">P</span>
+            <span class="info-text">0344-1036699</span>
+          </div>
+          <div class="info-item">
+            <span class="info-icon">W</span>
+            <span class="info-text">nomankhan.dev</span>
+          </div>
+          <div class="info-item">
+            <span class="info-icon">in</span>
+            <span class="info-text">linkedin.com&#x2F;in&#x2F;nomankhan</span>
+          </div>
+        </div>
+      </div>
+    </section>
+    <div class="resume__columns">
+      <div class="resume__main">
+        <section class="resume__section resume__summary">
+          <div class="resume__content">
+            <div class="resume__section-title">
+              <span>S</span><h2>Professional Summary</h2>
+            </div>
+            <p>Product-focused React Native developer with experience building reliable mobile apps and scalable UI systems.</p>
+          </div>
+        </section>
+
+        <section class="resume__section resume__experience">
+          <div class="resume__content">
+            <div class="resume__section-title">
+              <span>E</span><h2>Employment History</h2>
+            </div>
+            <div class="xp-item">
+              <div class="xp-job">
+                React Developer
+                <span> — Quantum Lab</span>
+              </div>
+              <div class="xp-date">2022-2026</div>
+              <ul class="section-list">
+                <li>Built reusable UI components</li><li>Improved performance by 30%</li><li>Collaborated with design and backend teams</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="resume__section resume__projects">
+          <div class="resume__content">
+            <div class="resume__section-title">
+              <span>P</span><h2>Projects</h2>
+            </div>
+            <ul class="section-list">
+              <li>Mobile CRM App — React Native + Firebase</li><li>E-commerce UI Kit — Component library</li>
+            </ul>
+          </div>
+        </section>
+      </div>
+      <div class="resume__side">
+        <section class="resume__section resume__skills">
+          <div class="resume__content">
+            <div class="resume__section-title">
+              <span>K</span><h2>Skills</h2>
+            </div>
+            <ul class="section-list">
+              <li>React</li><li>React Native</li><li>TypeScript</li><li>Node.js</li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="resume__section resume__education">
+          <div class="resume__content">
+            <div class="resume__section-title">
+              <span>Ed</span><h2>Education</h2>
+            </div>
+            <div class="extra">
+              <div class="xp-job">BS Software Engineering</div>
+              <small>University of Swat</small>
+              <div class="xp-date">2022-2026</div>
+              <ul class="section-list">
+                <li>Graduated with distinction</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="resume__section resume__additional">
+          <div class="resume__content">
+            <div class="resume__section-title">
+              <span>A</span><h2>Additional</h2>
+            </div>
+            <ul class="section-list">
+              <li>Languages: English, Urdu</li>
+            </ul>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

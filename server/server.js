@@ -1,0 +1,91 @@
+// Force reload
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import jobsRouter from './routes/jobs.js';
+import resumeRouter from './routes/resume.js';
+import careerRouter from './routes/career.js';
+import resumeAnalysisRouter from './routes/resume-analysis.js';
+import resumeGeneratorRouter from './routes/resume-generator.js';
+import templatesRouter from './routes/templates.js';
+import admin from 'firebase-admin';
+import fs from 'fs';
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Ensure uploads directory exists
+if (!fs.existsSync('uploads')) {
+    fs.mkdirSync('uploads');
+}
+
+// Initialize Firebase Admin
+try {
+    admin.initializeApp({
+        projectId: "workan-fb4ef"
+    });
+    console.log("🔥 Firebase Admin initialized");
+} catch (error) {
+    console.warn("⚠️ Firebase Admin initialization failed. Firestore saves might fail.", error.message);
+}
+
+// Middleware
+app.use(cors({
+    origin: [
+        'http://localhost:5173', 'http://127.0.0.1:5173',
+        'http://localhost:5174', 'http://127.0.0.1:5174',
+        'http://localhost:5175', 'http://127.0.0.1:5175',
+        'http://localhost:5176', 'http://127.0.0.1:5176'
+    ], // frontend origins
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true,
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Logging middleware
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    next();
+});
+
+// Routes
+app.use('/api/jobs', jobsRouter);
+app.use('/api', resumeRouter);
+app.use('/api', careerRouter);
+app.use('/api', resumeAnalysisRouter);
+app.use('/api', resumeGeneratorRouter);
+app.use('/api/templates', templatesRouter);
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        message: 'CareerPilot API Server is running',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// 404 handler
+app.use((req, res) => {
+    res.status(404).json({
+        error: 'Not Found',
+        message: `Route ${req.method} ${req.path} not found`
+    });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error('Error:', err);
+    res.status(err.status || 500).json({
+        error: err.message || 'Internal Server Error',
+        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    });
+});
+
+app.listen(PORT, () => {
+    console.log(`✅ Server running at http://localhost:${PORT}`);
+    console.log(`📍 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
+    console.log(`🔗 API Base URL: http://localhost:${PORT}`);
+    console.log(`✅ Health check: http://localhost:${PORT}/health`);
+});

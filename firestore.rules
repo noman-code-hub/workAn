@@ -1,0 +1,176 @@
+// Firebase Firestore Security Rules for Role-Based Access Control (RBAC)
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to get the user's role from their document
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() == 'admin';
+    }
+    
+    // Helper function to check if user is recruiter or admin
+    function isRecruiterOrAdmin() {
+      return isAuthenticated() && (getUserRole() == 'recruiter' || getUserRole() == 'admin');
+    }
+    
+    // Users collection rules
+    match /users/{userId} {
+      // Anyone authenticated can read any user profile
+      allow read: if isAuthenticated();
+      
+      // Users can create their own profile (on signup)
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      
+      // Users can update their own profile (except role field)
+      // Admins can update any user's profile including role
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])) ||
+        isAdmin()
+      );
+      
+      // Only admins can delete users
+      allow delete: if isAdmin();
+    }
+    
+    // Blog posts and Community posts collection rules
+    match /posts/{postId} {
+      // Anyone authenticated can read posts
+      allow read: if isAuthenticated();
+      
+      // Authenticated users can create posts
+      allow create: if isAuthenticated() && (
+        (request.resource.data.userId == request.auth.uid) || 
+        (request.resource.data.authorId == request.auth.uid)
+      );
+      
+      // Users can update/delete their own posts, admins can update/delete any post
+      allow update, delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || 
+        resource.data.authorId == request.auth.uid || 
+        isAdmin()
+      );
+    }
+    
+    // Comments collection rules
+    match /comments/{commentId} {
+      // Anyone authenticated can read comments
+      allow read: if isAuthenticated();
+      
+      // Authenticated users can create comments
+      allow create: if isAuthenticated() && (
+        (request.resource.data.userId == request.auth.uid) || 
+        (request.resource.data.authorId == request.auth.uid)
+      );
+      
+      // Users can update/delete their own comments, admins can update/delete any comment
+      allow update, delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || 
+        resource.data.authorId == request.auth.uid || 
+        isAdmin()
+      );
+    }
+    
+    // Job applications collection rules (future use)
+    match /applications/{applicationId} {
+      // Users can read their own applications
+      // Recruiters and admins can read all applications
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isRecruiterOrAdmin()
+      );
+      
+      // Users can create applications for themselves
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      
+      // Users can update/delete their own applications
+      // Recruiters and admins can update any application (e.g., change status)
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isRecruiterOrAdmin()
+      );
+      
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+    }
+    
+    // Job postings collection rules
+    match /jobs/{jobId} {
+      // Anyone authenticated can read job postings
+      allow read: if isAuthenticated();
+      
+      // Only recruiters and admins can create job postings
+      allow create: if isRecruiterOrAdmin();
+      
+      // Recruiters can update their own job postings, admins can update any
+      allow update: if isRecruiterOrAdmin() && (
+        resource.data.postedBy == request.auth.uid || isAdmin()
+      );
+      
+      // Recruiters can delete their own job postings, admins can delete any
+      allow delete: if isRecruiterOrAdmin() && (
+        resource.data.postedBy == request.auth.uid || isAdmin()
+      );
+
+      // Applicants subcollection
+      match /applicants/{applicantId} {
+        // Applicant can read their own, job poster/admin can read all
+        allow read: if isAuthenticated() && (
+          resource.data.userId == request.auth.uid || 
+          get(/databases/$(database)/documents/jobs/$(jobId)).data.postedBy == request.auth.uid ||
+          isAdmin()
+        );
+
+        // Only regular users can apply
+        allow create: if isAuthenticated() && getUserRole() == 'user';
+
+        // Only job poster/admin can update status
+        allow update: if isAuthenticated() && (
+          get(/databases/$(database)/documents/jobs/$(jobId)).data.postedBy == request.auth.uid ||
+          isAdmin()
+        );
+      }
+    }
+    
+    // Default deny all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+/**
+ * DEPLOYMENT INSTRUCTIONS:
+ * 
+ * 1. Go to Firebase Console: https://console.firebase.google.com/
+ * 2. Select your project (workan-fb4ef)
+ * 3. Navigate to Firestore Database > Rules
+ * 4. Copy and paste these rules
+ * 5. Click "Publish"
+ * 
+ * TESTING:
+ * 
+ * You can test these rules in the Firebase Console:
+ * - Go to Firestore Database > Rules > Rules Playground
+ * - Select a collection (e.g., users)
+ * - Choose an operation (read/write)
+ * - Specify authentication UID
+ * - Click "Run"
+ * 
+ * KEY SECURITY FEATURES:
+ * 
+ * 1. Role Protection: Users cannot elevate their own role
+ * 2. Admin Control: Only admins can modify user roles
+ * 3. User Privacy: Users can only modify their own data (except admins)
+ * 4. Recruiter Access: Recruiters can manage job postings and view applications
+ * 5. Default Deny: All unspecified collections are denied by default
+ */

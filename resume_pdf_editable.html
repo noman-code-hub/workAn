@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Resume - {{name}}</title>
+  <style>
+    :root {
+      --accent: #2b6edb;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --rule: #e5e7eb;
+    }
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #fff;
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    .resume {
+      width: 794px;
+      min-height: 1123px;
+      margin: 0 auto;
+      padding: 48px 64px 56px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .name {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+    .role {
+      margin: 8px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .contact-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 14px 18px;
+      margin-top: 14px;
+      font-size: 12px;
+      color: var(--text);
+    }
+    .contact-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .contact-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .section {
+      margin-bottom: 24px;
+    }
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin: 0 0 10px;
+    }
+    .section-rule {
+      height: 1px;
+      background: var(--rule);
+      margin-bottom: 12px;
+    }
+    .summary {
+      font-size: 12.5px;
+      line-height: 1.6;
+      margin: 0;
+    }
+    .list {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 12.5px;
+      line-height: 1.6;
+    }
+    .list li { margin-bottom: 4px; }
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px 28px;
+    }
+    .entry {
+      margin-bottom: 14px;
+    }
+    .entry-title {
+      font-weight: 700;
+      font-size: 12.8px;
+      margin: 0;
+    }
+    .entry-subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 2px 0 6px;
+    }
+    .entry-date {
+      font-size: 11.5px;
+      color: var(--accent);
+      margin: 0 0 6px;
+    }
+    .footer-note {
+      font-size: 11px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="resume">
+    <header class="header">
+      <h1 class="name">{{name}}</h1>
+      {{#role}}<div class="role">{{role}}</div>{{/role}}
+      <div class="contact-row">
+        {{#email}}
+        <div class="contact-item"><span class="contact-dot">@</span>{{email}}</div>
+        {{/email}}
+        {{#phone}}
+        <div class="contact-item"><span class="contact-dot">P</span>{{phone}}</div>
+        {{/phone}}
+        {{#location}}
+        <div class="contact-item"><span class="contact-dot">L</span>{{location}}</div>
+        {{/location}}
+        {{#github}}
+        <div class="contact-item"><span class="contact-dot">G</span>{{github}}</div>
+        {{/github}}
+        {{#linkedin}}
+        <div class="contact-item"><span class="contact-dot">in</span>{{linkedin}}</div>
+        {{/linkedin}}
+        {{#website}}
+        <div class="contact-item"><span class="contact-dot">W</span>{{website}}</div>
+        {{/website}}
+      </div>
+    </header>
+
+    {{#hasSummary}}
+    <section class="section">
+      <div class="section-title">Profile Summary</div>
+      <div class="section-rule"></div>
+      <p class="summary">{{summary}}</p>
+    </section>
+    {{/hasSummary}}
+
+    {{#hasSkills}}
+    <section class="section">
+      <div class="section-title">Skills</div>
+      <div class="section-rule"></div>
+      <ul class="list">
+        {{#skills}}<li>{{.}}</li>{{/skills}}
+      </ul>
+    </section>
+    {{/hasSkills}}
+
+    {{#hasEducation}}
+    <section class="section">
+      <div class="section-title">Education</div>
+      <div class="section-rule"></div>
+      {{#education}}
+      <div class="entry">
+        {{#degree}}<p class="entry-title">{{degree}}</p>{{/degree}}
+        {{#school}}<p class="entry-subtitle">{{school}}</p>{{/school}}
+        {{#dates}}<p class="entry-date">{{dates}}</p>{{/dates}}
+        {{#hasBullets}}
+        <ul class="list">
+          {{#bullets}}<li>{{.}}</li>{{/bullets}}
+        </ul>
+        {{/hasBullets}}
+      </div>
+      {{/education}}
+    </section>
+    {{/hasEducation}}
+
+    {{#hasExperience}}
+    <section class="section">
+      <div class="section-title">Experience</div>
+      <div class="section-rule"></div>
+      {{#experience}}
+      <div class="entry">
+        <p class="entry-title">
+          {{#role}}{{role}}{{/role}}{{#company}} | {{company}}{{/company}}
+        </p>
+        {{#dates}}<p class="entry-date">{{dates}}</p>{{/dates}}
+        {{#hasBullets}}
+        <ul class="list">
+          {{#bullets}}<li>{{.}}</li>{{/bullets}}
+        </ul>
+        {{/hasBullets}}
+      </div>
+      {{/experience}}
+    </section>
+    {{/hasExperience}}
+
+    {{#hasProjects}}
+    <section class="section">
+      <div class="section-title">Academic Projects</div>
+      <div class="section-rule"></div>
+      <ul class="list">
+        {{#projects}}<li>{{.}}</li>{{/projects}}
+      </ul>
+    </section>
+    {{/hasProjects}}
+
+    {{#hasAdditional}}
+    <section class="section">
+      <div class="section-title">Additional</div>
+      <div class="section-rule"></div>
+      <ul class="list">
+        {{#additional}}<li>{{.}}</li>{{/additional}}
+      </ul>
+    </section>
+    {{/hasAdditional}}
+  </div>
+</body>
+</html>
