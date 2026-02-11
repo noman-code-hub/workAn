@@ -20,6 +20,7 @@ export const Resume = () => {
   const [skillsText, setSkillsText] = useState(user?.skills?.join(", ") || "");
   const [projectsText, setProjectsText] = useState("");
   const [additionalText, setAdditionalText] = useState("");
+  const [customDetails, setCustomDetails] = useState<{ id: string; label: string; value: string }[]>([]);
   const [educationItems, setEducationItems] = useState([
     { id: 'edu-1', school: '', degree: '', dates: '', details: '' },
   ]);
@@ -33,6 +34,7 @@ export const Resume = () => {
     'projects',
     'education',
     'skills',
+    'custom',
     'additional',
     'extra',
   ]);
@@ -180,6 +182,9 @@ export const Resume = () => {
     'hasskills',
     'hasprojects',
     'hasadditional',
+    'customdetails',
+    'custom_details',
+    'hascustomdetails',
     'bullets',
     'hasbullets',
   ].map((key) => normalizeFieldKey(key))), []);
@@ -227,6 +232,15 @@ export const Resume = () => {
   const removeEducationItem = (id: string) =>
     setEducationItems((prev) => (prev.length > 1 ? prev.filter((item) => item.id !== id) : prev));
 
+  const addCustomDetail = () =>
+    setCustomDetails((prev) => [...prev, { id: makeId('custom'), label: '', value: '' }]);
+
+  const updateCustomDetail = (id: string, patch: Partial<(typeof customDetails)[number]>) =>
+    setCustomDetails((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+
+  const removeCustomDetail = (id: string) =>
+    setCustomDetails((prev) => prev.filter((item) => item.id !== id));
+
   const sectionCompletion = useMemo(() => {
     const hasChars = (value: string, minChars = 2) => value.trim().length >= minChars;
     const hasLongText = (value: string, minChars = 20) => value.trim().length >= minChars;
@@ -253,6 +267,9 @@ export const Resume = () => {
     });
 
     const anyExtraFilled = extraFields.some((field) => (templateFieldValues[field] || '').trim().length >= 3);
+    const anyCustomFilled = customDetails.some((item) =>
+      (item.label || item.value || '').toString().trim().length >= 3
+    );
     const skillsCount = parseItems(skillsText).length;
     const projectsCount = parseItems(projectsText).length;
     const additionalCount = parseItems(additionalText).length;
@@ -264,11 +281,13 @@ export const Resume = () => {
       projects: projectsCount >= 1,
       education: anyEducationFilled,
       skills: skillsCount >= 2,
+      custom: anyCustomFilled,
       additional: additionalCount >= 1,
       extra: anyExtraFilled,
     } as Record<string, boolean>;
   }, [
     additionalText,
+    customDetails,
     contactName,
     contactRole,
     educationItems,
@@ -310,6 +329,16 @@ export const Resume = () => {
     const skills = parseCommaOrNewline(skillsText);
     const projects = parseNewline(projectsText);
     const additional = parseNewline(additionalText);
+    const customDetailLines = customDetails
+      .map((item) => {
+        const label = item.label.trim();
+        const value = item.value.trim();
+        if (!label && !value) return '';
+        if (label && value) return `${label}: ${value}`;
+        return label || value;
+      })
+      .filter(Boolean);
+    const combinedAdditional = [...additional];
 
     const experienceItemsView = experienceItems
       .map((item) => {
@@ -360,7 +389,10 @@ export const Resume = () => {
 
     const skillsValue = templateHasSection('skills') ? skills : skills.join(', ');
     const projectsValue = templateHasSection('projects') ? projects : projects.join('\n');
-    const additionalValue = templateHasSection('additional') ? additional : additional.join('\n');
+    const additionalValue = templateHasSection('additional') ? combinedAdditional : combinedAdditional.join('\n');
+    const customDetailsValue = templateHasSection('custom_details')
+      ? customDetailLines
+      : customDetailLines.join('\n');
     const experienceValue = templateHasSection('experience') ? experienceItemsView : experienceText;
     const educationValue = templateHasSection('education') ? educationItemsView : educationText;
 
@@ -392,13 +424,17 @@ export const Resume = () => {
       hasEducation: educationItemsView.length > 0,
       projects: projectsValue,
       hasProjects: projects.length > 0,
+      custom_details: customDetailsValue,
+      customdetails: customDetailsValue,
+      hasCustomDetails: customDetailLines.length > 0,
       additional: additionalValue,
-      hasAdditional: additional.length > 0,
+      hasAdditional: combinedAdditional.length > 0,
     };
 
     return view;
   }, [
     additionalText,
+    customDetails,
     contactEmail,
     contactLocation,
     contactName,
@@ -438,6 +474,7 @@ export const Resume = () => {
     hasTemplateField('projects') ? 'projects' : null,
     hasTemplateField('education') ? 'education' : null,
     hasTemplateField('skills') ? 'skills' : null,
+    'custom',
     hasTemplateField('additionalinfo') ? 'additional' : null,
     extraFields.length > 0 ? 'extra' : null,
   ].filter(Boolean) as string[]), [extraFields.length, hasTemplateField]);
@@ -901,16 +938,17 @@ export const Resume = () => {
                   <div className="builder-panel">
                     <div className="space-y-5">
                       {sectionOrder.map((sectionId) => {
-                    const sectionTitle = {
-                      contact: 'Contact',
-                      summary: 'Professional Summary',
-                      experience: 'Work Experience',
-                      projects: 'Projects',
-                      education: 'Education',
-                      skills: 'Skills',
-                      additional: 'Additional Information',
-                      extra: 'Other Fields',
-                    }[sectionId];
+                      const sectionTitle = {
+                        contact: 'Contact',
+                        summary: 'Professional Summary',
+                        experience: 'Work Experience',
+                        projects: 'Projects',
+                        education: 'Education',
+                        skills: 'Skills',
+                        custom: 'Custom Details',
+                        additional: 'Additional Information',
+                        extra: 'Other Fields',
+                      }[sectionId];
 
                     const sectionContent = {
                       contact: (
@@ -1156,6 +1194,51 @@ export const Resume = () => {
                             value={skillsText}
                             onChange={(e) => setSkillsText(e.target.value)}
                           />
+                        </div>
+                      ),
+                      custom: (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-semibold text-gray-700">Add extra details</span>
+                            <button
+                              type="button"
+                              onClick={addCustomDetail}
+                              className="text-sm font-semibold text-primary hover:text-primary-dark"
+                            >
+                              + Add Detail
+                            </button>
+                          </div>
+                          {customDetails.length === 0 ? (
+                            <div className="text-sm text-gray-500">
+                              Add label/value pairs for extra details like Certifications, Awards, or Licenses.
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {customDetails.map((item) => (
+                                <div key={item.id} className="grid grid-cols-1 md:grid-cols-[1fr,2fr,auto] gap-3">
+                                  <input
+                                    placeholder="Label (e.g. Certifications)"
+                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                    value={item.label}
+                                    onChange={(e) => updateCustomDetail(item.id, { label: e.target.value })}
+                                  />
+                                  <input
+                                    placeholder="Value (e.g. BLS, ACLS)"
+                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                    value={item.value}
+                                    onChange={(e) => updateCustomDetail(item.id, { value: e.target.value })}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => removeCustomDetail(item.id)}
+                                    className="text-sm font-semibold text-gray-500 hover:text-gray-700"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ),
                       additional: (
@@ -2302,5 +2385,3 @@ export const Resume = () => {
     </div>
   );
 };
-
-
