@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resume - {{name}}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    @page { size: A4; margin: 0; }
+
+    body {
+      margin: 0;
+      background: #eaeaea;
+      font-family: 'Inter', 'Helvetica', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 20px;
+      color-adjust: exact;
+    }
+
+    .toolbar {
+      width: 900px;
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 16px;
+    }
+
+    .toolbar button {
+      background: #3d4654;
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 24px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .toolbar button:hover {
+      background: #2f3642;
+      transform: translateY(-1px);
+    }
+
+    .resume {
+      width: 900px;
+      background: white;
+      display: flex;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.15);
+      min-height: 1100px;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      background: #3d4654;
+      color: white;
+      padding: 50px 35px;
+    }
+
+    .profile-img {
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      overflow: hidden;
+      margin: 0 auto 45px;
+      border: 6px solid #4d5766;
+      background: #4d5766;
+    }
+
+    .profile-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .sidebar h2 {
+      border-bottom: 2px solid white;
+      padding-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-top: 35px;
+      margin-bottom: 20px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .sidebar h2:first-of-type {
+      margin-top: 0;
+    }
+
+    .sidebar-content {
+      font-size: 13px;
+      line-height: 1.7;
+      margin-bottom: 15px;
+    }
+
+    .sidebar-content div {
+      margin-bottom: 15px;
+    }
+
+    .sidebar-content strong {
+      font-weight: 600;
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .sidebar ul {
+      font-size: 13px;
+      padding-left: 20px;
+      line-height: 1.8;
+      list-style: disc;
+    }
+
+    .sidebar ul li {
+      margin-bottom: 8px;
+    }
+
+    .language-item {
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    /* Main Area */
+    .main {
+      flex: 1;
+      padding: 50px 50px 50px 55px;
+      color: #333;
+    }
+
+    .main h1 {
+      font-size: 52px;
+      margin: 0;
+      color: #3d4654;
+      font-weight: 800;
+      letter-spacing: -1px;
+    }
+
+    .main h4 {
+      font-size: 18px;
+      margin: 8px 0 25px;
+      color: #555;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      font-weight: 400;
+    }
+
+    .intro-text {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.8;
+      text-align: justify;
+      margin-bottom: 35px;
+      white-space: pre-line;
+    }
+
+    .section-title {
+      border-bottom: 2px solid #ddd;
+      padding-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-top: 45px;
+      margin-bottom: 30px;
+      font-size: 20px;
+      font-weight: 700;
+      color: #3d4654;
+    }
+
+    /* Timeline */
+    .timeline {
+      border-left: 2px solid #3d4654;
+      margin-left: 10px;
+      padding-left: 30px;
+      position: relative;
+    }
+
+    .timeline-item {
+      margin-bottom: 35px;
+      position: relative;
+    }
+
+    .timeline-item::before {
+      content: '';
+      width: 14px;
+      height: 14px;
+      background: white;
+      border: 3px solid #3d4654;
+      border-radius: 50%;
+      position: absolute;
+      left: -38px;
+      top: 3px;
+    }
+
+    .timeline-date {
+      font-weight: 700;
+      font-size: 13px;
+      color: #3d4654;
+      margin-bottom: 5px;
+    }
+
+    .job-title {
+      font-weight: 700;
+      font-size: 15px;
+      margin-bottom: 3px;
+      color: #2a2a2a;
+    }
+
+    .company-name {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+
+    .job-desc {
+      font-size: 12px;
+      color: #666;
+      line-height: 1.7;
+      text-align: justify;
+    }
+
+    .job-desc ul {
+      padding-left: 18px;
+      list-style: disc;
+    }
+
+    .job-desc li {
+      margin-bottom: 6px;
+    }
+
+    .reference-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      margin-top: 25px;
+    }
+
+    .reference-item {
+      font-size: 13px;
+      line-height: 1.7;
+      color: #333;
+    }
+
+    .reference-item strong {
+      font-weight: 700;
+      font-size: 14px;
+      display: block;
+      margin-bottom: 3px;
+      color: #2a2a2a;
+    }
+
+    .reference-item .position {
+      color: #666;
+      font-size: 12px;
+    }
+
+    .simple-list {
+      margin: 0;
+      padding-left: 18px;
+      list-style: disc;
+      color: #666;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .simple-list li {
+      margin-bottom: 6px;
+    }
+
+    /* Print Styles */
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+
+      .resume {
+        box-shadow: none;
+        width: 100%;
+      }
+
+      .no-print {
+        display: none !important;
+      }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .toolbar {
+        width: 100%;
+      }
+
+      .resume {
+        flex-direction: column;
+        width: 100%;
+      }
+
+      .sidebar {
+        width: 100%;
+      }
+
+      .main {
+        padding: 40px 30px;
+      }
+
+      .main h1 {
+        font-size: 38px;
+      }
+
+      .reference-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="resume-root" class="resume">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      {{#photo_url}}
+      <div class="profile-img">
+        <img src="{{photo_url}}" alt="Profile Photo">
+      </div>
+      {{/photo_url}}
+
+      <h2>Contact</h2>
+      <div class="sidebar-content">
+        {{#phone}}
+        <div>
+          <strong>Phone</strong>
+          {{phone}}
+        </div>
+        {{/phone}}
+        {{#email}}
+        <div>
+          <strong>Email</strong>
+          {{email}}
+        </div>
+        {{/email}}
+        {{#location}}
+        <div>
+          <strong>Address</strong>
+          {{location}}
+        </div>
+        {{/location}}
+        {{#website}}
+        <div>
+          <strong>Website</strong>
+          {{website}}
+        </div>
+        {{/website}}
+        {{#linkedin}}
+        <div>
+          <strong>LinkedIn</strong>
+          {{linkedin}}
+        </div>
+        {{/linkedin}}
+        {{#github}}
+        <div>
+          <strong>GitHub</strong>
+          {{github}}
+        </div>
+        {{/github}}
+      </div>
+
+      {{#hasEducation}}
+      <h2>Education</h2>
+      <div class="sidebar-content">
+        {{#education}}
+        <div>
+          {{#dates}}<strong>{{dates}}</strong>{{/dates}}
+          {{#degree}}<div>{{degree}}</div>{{/degree}}
+          {{#school}}<div>{{school}}</div>{{/school}}
+          {{#hasBullets}}
+          <ul>
+            {{#bullets}}<li>{{.}}</li>{{/bullets}}
+          </ul>
+          {{/hasBullets}}
+        </div>
+        {{/education}}
+      </div>
+      {{/hasEducation}}
+
+      {{#hasSkills}}
+      <h2>Expertise</h2>
+      <ul>
+        {{#skills}}<li>{{.}}</li>{{/skills}}
+      </ul>
+      {{/hasSkills}}
+
+      {{#languages}}
+      <h2>Language</h2>
+      <div class="sidebar-content">
+        {{#languages}}
+        <div class="language-item">{{.}}</div>
+        {{/languages}}
+      </div>
+      {{/languages}}
+      {{^languages}}
+      {{#hasAdditional}}
+      <h2>Language</h2>
+      <div class="sidebar-content">
+        {{#additional}}
+        <div class="language-item">{{.}}</div>
+        {{/additional}}
+      </div>
+      {{/hasAdditional}}
+      {{/languages}}
+    </div>
+
+    <!-- Main Content -->
+    <div class="main">
+      <h1>{{name}}</h1>
+      {{#role}}<h4>{{role}}</h4>{{/role}}
+      {{#hasSummary}}
+      <p class="intro-text">{{summary}}</p>
+      {{/hasSummary}}
+
+      {{#hasExperience}}
+      <div class="section-title">Experience</div>
+      <div class="timeline">
+        {{#experience}}
+        <div class="timeline-item">
+          {{#dates}}<div class="timeline-date">{{dates}}</div>{{/dates}}
+          {{#company}}<div class="company-name">{{company}}</div>{{/company}}
+          {{#role}}<div class="job-title">{{role}}</div>{{/role}}
+          {{#hasBullets}}
+          <div class="job-desc">
+            <ul>
+              {{#bullets}}<li>{{.}}</li>{{/bullets}}
+            </ul>
+          </div>
+          {{/hasBullets}}
+        </div>
+        {{/experience}}
+      </div>
+      {{/hasExperience}}
+
+      {{#references}}
+      <div class="section-title">Reference</div>
+      <div class="reference-grid">
+        {{#references}}
+        <div class="reference-item">
+          <strong>{{name}}</strong>
+          {{#title}}<div class="position">{{title}}</div>{{/title}}
+          {{#phone}}<div>Phone: {{phone}}</div>{{/phone}}
+          {{#email}}<div>Email: {{email}}</div>{{/email}}
+        </div>
+        {{/references}}
+      </div>
+      {{/references}}
+      {{^references}}
+      {{#hasProjects}}
+      <div class="section-title">Reference</div>
+      <div class="reference-grid">
+        {{#projects}}
+        <div class="reference-item">{{.}}</div>
+        {{/projects}}
+      </div>
+      {{/hasProjects}}
+      {{/references}}
+    </div>
+  </div>
+</body>
+</html>

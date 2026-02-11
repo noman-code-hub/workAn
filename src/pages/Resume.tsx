@@ -128,8 +128,9 @@ export const Resume = () => {
   ];
 
   const filteredTemplates = useMemo(() => {
-    if (activeTemplateFilter === 'All templates') return templates;
-    return templates;
+    const withThumbnails = templates.filter((t) => !!t.thumbnailUrl);
+    if (activeTemplateFilter === 'All templates') return withThumbnails;
+    return withThumbnails;
   }, [activeTemplateFilter, templates]);
 
   const isTemplateSelection = templateStep === 'choose' || !selectedTemplate;
@@ -1811,7 +1812,7 @@ export const Resume = () => {
           display: flex;
           align-items: flex-start;
           justify-content: center;
-          padding-top: 10px;
+          // padding-top: 10px;
           width: 100%;
         }
 
@@ -2301,6 +2302,5 @@ export const Resume = () => {
     </div>
   );
 };
-
 
 

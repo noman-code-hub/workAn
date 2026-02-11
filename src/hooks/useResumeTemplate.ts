@@ -181,10 +181,12 @@ export const useResumeTemplate = (user?: User | null) => {
         })(),
       }));
 
-      setTemplates(mapped);
+      const visibleTemplates = mapped.filter((template) => template.thumbnailUrl);
 
-      if (mapped.length > 0) {
-        selectTemplate(mapped[0].name);
+      setTemplates(visibleTemplates);
+
+      if (visibleTemplates.length > 0) {
+        selectTemplate(visibleTemplates[0].name);
       } else {
         setSelectedTemplate('');
         setTemplatePreviewHtml(null);

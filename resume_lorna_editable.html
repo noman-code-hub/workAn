@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resume - {{name}}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    @page { size: A4; margin: 0; }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #f0f0f0;
+      padding: 30px 20px;
+      color-adjust: exact;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 40px auto 0 auto;
+      background: white;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.1);
+      position: relative;
+      padding-top: 0;
+      overflow: hidden;
+    }
+
+    .profile-section {
+      position: absolute;
+      top: 38px;
+      left: 20px;
+      z-index: 10;
+    }
+
+    .profile-img {
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      border: 8px solid white;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+      background: #ffffff;
+    }
+
+    .profile-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .header {
+      background: #2d2f35;
+      color: white;
+      padding: 30px 60px 30px 200px;
+      margin-bottom: 0;
+      margin-left: 0;
+      margin-top: 100px;
+      min-height: 80px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      top: 50px;
+    }
+
+    .header::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 165px;
+      height: 165px;
+      background: #e5e5e5;
+      border-radius: 0 50% 50% 0;
+      z-index: 1;
+    }
+
+    .header h1 {
+      font-size: 36px;
+      letter-spacing: 12px;
+      font-weight: 700;
+      margin: 0;
+      line-height: 1;
+      position: relative;
+      z-index: 2;
+    }
+
+    .header h2 {
+      font-size: 14px;
+      letter-spacing: 6px;
+      font-weight: 300;
+      margin-top: 8px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .content-wrapper {
+      display: flex;
+      margin-top: -125px;
+    }
+
+    .sidebar {
+      width: 265px;
+      background: #e5e5e5;
+      padding: 230px 35px 40px 40px;
+      height: 100%;
+    }
+
+    .main-content {
+      flex: 1;
+      padding: 40px 50px;
+      margin-top: 50px;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #333;
+      position: relative;
+    }
+
+    .sidebar .section-title {
+      border-bottom-color: #333;
+      margin-top: 35px;
+    }
+
+    .sidebar .section-title:first-of-type {
+      margin-top: 0;
+    }
+
+    .about-text {
+      font-size: 12px;
+      line-height: 1.7;
+      color: #333;
+      text-align: justify;
+      margin-bottom: 35px;
+      white-space: pre-line;
+    }
+
+    .education-item {
+      margin-bottom: 20px;
+    }
+
+    .education-item strong {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 3px;
+    }
+
+    .education-item p {
+      font-size: 11px;
+      color: #555;
+      margin: 2px 0;
+    }
+
+    .education-item ul {
+      padding-left: 18px;
+      font-size: 11px;
+      color: #555;
+      margin-top: 6px;
+    }
+
+    .skill-item {
+      margin-bottom: 15px;
+    }
+
+    .skill-name {
+      font-size: 12px;
+      margin-bottom: 5px;
+      color: #333;
+    }
+
+    .skill-bar {
+      background: #bbb;
+      height: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .skill-level {
+      background: #333;
+      height: 100%;
+      width: var(--level, 85%);
+    }
+
+    .language-list {
+      list-style: disc;
+      padding-left: 20px;
+      font-size: 12px;
+      color: #333;
+    }
+
+    .language-list li {
+      margin-bottom: 8px;
+    }
+
+    .contact-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 40px;
+      margin-bottom: 35px;
+      padding-bottom: 25px;
+      border-bottom: 1px solid #d5d5d5;
+    }
+
+    .contact-item {
+      font-size: 11px;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .contact-icon {
+      width: 22px;
+      height: 22px;
+      background: #2d2f35;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .timeline {
+      border-left: 2px solid #ddd;
+      margin-left: 8px;
+      padding-left: 25px;
+      position: relative;
+    }
+
+    .timeline-item {
+      margin-bottom: 35px;
+      position: relative;
+    }
+
+    .timeline-item::before {
+      content: '';
+      width: 14px;
+      height: 14px;
+      background: white;
+      border: 3px solid #333;
+      border-radius: 50%;
+      position: absolute;
+      left: -33px;
+      top: 3px;
+    }
+
+    .job-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 5px;
+      gap: 12px;
+    }
+
+    .job-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #333;
+    }
+
+    .job-date {
+      font-size: 12px;
+      color: #666;
+      font-style: italic;
+      white-space: nowrap;
+    }
+
+    .job-company {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .job-desc {
+      font-size: 11px;
+      color: #555;
+      line-height: 1.6;
+    }
+
+    .job-desc ul {
+      margin-top: 8px;
+      padding-left: 18px;
+    }
+
+    .job-desc ul li {
+      margin-bottom: 4px;
+    }
+
+    .references {
+      column-count: 2;
+      column-gap: 40px;
+      font-size: 12px;
+      color: #555;
+      white-space: pre-line;
+    }
+
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+
+      .container {
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="profile-section">
+      <div class="profile-img">
+        {{#photo_url}}
+        <img src="{{photo_url}}" alt="Profile Photo">
+        {{/photo_url}}
+      </div>
+    </div>
+
+    <div class="header">
+      <h1>{{name}}</h1>
+      {{#role}}<h2>{{role}}</h2>{{/role}}
+    </div>
+
+    <div class="content-wrapper">
+      <div class="sidebar">
+        {{#hasSummary}}
+        <div class="section-title">About Me</div>
+        <p class="about-text">{{summary}}</p>
+        {{/hasSummary}}
+
+        {{#hasEducation}}
+        <div class="section-title">Education</div>
+        {{#education}}
+        <div class="education-item">
+          {{#degree}}<strong>{{degree}}</strong>{{/degree}}
+          {{#school}}<p>{{school}}</p>{{/school}}
+          {{#dates}}<p>{{dates}}</p>{{/dates}}
+          {{#hasBullets}}
+          <ul>
+            {{#bullets}}<li>{{.}}</li>{{/bullets}}
+          </ul>
+          {{/hasBullets}}
+        </div>
+        {{/education}}
+        {{/hasEducation}}
+
+        {{#hasSkills}}
+        <div class="section-title">Skills</div>
+        {{#skills}}
+        <div class="skill-item">
+          <div class="skill-name">
+            {{#name}}{{name}}{{/name}}{{^name}}{{.}}{{/name}}
+          </div>
+          <div class="skill-bar" style="{{#level}}--level: {{level}};{{/level}}">
+            <div class="skill-level"></div>
+          </div>
+        </div>
+        {{/skills}}
+        {{/hasSkills}}
+
+        {{#hasProjects}}
+        <div class="section-title">Language</div>
+        <ul class="language-list">
+          {{#projects}}<li>{{.}}</li>{{/projects}}
+        </ul>
+        {{/hasProjects}}
+      </div>
+
+      <div class="main-content">
+        <div class="contact-grid">
+          {{#phone}}
+          <div class="contact-item">
+            <span class="contact-icon">P</span>
+            <span>{{phone}}</span>
+          </div>
+          {{/phone}}
+          {{#website}}
+          <div class="contact-item">
+            <span class="contact-icon">W</span>
+            <span>{{website}}</span>
+          </div>
+          {{/website}}
+          {{#email}}
+          <div class="contact-item">
+            <span class="contact-icon">@</span>
+            <span>{{email}}</span>
+          </div>
+          {{/email}}
+          {{#location}}
+          <div class="contact-item">
+            <span class="contact-icon">L</span>
+            <span>{{location}}</span>
+          </div>
+          {{/location}}
+          {{#linkedin}}
+          <div class="contact-item">
+            <span class="contact-icon">in</span>
+            <span>{{linkedin}}</span>
+          </div>
+          {{/linkedin}}
+          {{#github}}
+          <div class="contact-item">
+            <span class="contact-icon">GH</span>
+            <span>{{github}}</span>
+          </div>
+          {{/github}}
+        </div>
+
+        {{#hasExperience}}
+        <div class="section-title">Experience</div>
+        <div class="timeline">
+          {{#experience}}
+          <div class="timeline-item">
+            <div class="job-header">
+              {{#role}}<div class="job-title">{{role}}</div>{{/role}}
+              {{#dates}}<div class="job-date">{{dates}}</div>{{/dates}}
+            </div>
+            {{#company}}<div class="job-company">{{company}}</div>{{/company}}
+            {{#hasBullets}}
+            <div class="job-desc">
+              <ul>
+                {{#bullets}}<li>{{.}}</li>{{/bullets}}
+              </ul>
+            </div>
+            {{/hasBullets}}
+          </div>
+          {{/experience}}
+        </div>
+        {{/hasExperience}}
+
+        {{#hasAdditional}}
+        <div class="section-title">References</div>
+        <div class="references">{{additional}}</div>
+        {{/hasAdditional}}
+      </div>
+    </div>
+  </div>
+</body>
+</html>
