@@ -19,7 +19,7 @@ export const Resume = () => {
   const [summaryText, setSummaryText] = useState("");
   const [skillsText, setSkillsText] = useState(user?.skills?.join(", ") || "");
   const [projectsText, setProjectsText] = useState("");
-  const [additionalText, setAdditionalText] = useState("");
+  const [additionalText] = useState("");
   const [customDetails, setCustomDetails] = useState<{ id: string; label: string; value: string }[]>([]);
   const [educationItems, setEducationItems] = useState([
     { id: 'edu-1', school: '', degree: '', dates: '', details: '' },
@@ -35,8 +35,6 @@ export const Resume = () => {
     'education',
     'skills',
     'custom',
-    'additional',
-    'extra',
   ]);
   const [draggingSection, setDraggingSection] = useState<string | null>(null);
   const [activeSectionId, setActiveSectionId] = useState<string | null>('contact');
@@ -62,45 +60,7 @@ export const Resume = () => {
     templateFieldValues,
     templateSourceHtml,
     selectTemplate,
-    updateField,
   } = useResumeTemplate(user);
-
-  const formatFieldLabel = (field: string) =>
-    field
-      .replace(/[_.-]+/g, ' ')
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .replace(/\b\w/g, (match) => match.toUpperCase());
-
-  const getInputTypeForField = (field: string) => {
-    const lower = field.toLowerCase();
-    if (lower.includes('email')) return 'email';
-    if (lower.includes('phone') || lower.includes('mobile')) return 'tel';
-    if (lower.includes('url') || lower.includes('website') || lower.includes('portfolio') || lower.includes('linkedin') || lower.includes('github')) {
-      return 'url';
-    }
-    return 'text';
-  };
-
-  const isLongField = (field: string) => {
-    const lower = field.toLowerCase();
-    return [
-      'summary',
-      'objective',
-      'profile',
-      'experience',
-      'education',
-      'projects',
-      'certifications',
-      'awards',
-      'publications',
-      'references',
-      'additional',
-      'about',
-      'bio',
-    ].some((keyword) => lower.includes(keyword));
-  };
 
   const getTemplateFieldValue = (key: string) => {
     if (templateFieldValues[key]) return templateFieldValues[key];
@@ -138,8 +98,58 @@ export const Resume = () => {
   const isTemplateSelection = templateStep === 'choose' || !selectedTemplate;
 
   const hasTemplateField = useCallback(
-    (key: string) => templateFields.length === 0 || templateFieldSet.has(normalizeFieldKey(key)),
+    (key: string) => templateFields.length > 0 && templateFieldSet.has(normalizeFieldKey(key)),
     [templateFieldSet, templateFields.length]
+  );
+
+  const hasAnyTemplateField = useCallback(
+    (...keys: string[]) => keys.some((key) => hasTemplateField(key)),
+    [hasTemplateField]
+  );
+
+  const showNameField = useMemo(
+    () => hasAnyTemplateField('name', 'full_name', 'fullname', 'full-name'),
+    [hasAnyTemplateField]
+  );
+  const showRoleField = useMemo(
+    () => hasAnyTemplateField('role', 'title', 'position', 'jobtitle', 'targetrole'),
+    [hasAnyTemplateField]
+  );
+  const showEmailField = useMemo(() => hasAnyTemplateField('email'), [hasAnyTemplateField]);
+  const showPhoneField = useMemo(() => hasAnyTemplateField('phone', 'mobile'), [hasAnyTemplateField]);
+  const showLocationField = useMemo(
+    () => hasAnyTemplateField('location', 'address', 'city', 'country'),
+    [hasAnyTemplateField]
+  );
+  const showPhotoField = useMemo(() => hasAnyTemplateField('photo_url'), [hasAnyTemplateField]);
+
+  const showContactSection = useMemo(
+    () => [showNameField, showRoleField, showEmailField, showPhoneField, showLocationField, showPhotoField].some(Boolean),
+    [showEmailField, showLocationField, showNameField, showPhoneField, showPhotoField, showRoleField]
+  );
+  const showSummarySection = useMemo(
+    () => hasAnyTemplateField('summary', 'profile', 'objective', 'hassummary'),
+    [hasAnyTemplateField]
+  );
+  const showExperienceSection = useMemo(
+    () => hasAnyTemplateField('experience', 'work_experience', 'workexperience', 'hasexperience'),
+    [hasAnyTemplateField]
+  );
+  const showProjectsSection = useMemo(
+    () => hasAnyTemplateField('projects', 'hasprojects'),
+    [hasAnyTemplateField]
+  );
+  const showEducationSection = useMemo(
+    () => hasAnyTemplateField('education', 'haseducation'),
+    [hasAnyTemplateField]
+  );
+  const showSkillsSection = useMemo(
+    () => hasAnyTemplateField('skills', 'hasskills'),
+    [hasAnyTemplateField]
+  );
+  const showCustomSection = useMemo(
+    () => hasAnyTemplateField('customdetails', 'custom_details', 'hascustomdetails'),
+    [hasAnyTemplateField]
   );
 
   const knownFieldKeys = useMemo(() => new Set([
@@ -275,7 +285,7 @@ export const Resume = () => {
     const additionalCount = parseItems(additionalText).length;
 
     return {
-      contact: hasChars(contactName, 2) && hasChars(contactRole, 2),
+      contact: (!showNameField || hasChars(contactName, 2)) && (!showRoleField || hasChars(contactRole, 2)),
       summary: hasLongText(summaryText, 30),
       experience: anyExperienceFilled,
       projects: projectsCount >= 1,
@@ -294,6 +304,8 @@ export const Resume = () => {
     experienceItems,
     extraFields,
     projectsText,
+    showNameField,
+    showRoleField,
     skillsText,
     summaryText,
     templateFieldValues,
@@ -443,7 +455,6 @@ export const Resume = () => {
     contactRole,
     educationItems,
     experienceItems,
-    hasTemplateField,
     projectsText,
     skillsText,
     summaryText,
@@ -468,16 +479,22 @@ export const Resume = () => {
   };
 
   const availableSections = useMemo(() => ([
-    'contact',
-    hasTemplateField('summary') ? 'summary' : null,
-    hasTemplateField('experience') ? 'experience' : null,
-    hasTemplateField('projects') ? 'projects' : null,
-    hasTemplateField('education') ? 'education' : null,
-    hasTemplateField('skills') ? 'skills' : null,
-    'custom',
-    hasTemplateField('additionalinfo') ? 'additional' : null,
-    extraFields.length > 0 ? 'extra' : null,
-  ].filter(Boolean) as string[]), [extraFields.length, hasTemplateField]);
+    showContactSection ? 'contact' : null,
+    showSummarySection ? 'summary' : null,
+    showExperienceSection ? 'experience' : null,
+    showProjectsSection ? 'projects' : null,
+    showEducationSection ? 'education' : null,
+    showSkillsSection ? 'skills' : null,
+    showCustomSection ? 'custom' : null,
+  ].filter(Boolean) as string[]), [
+    showContactSection,
+    showCustomSection,
+    showEducationSection,
+    showExperienceSection,
+    showProjectsSection,
+    showSkillsSection,
+    showSummarySection,
+  ]);
 
   useEffect(() => {
     setSectionOrder((prev) => {
@@ -555,11 +572,11 @@ export const Resume = () => {
       return;
     }
     const requiredFields = [
-      { key: 'name', label: 'Full Name', value: contactName },
-      { key: 'role', label: 'Target Role', value: contactRole },
+      { label: 'Full Name', value: contactName, isVisible: showNameField },
+      { label: 'Target Role', value: contactRole, isVisible: showRoleField },
     ];
     const missing = requiredFields.filter(
-      (field) => hasTemplateField(field.key) && !field.value.trim()
+      (field) => field.isVisible && !field.value.trim()
     );
     if (missing.length > 0) {
       setGenerateError(`Please fill ${missing.map((field) => field.label).join(' and ')}.`);
@@ -953,87 +970,99 @@ export const Resume = () => {
                     const sectionContent = {
                       contact: (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="form-group">
-                            <label className="block text-sm font-semibold mb-2 text-gray-700">Full Name *</label>
-                            <input
-                              placeholder="e.g. John Doe"
-                              className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                              value={contactName}
-                              onChange={(e) => setContactName(e.target.value)}
-                              onKeyDown={(e) => e.key === 'Enter' && moveToNextSection()}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label className="block text-sm font-semibold mb-2 text-gray-700">Target Role *</label>
-                            <input
-                              placeholder="e.g. Software Engineer"
-                              className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                              value={contactRole}
-                              onChange={(e) => setContactRole(e.target.value)}
-                              onKeyDown={(e) => e.key === 'Enter' && moveToNextSection()}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label className="block text-sm font-semibold mb-2 text-gray-700">Email</label>
-                            <input
-                              type="email"
-                              placeholder="you@email.com"
-                              className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                              value={contactEmail}
-                              onChange={(e) => setContactEmail(e.target.value)}
-                              onKeyDown={(e) => e.key === 'Enter' && moveToNextSection()}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label className="block text-sm font-semibold mb-2 text-gray-700">Phone</label>
-                            <input
-                              type="tel"
-                              placeholder="(555) 555-1234"
-                              className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                              value={contactPhone}
-                              onChange={(e) => setContactPhone(e.target.value)}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label className="block text-sm font-semibold mb-2 text-gray-700">Location</label>
-                            <input
-                              placeholder="City, Country"
-                              className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                              value={contactLocation}
-                              onChange={(e) => setContactLocation(e.target.value)}
-                            />
-                          </div>
-                          <div className="form-group md:col-span-2">
-                            <label className="block text-sm font-semibold mb-2 text-gray-700">Profile Photo (optional)</label>
-                            <div className="flex flex-col gap-3">
+                          {showNameField && (
+                            <div className="form-group">
+                              <label className="block text-sm font-semibold mb-2 text-gray-700">Full Name *</label>
                               <input
-                                type="file"
-                                accept="image/*"
-                                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none bg-white"
-                                onChange={(e) => handlePhotoUpload(e.target.files?.[0])}
+                                placeholder="e.g. John Doe"
+                                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                value={contactName}
+                                onChange={(e) => setContactName(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && moveToNextSection()}
                               />
-                              {(contactPhotoUrl || contactPhotoName) && (
-                                <div className="flex items-center gap-3">
-                                  {contactPhotoUrl && (
-                                    <img
-                                      src={contactPhotoUrl}
-                                      alt="Profile preview"
-                                      className="w-12 h-12 rounded-full object-cover border border-gray-200"
-                                    />
-                                  )}
-                                  <div className="text-sm text-gray-600">{contactPhotoName || 'Photo selected'}</div>
-                                  <button
-                                    type="button"
-                                    className="text-xs text-red-600 hover:text-red-700 ml-auto"
-                                    onClick={() => handlePhotoUpload(undefined)}
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                              )}
-                              <p className="text-xs text-gray-500">Upload a JPG or PNG from your device.</p>
                             </div>
-                          </div>
+                          )}
+                          {showRoleField && (
+                            <div className="form-group">
+                              <label className="block text-sm font-semibold mb-2 text-gray-700">Target Role *</label>
+                              <input
+                                placeholder="e.g. Software Engineer"
+                                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                value={contactRole}
+                                onChange={(e) => setContactRole(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && moveToNextSection()}
+                              />
+                            </div>
+                          )}
+                          {showEmailField && (
+                            <div className="form-group">
+                              <label className="block text-sm font-semibold mb-2 text-gray-700">Email</label>
+                              <input
+                                type="email"
+                                placeholder="you@email.com"
+                                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                value={contactEmail}
+                                onChange={(e) => setContactEmail(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && moveToNextSection()}
+                              />
+                            </div>
+                          )}
+                          {showPhoneField && (
+                            <div className="form-group">
+                              <label className="block text-sm font-semibold mb-2 text-gray-700">Phone</label>
+                              <input
+                                type="tel"
+                                placeholder="(555) 555-1234"
+                                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                value={contactPhone}
+                                onChange={(e) => setContactPhone(e.target.value)}
+                              />
+                            </div>
+                          )}
+                          {showLocationField && (
+                            <div className="form-group">
+                              <label className="block text-sm font-semibold mb-2 text-gray-700">Location</label>
+                              <input
+                                placeholder="City, Country"
+                                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                value={contactLocation}
+                                onChange={(e) => setContactLocation(e.target.value)}
+                              />
+                            </div>
+                          )}
+                          {showPhotoField && (
+                            <div className="form-group md:col-span-2">
+                              <label className="block text-sm font-semibold mb-2 text-gray-700">Profile Photo (optional)</label>
+                              <div className="flex flex-col gap-3">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none bg-white"
+                                  onChange={(e) => handlePhotoUpload(e.target.files?.[0])}
+                                />
+                                {(contactPhotoUrl || contactPhotoName) && (
+                                  <div className="flex items-center gap-3">
+                                    {contactPhotoUrl && (
+                                      <img
+                                        src={contactPhotoUrl}
+                                        alt="Profile preview"
+                                        className="w-12 h-12 rounded-full object-cover border border-gray-200"
+                                      />
+                                    )}
+                                    <div className="text-sm text-gray-600">{contactPhotoName || 'Photo selected'}</div>
+                                    <button
+                                      type="button"
+                                      className="text-xs text-red-600 hover:text-red-700 ml-auto"
+                                      onClick={() => handlePhotoUpload(undefined)}
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                )}
+                                <p className="text-xs text-gray-500">Upload a JPG or PNG from your device.</p>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ),
                       summary: (
@@ -1054,12 +1083,14 @@ export const Resume = () => {
                             <div key={item.id} className="border border-gray-200 rounded-lg p-4">
                               <div className="flex items-center justify-between mb-3">
                                 <h4 className="font-semibold text-gray-800">Experience {index + 1}</h4>
-                                <button
-                                  onClick={() => removeExperienceItem(item.id)}
-                                  className="text-xs text-red-600 hover:text-red-700"
-                                >
-                                  Remove
-                                </button>
+                                {experienceItems.length > 1 && (
+                                  <button
+                                    onClick={() => removeExperienceItem(item.id)}
+                                    className="text-xs text-red-600 hover:text-red-700"
+                                  >
+                                    Remove
+                                  </button>
+                                )}
                               </div>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="form-group">
@@ -1128,12 +1159,14 @@ export const Resume = () => {
                             <div key={item.id} className="border border-gray-200 rounded-lg p-4">
                               <div className="flex items-center justify-between mb-3">
                                 <h4 className="font-semibold text-gray-800">Education {index + 1}</h4>
-                                <button
-                                  onClick={() => removeEducationItem(item.id)}
-                                  className="text-xs text-red-600 hover:text-red-700"
-                                >
-                                  Remove
-                                </button>
+                                {educationItems.length > 1 && (
+                                  <button
+                                    onClick={() => removeEducationItem(item.id)}
+                                    className="text-xs text-red-600 hover:text-red-700"
+                                  >
+                                    Remove
+                                  </button>
+                                )}
                               </div>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="form-group">
@@ -1241,49 +1274,6 @@ export const Resume = () => {
                           )}
                         </div>
                       ),
-                      additional: (
-                        <div className="form-group">
-                          <label className="block text-sm font-semibold mb-2 text-gray-700">Additional Info</label>
-                          <textarea
-                            placeholder="Certifications, awards, languages..."
-                            className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-y"
-                            rows={3}
-                            value={additionalText}
-                            onChange={(e) => setAdditionalText(e.target.value)}
-                          />
-                        </div>
-                      ),
-                      extra: (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {extraFields.map((field) => {
-                            const label = formatFieldLabel(field);
-                            const isMultiline = isLongField(field);
-                            const placeholder = `Enter ${label.toLowerCase()}`;
-                            return (
-                              <div key={field} className={`form-group ${isMultiline ? 'md:col-span-2' : ''}`}>
-                                <label className="block text-sm font-semibold mb-2 text-gray-700">{label}</label>
-                                {isMultiline ? (
-                                  <textarea
-                                    placeholder={placeholder}
-                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-y"
-                                    rows={3}
-                                    value={templateFieldValues[field] || ''}
-                                    onChange={(e) => updateField(field, e.target.value)}
-                                  />
-                                ) : (
-                                  <input
-                                    type={getInputTypeForField(field)}
-                                    placeholder={placeholder}
-                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                                    value={templateFieldValues[field] || ''}
-                                    onChange={(e) => updateField(field, e.target.value)}
-                                  />
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ),
                     }[sectionId];
 
                     if (!sectionContent) return null;
@@ -1329,23 +1319,6 @@ export const Resume = () => {
                   </div>
                 )}
 
-                <button
-                  onClick={handleGenerateResume}
-                  disabled={generating || templateLoading || !selectedTemplate}
-                  className="mt-6 w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-full font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
-                >
-                  {generating ? (
-                    <>
-                      <div className="spinner-small border-2 border-white border-t-transparent rounded-full w-5 h-5 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Zap size={22} />
-                      Generate Resume
-                    </>
-                  )}
-                </button>
               </div>
 
               <div className="builder-preview">
@@ -1417,11 +1390,15 @@ export const Resume = () => {
 
       <style>{`
         .resume-page {
-          min-height: 100vh;
+          min-height: calc(100vh - 72px);
+          height: calc(100vh - 72px);
           background: #f8fffe;
           font-family: var(--font-family);
           padding: 0;
           width: 100%;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
         }
 
         .page-content {
@@ -1514,7 +1491,10 @@ export const Resume = () => {
           display: flex;
           flex-direction: column;
           gap: var(--spacing-xl);
-          padding: 0 24px 60px;
+          padding: 0 24px 24px;
+          flex: 1;
+          min-height: 0;
+          overflow: hidden;
         }
 
         .template-gallery {
@@ -1936,6 +1916,13 @@ export const Resume = () => {
           box-shadow: none;
         }
 
+        .ai-generator-section {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+        }
+
         .score-card {
           background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
           border-radius: var(--radius-xl);
@@ -2090,6 +2077,8 @@ export const Resume = () => {
           grid-template-columns: 1.2fr 0.8fr;
           gap: var(--spacing-xl);
           align-items: stretch;
+          flex: 1;
+          min-height: 0;
         }
 
         .builder-panel {
@@ -2097,6 +2086,8 @@ export const Resume = () => {
           flex-direction: column;
           height: 100%;
           min-width: 0;
+          overflow: auto;
+          padding-right: 6px;
         }
 
         .builder-section {
@@ -2173,6 +2164,7 @@ export const Resume = () => {
           align-self: stretch;
           height: 100%;
           min-width: 0;
+          min-height: 0;
         }
 
         .builder-preview-header {
@@ -2183,11 +2175,11 @@ export const Resume = () => {
         }
 
         .builder-preview-frame {
-          overflow: hidden;
+          overflow: auto;
           background: transparent;
           position: relative;
           flex: 1;
-          min-height: 420px;
+          min-height: 0;
           min-width: 0;
           display: flex;
           align-items: flex-start;

@@ -1,7 +1,8 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
 import { Layout } from './components/Layout';
 import { RoleGuard } from './components/RoleGuard';
+import { AppLoader } from './components/AppLoader';
 import { LandingPage } from './pages/LandingPage';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
@@ -23,6 +24,10 @@ import { useAuth } from './contexts/AuthContext';
 
 function App() {
   const { loading } = useAuth();
+  const location = useLocation();
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [bootLoading, setBootLoading] = useState(true);
+  const initialPathRef = useRef(location.pathname);
 
   // Suppress harmless AbortError and Analytics warnings globally
   useEffect(() => {
@@ -80,27 +85,33 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const timer = setTimeout(() => setBootLoading(false), 600);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (initialPathRef.current === location.pathname) {
+      initialPathRef.current = '';
+      return;
+    }
+    setRouteLoading(true);
+    const timer = setTimeout(() => setRouteLoading(false), 450);
+    return () => clearTimeout(timer);
+  }, [location.pathname]);
+
   if (loading) {
-    return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        fontSize: '1.25rem',
-        color: 'var(--color-text-secondary)'
-      }}>
-        Loading...
-      </div>
-    );
+    return <AppLoader variant="full" message="Loading" />;
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/select-role" element={<SelectRole />} />
+    <>
+      {(bootLoading || routeLoading) && <AppLoader variant="overlay" message="Loading" />}
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/select-role" element={<SelectRole />} />
 
       {/* App Routes with Flat Layout (No Sidebar) */}
       <Route element={<Layout />}>
@@ -153,9 +164,10 @@ function App() {
         />
       </Route>
 
-      {/* Redirect any unknown routes to home */}
-      <Route path="*" element={<Navigate to="/" />} />
-    </Routes >
+        {/* Redirect any unknown routes to home */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </>
   );
 }
 

@@ -35,7 +35,16 @@ export const AdminTemplates = () => {
             const baseUrl = (envUrl && envUrl.trim() !== '') ? envUrl : 'http://localhost:5000';
 
             const res = await fetch(`${baseUrl}/api/templates`);
-            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+            if (!res.ok) {
+                let details = '';
+                try {
+                    const err = await res.json();
+                    details = err?.details || err?.error || '';
+                } catch {
+                    // ignore json parse errors
+                }
+                throw new Error(`HTTP error! status: ${res.status}${details ? ` - ${details}` : ''}`);
+            }
 
             const data = await res.json();
             if (Array.isArray(data)) {
@@ -249,7 +258,16 @@ export const AdminTemplates = () => {
                 body: formData,
             });
 
-            if (!res.ok) throw new Error('Upload failed');
+            if (!res.ok) {
+                let details = '';
+                try {
+                    const err = await res.json();
+                    details = err?.details || err?.error || '';
+                } catch {
+                    // ignore json parse errors
+                }
+                throw new Error(`Upload failed${details ? `: ${details}` : ''}`);
+            }
 
             await res.json(); // Consume response but ignore data (unused)
             setMessage("Success: Template uploaded!");
@@ -264,9 +282,9 @@ export const AdminTemplates = () => {
 
             // Refresh list
             fetchTemplates();
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            setMessage("Error: Upload failed. Check console.");
+            setMessage(`Error: ${error?.message || 'Upload failed. Check console.'}`);
         } finally {
             setUploading(false);
         }

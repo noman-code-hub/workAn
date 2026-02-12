@@ -8,10 +8,12 @@ const upload = multer({ dest: 'uploads/' });
 
 // Supabase Configuration
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
     console.warn('Supabase URL or Key missing in server .env. Template uploads may fail.');
+} else if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn('SUPABASE_SERVICE_ROLE_KEY missing. Using SUPABASE_KEY; RLS may block template inserts.');
 }
 
 const supabase = createClient(supabaseUrl || '', supabaseKey || '');
@@ -43,8 +45,25 @@ router.post('/upload', upload.fields([
         let thumbnail_url = null;
 
         // Helper to upload file to Supabase Storage
-        const uploadToSupabase = async (bucket, folder, file, contentType) => {
-            const filePath = `${folder}/${Date.now()}_${file.originalname}`;
+        const slugify = (value) => value
+            .toString()
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '') || 'template';
+
+        const getBaseName = () => {
+            if (name && name.trim()) return slugify(name);
+            if (htmlFile?.originalname) {
+                return slugify(htmlFile.originalname.replace(/\.[^.]+$/, ''));
+            }
+            return `template_${Date.now()}`;
+        };
+
+        const uploadToSupabase = async (bucket, folder, file, contentType, fileNameOverride) => {
+            const safeFolder = (folder || '').toString().replace(/^\/+|\/+$/g, '');
+            const fileName = fileNameOverride || file.originalname;
+            const filePath = safeFolder ? `${safeFolder}/${fileName}` : fileName;
             const fileContent = fs.readFileSync(file.path);
 
             const { data, error } = await supabase.storage
@@ -68,18 +87,26 @@ router.post('/upload', upload.fields([
         };
 
         // Upload Files
+        const baseName = getBaseName();
+
         if (htmlFile) {
-            html_url = await uploadToSupabase('resume_templates', 'templates', htmlFile, 'text/html');
+            html_url = await uploadToSupabase('resume_templates', '', htmlFile, 'text/html', `${baseName}.html`);
         }
         if (cssFile) {
-            css_url = await uploadToSupabase('resume_templates', 'templates', cssFile, 'text/css');
+            css_url = await uploadToSupabase('resume_templates', '', cssFile, 'text/css', `${baseName}.css`);
         }
         if (jsFile) {
-            js_url = await uploadToSupabase('resume_templates', 'templates', jsFile, 'application/javascript');
+            js_url = await uploadToSupabase('resume_templates', '', jsFile, 'application/javascript', `${baseName}.js`);
         }
         if (thumbnailFile) {
-            // Ensure 'template_thumbnails' bucket exists or use 'resume_templates/thumbnails'
-            thumbnail_url = await uploadToSupabase('resume_templates', 'thumbnails', thumbnailFile, thumbnailFile.mimetype);
+            const thumbExt = (thumbnailFile.originalname.match(/\.[^.]+$/) || ['.png'])[0].toLowerCase();
+            thumbnail_url = await uploadToSupabase(
+                'resume_templates',
+                'thumbnails',
+                thumbnailFile,
+                thumbnailFile.mimetype,
+                `${baseName}${thumbExt}`
+            );
         }
 
         // Insert Metadata in DB

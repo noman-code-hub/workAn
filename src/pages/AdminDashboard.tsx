@@ -3,9 +3,10 @@ import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import type { User, UserRole } from '../types';
-import { Users, Shield, Briefcase, Search, Filter, BarChart2, MessageCircle } from 'lucide-react';
+import { Users, Shield, Briefcase, Search, Filter, BarChart2, MessageCircle, FileText } from 'lucide-react';
 import { AdminAnalytics } from '../components/AdminAnalytics';
 import { AdminPosts } from '../components/AdminPosts';
+import { AdminTemplates } from './AdminTemplates';
 
 export const AdminDashboard = () => {
     const { user: currentUser } = useAuth();
@@ -14,7 +15,7 @@ export const AdminDashboard = () => {
     const [updating, setUpdating] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('all');
-    const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'posts'>('analytics');
+    const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'posts' | 'templates'>('analytics');
 
     useEffect(() => {
         // Real-time listener for users collection
@@ -145,6 +146,13 @@ export const AdminDashboard = () => {
                     >
                         <MessageCircle size={18} />
                         Manage Posts
+                    </button>
+                    <button
+                        className={`tab-btn ${activeTab === 'templates' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('templates')}
+                    >
+                        <FileText size={18} />
+                        Resume Templates
                     </button>
                 </div>
 
@@ -298,6 +306,10 @@ export const AdminDashboard = () => {
 
                 {activeTab === 'posts' && (
                     <AdminPosts />
+                )}
+
+                {activeTab === 'templates' && (
+                    <AdminTemplates />
                 )}
             </div>
             <style>{`
