@@ -555,7 +555,7 @@ export const Jobs = () => {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/jobs/${job.id}`);
+                        navigate(`/jobs/${job.id}`, { state: { returnTo: '/jobs', returnLabel: 'Back to Jobs' } });
                       }}
                       className="btn-details-modern"
                     >

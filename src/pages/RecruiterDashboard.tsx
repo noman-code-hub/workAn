@@ -354,7 +354,7 @@ export const RecruiterDashboard = () => {
                                             <button
                                                 className="btn btn-ghost icon-btn"
                                                 title="Open Public Link"
-                                                onClick={() => navigate(`/jobs/${job.id}`)}
+                                                onClick={() => navigate(`/jobs/${job.id}`, { state: { returnTo: '/recruiter', returnLabel: 'Back to Recruiter' } })}
                                             >
                                                 <ExternalLink size={16} />
                                             </button>

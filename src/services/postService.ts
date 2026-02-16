@@ -38,10 +38,16 @@ export const createPost = async (user: User, title: string, content: string, ima
 
 export const getUserPosts = async (userId: string, type?: 'blog' | 'community'): Promise<BlogPost[]> => {
     try {
-        const q = query(
-            collection(db, POSTS_COLLECTION),
-            where('userId', '==', userId)
-        );
+        const q = type
+            ? query(
+                collection(db, POSTS_COLLECTION),
+                where('userId', '==', userId),
+                where('type', '==', type)
+            )
+            : query(
+                collection(db, POSTS_COLLECTION),
+                where('userId', '==', userId)
+            );
 
         const querySnapshot = await getDocs(q);
         const posts = querySnapshot.docs.map(doc => {
@@ -51,18 +57,13 @@ export const getUserPosts = async (userId: string, type?: 'blog' | 'community'):
                 ...data,
                 authorAvatar: data.authorAvatar || data.authorPhoto || '',
                 imageURL: data.imageURL || data.imageUrl || '',
-                type: data.type || 'community', // Fallback for old posts
+                type: (data.type === 'blog' || data.type === 'community') ? data.type : 'community',
                 createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : new Date()),
                 updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : (data.updatedAt ? new Date(data.updatedAt) : new Date()),
             } as BlogPost;
         });
 
-        // Client-side filtering to support legacy posts without the 'type' field
-        const filteredPosts = type
-            ? posts.filter(p => p.type === type)
-            : posts;
-
-        return filteredPosts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        return posts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     } catch (error) {
         console.error("Error fetching posts:", error);
         return [];
@@ -71,7 +72,11 @@ export const getUserPosts = async (userId: string, type?: 'blog' | 'community'):
 
 export const getAllPosts = async (type?: 'blog' | 'community'): Promise<BlogPost[]> => {
     try {
-        const querySnapshot = await getDocs(collection(db, POSTS_COLLECTION));
+        const q = type
+            ? query(collection(db, POSTS_COLLECTION), where('type', '==', type))
+            : query(collection(db, POSTS_COLLECTION));
+
+        const querySnapshot = await getDocs(q);
         const posts = querySnapshot.docs.map(doc => {
             const data = doc.data();
             return {
@@ -79,18 +84,13 @@ export const getAllPosts = async (type?: 'blog' | 'community'): Promise<BlogPost
                 ...data,
                 authorAvatar: data.authorAvatar || data.authorPhoto || '',
                 imageURL: data.imageURL || data.imageUrl || '',
-                type: data.type || 'community', // Fallback for old posts
+                type: (data.type === 'blog' || data.type === 'community') ? data.type : 'community',
                 createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : new Date()),
                 updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : (data.updatedAt ? new Date(data.updatedAt) : new Date()),
             } as BlogPost;
         });
 
-        // Client-side filtering to support legacy posts without the 'type' field
-        const filteredPosts = type
-            ? posts.filter(p => p.type === type)
-            : posts;
-
-        return filteredPosts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        return posts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     } catch (error) {
         console.error("Error fetching all posts:", error);
         return [];

@@ -41,7 +41,7 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
     const loadPosts = async () => {
         setLoading(true);
         const postsData = (isFeed || !user)
-            ? await getAllPosts(type)
+            ? await getAllPosts(isFeed ? undefined : type)
             : await getUserPosts(user.id, type);
         setPosts(postsData);
         setLoading(false);

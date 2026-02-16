@@ -582,7 +582,10 @@ export const LandingPage = () => {
                         <div className="card-top-row">
                           <div className="job-info-main">
                             <span className="posted-time">Posted {getTimeSince(job.postedDate)}</span>
-                            <h3 className="job-title-upwork" onClick={() => navigate(`/jobs/${job.id}`)}>
+                            <h3
+                              className="job-title-upwork"
+                              onClick={() => navigate(`/jobs/${job.id}`, { state: { returnTo: '/', returnLabel: 'Back to Home' } })}
+                            >
                               {job.title}
                             </h3>
                           </div>

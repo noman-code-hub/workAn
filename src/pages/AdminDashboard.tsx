@@ -682,6 +682,47 @@ export const AdminDashboard = () => {
                     box-shadow: var(--shadow-sm);
                 }
 
+                .admin-create-blog {
+                    display: flex;
+                    flex-direction: column;
+                    gap: var(--spacing-md);
+                    margin-bottom: var(--spacing-xl);
+                    padding: var(--spacing-md);
+                    border: 1px solid var(--color-border);
+                    border-radius: var(--radius-lg);
+                    background: var(--color-bg-secondary);
+                }
+
+                .admin-create-blog-form {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                }
+
+                .admin-create-blog-form textarea {
+                    resize: vertical;
+                    min-height: 140px;
+                }
+
+                .admin-selected-image {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 10px;
+                    padding: 8px 10px;
+                    border: 1px solid var(--color-border);
+                    border-radius: var(--radius-md);
+                    background: var(--color-surface);
+                    font-size: var(--font-size-sm);
+                    color: var(--color-text-secondary);
+                }
+
+                .admin-create-blog-actions {
+                    display: flex;
+                    justify-content: flex-end;
+                    gap: 8px;
+                }
+
                 .admin-posts-header {
                     display: flex;
                     justify-content: space-between;
@@ -875,6 +916,20 @@ export const AdminDashboard = () => {
                     .users-table th,
                     .users-table td {
                         padding: 12px 8px;
+                    }
+
+                    .admin-selected-image {
+                        align-items: flex-start;
+                        flex-direction: column;
+                    }
+
+                    .admin-create-blog-actions {
+                        width: 100%;
+                        justify-content: stretch;
+                    }
+
+                    .admin-create-blog-actions .btn {
+                        flex: 1;
                     }
                 }
             `}</style>

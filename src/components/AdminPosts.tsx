@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { deleteDoc, doc, onSnapshot, collection, query, orderBy } from "firebase/firestore";
 import { db } from '../config/firebase';
 import { Trash2, MessageCircle, Heart, Search } from "lucide-react";
 import { formatDistanceToNow } from 'date-fns';
+import { useAuth } from '../contexts/AuthContext';
+import { createPost } from '../services/postService';
 
 interface Post {
     id: string;
@@ -15,9 +17,15 @@ interface Post {
 }
 
 export const AdminPosts = () => {
+    const { user } = useAuth();
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
+    const [blogTitle, setBlogTitle] = useState("");
+    const [blogContent, setBlogContent] = useState("");
+    const [blogImage, setBlogImage] = useState<File | null>(null);
+    const [isPublishingBlog, setIsPublishingBlog] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
@@ -47,10 +55,103 @@ export const AdminPosts = () => {
         post.authorName.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const handlePublishBlog = async () => {
+        const hasContent = blogContent.trim().length > 0;
+        const hasTitle = blogTitle.trim().length > 0;
+        if (!hasContent && !hasTitle && !blogImage) return;
+        if (!user) {
+            alert("You must be logged in to publish a blog.");
+            return;
+        }
+
+        try {
+            setIsPublishingBlog(true);
+            await createPost(user, blogTitle.trim(), blogContent.trim(), blogImage || undefined, 'blog');
+            setBlogTitle("");
+            setBlogContent("");
+            setBlogImage(null);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
+            alert("Blog published successfully.");
+        } catch (error) {
+            console.error("Error publishing blog:", error);
+            alert("Failed to publish blog.");
+        } finally {
+            setIsPublishingBlog(false);
+        }
+    };
+
     if (loading) return <div className="admin-empty">Loading posts...</div>;
 
     return (
         <div className="admin-posts">
+            <section className="admin-create-blog">
+                <div>
+                    <p className="admin-eyebrow">Publish</p>
+                    <h2>Create Blog Article</h2>
+                    <p className="admin-subtitle">Post articles directly from the admin panel.</p>
+                </div>
+
+                <div className="admin-create-blog-form">
+                    <input
+                        type="text"
+                        className="input"
+                        placeholder="Blog title (optional)"
+                        value={blogTitle}
+                        onChange={(e) => setBlogTitle(e.target.value)}
+                    />
+                    <textarea
+                        className="input"
+                        placeholder="Write your blog content..."
+                        value={blogContent}
+                        onChange={(e) => setBlogContent(e.target.value)}
+                        rows={6}
+                    />
+                    {blogImage && (
+                        <div className="admin-selected-image">
+                            <span>{blogImage.name}</span>
+                            <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => {
+                                    setBlogImage(null);
+                                    if (fileInputRef.current) {
+                                        fileInputRef.current.value = "";
+                                    }
+                                }}
+                            >
+                                Remove image
+                            </button>
+                        </div>
+                    )}
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={(e) => setBlogImage(e.target.files?.[0] || null)}
+                    />
+                    <div className="admin-create-blog-actions">
+                        <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            Add Image
+                        </button>
+                        <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={handlePublishBlog}
+                            disabled={isPublishingBlog || (!blogTitle.trim() && !blogContent.trim() && !blogImage)}
+                        >
+                            {isPublishingBlog ? "Publishing..." : "Publish Blog"}
+                        </button>
+                    </div>
+                </div>
+            </section>
+
             <header className="admin-posts-header">
                 <div>
                     <p className="admin-eyebrow">Content Moderation</p>

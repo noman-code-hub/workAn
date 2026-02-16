@@ -167,7 +167,12 @@ export const Dashboard = () => {
           ) : (
             <div className="ov-list">
               {recommendedJobs.map((job, index) => (
-                <article key={job.id} className="ov-job ov-fade ov-delay-2" style={staggerStyle(index + 1, 120)} onClick={() => navigate(`/jobs/${job.id}`)}>
+                <article
+                  key={job.id}
+                  className="ov-job ov-fade ov-delay-2"
+                  style={staggerStyle(index + 1, 120)}
+                  onClick={() => navigate(`/jobs/${job.id}`, { state: { returnTo: '/dashboard', returnLabel: 'Back to Overview' } })}
+                >
                   <div className="ov-job-top">
                     <div className="ov-logo" onClick={(e) => { e.stopPropagation(); window.open(getCompanyUrl(job.company), '_blank'); }}><JobLogo company={job.company} /></div>
                     <div className="ov-job-text">
@@ -180,7 +185,15 @@ export const Dashboard = () => {
                   <div className="ov-tags">{(job.tags || []).slice(0, 3).map((tag) => <span key={tag}>{tag}</span>)}</div>
                   <div className="ov-job-actions">
                     <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); handleApply(job); }} disabled={applyingId === job.id}>{applyingId === job.id ? 'Applying...' : 'Apply Now'}</button>
-                    <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); navigate(`/jobs/${job.id}`); }}>Details</button>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/jobs/${job.id}`, { state: { returnTo: '/dashboard', returnLabel: 'Back to Overview' } });
+                      }}
+                    >
+                      Details
+                    </button>
                     <button className="btn btn-ghost btn-sm ov-save" onClick={(e) => e.stopPropagation()}><BookmarkPlus size={15} /></button>
                   </div>
                 </article>

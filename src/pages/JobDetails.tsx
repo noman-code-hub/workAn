@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
   MapPin,
@@ -37,11 +37,20 @@ const getCompanyUrl = (company: string) => {
 export const JobDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
+
+  const navState = (location.state as { returnTo?: string; returnLabel?: string } | null) || null;
+  const backTarget = navState?.returnTo || '/jobs';
+  const backLabel = navState?.returnLabel || 'Back to Jobs';
+
+  const handleBack = () => {
+    navigate(backTarget);
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -170,8 +179,8 @@ export const JobDetails = () => {
           <Briefcase size={64} />
           <h3>Job not found</h3>
           <p>The job you're looking for doesn't exist or has been removed.</p>
-          <button className="btn btn-primary" onClick={() => navigate('/jobs')}>
-            Back to Jobs
+          <button className="btn btn-primary" onClick={handleBack}>
+            {backLabel}
           </button>
         </div>
       </div>
@@ -181,9 +190,9 @@ export const JobDetails = () => {
   return (
     <div className="job-details-page">
       {/* Back Button */}
-      <button className="back-button" onClick={() => navigate('/jobs')}>
+      <button className="back-button" onClick={handleBack}>
         <ArrowLeft size={20} />
-        Back to Jobs
+        {backLabel}
       </button>
 
       {/* Job Header */}
