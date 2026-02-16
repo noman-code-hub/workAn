@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { Layout } from './components/Layout';
 import { RoleGuard } from './components/RoleGuard';
@@ -23,12 +23,16 @@ import { BlogDetail } from './pages/BlogDetail';
 import { JobApplicants } from './pages/JobApplicants';
 import { useAuth } from './contexts/AuthContext';
 
+const LAST_ROUTE_STORAGE_KEY = 'careerpilot:last-route';
+
 function App() {
   const { loading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [routeLoading, setRouteLoading] = useState(false);
   const [bootLoading, setBootLoading] = useState(true);
   const initialPathRef = useRef(location.pathname);
+  const routeRestoreAttemptedRef = useRef(false);
 
   // Suppress harmless AbortError and Analytics warnings globally
   useEffect(() => {
@@ -100,6 +104,33 @@ function App() {
     const timer = setTimeout(() => setRouteLoading(false), 450);
     return () => clearTimeout(timer);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (loading || routeRestoreAttemptedRef.current) return;
+
+    routeRestoreAttemptedRef.current = true;
+
+    const navEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+    const isReload = navEntry?.type === 'reload';
+    if (!isReload) return;
+
+    const currentFullPath = `${location.pathname}${location.search}${location.hash}`;
+    const savedFullPath = window.sessionStorage.getItem(LAST_ROUTE_STORAGE_KEY);
+
+    if (!savedFullPath || savedFullPath === currentFullPath || !savedFullPath.startsWith('/')) return;
+
+    const canRestoreFrom = ['/', '/login', '/register', '/select-role'];
+    if (canRestoreFrom.includes(location.pathname)) {
+      navigate(savedFullPath, { replace: true });
+    }
+  }, [loading, location.pathname, location.search, location.hash, navigate]);
+
+  useEffect(() => {
+    if (!routeRestoreAttemptedRef.current) return;
+
+    const currentFullPath = `${location.pathname}${location.search}${location.hash}`;
+    window.sessionStorage.setItem(LAST_ROUTE_STORAGE_KEY, currentFullPath);
+  }, [location.pathname, location.search, location.hash]);
 
   if (loading) {
     return <AppLoader variant="full" message="Loading" />;

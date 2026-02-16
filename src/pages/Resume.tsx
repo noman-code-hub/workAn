@@ -5,6 +5,8 @@ import html2pdf from 'html2pdf.js';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
 import { normalizeFieldKey, renderTemplateWithSchema } from '../services/resumeTemplateRenderer';
 
+const RESUME_VIEW_STORAGE_KEY = 'careerpilot:resume-view';
+
 export const Resume = () => {
   const { user } = useAuth();
 
@@ -51,6 +53,7 @@ export const Resume = () => {
 
   const [activeTemplateFilter, setActiveTemplateFilter] = useState('All templates');
   const [showMobilePreview, setShowMobilePreview] = useState(false);
+  const resumeViewRestoreRef = useRef(false);
 
   const {
     templates,
@@ -98,6 +101,48 @@ export const Resume = () => {
   }, [activeTemplateFilter, templates]);
 
   const isTemplateSelection = templateStep === 'choose' || !selectedTemplate;
+
+  useEffect(() => {
+    if (resumeViewRestoreRef.current || templates.length === 0) return;
+
+    resumeViewRestoreRef.current = true;
+
+    const raw = window.sessionStorage.getItem(RESUME_VIEW_STORAGE_KEY);
+    if (!raw) return;
+
+    try {
+      const savedState = JSON.parse(raw) as {
+        templateStep?: 'choose' | 'edit';
+        selectedTemplate?: string;
+      };
+
+      if (savedState.templateStep === 'choose' || savedState.templateStep === 'edit') {
+        setTemplateStep(savedState.templateStep);
+      }
+
+      if (
+        savedState.selectedTemplate &&
+        templates.some((template) => template.name === savedState.selectedTemplate) &&
+        savedState.selectedTemplate !== selectedTemplate
+      ) {
+        selectTemplate(savedState.selectedTemplate);
+      }
+    } catch {
+      // Ignore malformed saved state and continue with defaults.
+    }
+  }, [selectedTemplate, selectTemplate, templates]);
+
+  useEffect(() => {
+    if (!resumeViewRestoreRef.current) return;
+
+    window.sessionStorage.setItem(
+      RESUME_VIEW_STORAGE_KEY,
+      JSON.stringify({
+        templateStep,
+        selectedTemplate,
+      })
+    );
+  }, [selectedTemplate, templateStep]);
 
   const hasTemplateField = useCallback(
     (key: string) => templateFields.length > 0 && templateFieldSet.has(normalizeFieldKey(key)),
@@ -321,6 +366,25 @@ export const Resume = () => {
     }
   }, [activeSectionId, sectionOrder]);
 
+  const handleSectionEnterKey = useCallback((event: React.KeyboardEvent<HTMLElement>) => {
+    if (event.key !== 'Enter') return;
+    if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return;
+
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+
+    const tag = target.tagName.toLowerCase();
+    if (tag === 'textarea' || tag === 'button' || tag === 'a') return;
+
+    if (tag === 'input') {
+      const inputType = ((target as HTMLInputElement).type || '').toLowerCase();
+      if (['button', 'checkbox', 'file', 'radio', 'reset', 'submit'].includes(inputType)) return;
+    }
+
+    event.preventDefault();
+    moveToNextSection();
+  }, [moveToNextSection]);
+
   const parseCommaOrNewline = (value: string) =>
     value
       .split(/[\n,]+/)
@@ -514,11 +578,25 @@ export const Resume = () => {
       setActiveSectionId(null);
       return;
     }
+
     setUnlockedSections(availableSections);
-    if (activeSectionId && !availableSections.includes(activeSectionId)) {
-      setActiveSectionId(null);
+
+    if (templateStep !== 'edit') {
+      if (activeSectionId && !availableSections.includes(activeSectionId)) {
+        setActiveSectionId(null);
+      }
+      return;
     }
-  }, [activeSectionId, availableSections]);
+
+    const defaultSectionId = availableSections.includes('contact')
+      ? 'contact'
+      : availableSections[0];
+
+    // In edit mode, always open Personal Information/Contact by default.
+    if (!activeSectionId || !availableSections.includes(activeSectionId)) {
+      setActiveSectionId(defaultSectionId);
+    }
+  }, [activeSectionId, availableSections, templateStep]);
 
   const updatePreviewScale = useCallback(() => {
     const frame = previewFrameRef.current;
@@ -779,25 +857,6 @@ export const Resume = () => {
     }
   };
 
-  const handleDownloadHtml = () => {
-    const html = generatedHTML || (templateSourceHtml
-      ? renderTemplateWithSchema(templateSourceHtml, buildResumeView())
-      : null);
-    if (!html) return;
-    const filenameBase = contactName
-      || getTemplateFieldValue('name')
-      || getTemplateFieldValue('full_name')
-      || getTemplateFieldValue('fullname')
-      || getTemplateFieldValue('full-name')
-      || 'Resume';
-    const blob = new Blob([html], { type: "text/html" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `${filenameBase.replace(/\s+/g, '_')}_Resume.html`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(link.href), 0);
-  };
-
   const livePreviewHtml = useMemo(() => {
     if (!templateSourceHtml) return null;
     try {
@@ -840,6 +899,24 @@ export const Resume = () => {
     observer.observe(frame);
     return () => observer.disconnect();
   }, [updatePreviewScale]);
+
+  useEffect(() => {
+    // Recover from any stale body scroll lock when entering the resume editor.
+    document.body.classList.remove('no-scroll');
+    return () => {
+      document.body.classList.remove('preview-active');
+    };
+  }, []);
+
+  useEffect(() => {
+    if (showMobilePreview) {
+      document.body.classList.add('preview-active');
+      return () => document.body.classList.remove('preview-active');
+    }
+
+    document.body.classList.remove('preview-active');
+    return undefined;
+  }, [showMobilePreview]);
 
 
   return (
@@ -977,7 +1054,7 @@ export const Resume = () => {
               <div className="builder-panel">
                 <div className="space-y-5">
                   {sectionOrder.map((sectionId) => {
-                    const sectionTitle = {
+                    const sectionTitles: Record<string, string> = {
                       contact: 'Contact',
                       summary: 'Professional Summary',
                       experience: 'Work Experience',
@@ -987,7 +1064,14 @@ export const Resume = () => {
                       custom: 'Custom Details',
                       additional: 'Additional Information',
                       extra: 'Other Fields',
-                    }[sectionId];
+                    };
+                    const sectionTitle = sectionTitles[sectionId];
+                    const currentSectionIndex = sectionOrder.indexOf(sectionId);
+                    const nextSectionId =
+                      currentSectionIndex >= 0 && currentSectionIndex < sectionOrder.length - 1
+                        ? sectionOrder[currentSectionIndex + 1]
+                        : null;
+                    const nextSectionTitle = nextSectionId ? sectionTitles[nextSectionId] || 'Next Section' : '';
 
                     const sectionContent = {
                       contact: (
@@ -1000,7 +1084,6 @@ export const Resume = () => {
                                 className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                 value={contactName}
                                 onChange={(e) => setContactName(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && moveToNextSection()}
                               />
                             </div>
                           )}
@@ -1012,7 +1095,6 @@ export const Resume = () => {
                                 className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                 value={contactRole}
                                 onChange={(e) => setContactRole(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && moveToNextSection()}
                               />
                             </div>
                           )}
@@ -1025,7 +1107,6 @@ export const Resume = () => {
                                 className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                 value={contactEmail}
                                 onChange={(e) => setContactEmail(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && moveToNextSection()}
                               />
                             </div>
                           )}
@@ -1327,7 +1408,20 @@ export const Resume = () => {
                           <span className="section-toggle">{isExpanded ? '▾' : '▸'}</span>
                         </button>
                         {isExpanded && (
-                          <div className="builder-section-body">{sectionContent}</div>
+                          <div className="builder-section-body" onKeyDownCapture={handleSectionEnterKey}>
+                            {sectionContent}
+                            {nextSectionId && (
+                              <div className="section-nav-actions">
+                                <button
+                                  type="button"
+                                  className="btn btn-primary btn-sm section-next-btn"
+                                  onClick={() => setActiveSectionId(nextSectionId)}
+                                >
+                                  Next: {nextSectionTitle}
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     );
@@ -1372,13 +1466,6 @@ export const Resume = () => {
                     >
                       <Download size={16} />
                       PDF
-                    </button>
-                    <button
-                      onClick={handleDownloadHtml}
-                      className="bg-slate-700 text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-slate-800 transition flex items-center gap-2 shadow-md"
-                    >
-                      <Download size={16} />
-                      HTML
                     </button>
                   </div>
                 </div>
@@ -1443,8 +1530,8 @@ export const Resume = () => {
         }
 
         .resume-page:not(.is-template-mode) {
-           height: calc(100vh - 72px);
-           overflow: hidden;
+           height: auto;
+           overflow-y: auto;
         }
 
         .resume-page.is-template-mode {
@@ -1547,8 +1634,8 @@ export const Resume = () => {
         }
 
         .resume-page:not(.is-template-mode) .resume-content {
-           min-height: 0;
-           overflow: hidden;
+           min-height: auto;
+           overflow: visible;
         }
 
         .resume-page.is-template-mode .resume-content {
@@ -2188,6 +2275,18 @@ export const Resume = () => {
           border-top: 1px solid var(--color-border);
         }
 
+        .section-nav-actions {
+          display: flex;
+          justify-content: flex-end;
+          margin-top: var(--spacing-md);
+          padding-top: var(--spacing-md);
+          border-top: 1px dashed var(--color-border-light);
+        }
+
+        .section-next-btn {
+          min-width: 150px;
+        }
+
         .drag-handle {
           font-weight: 700;
           letter-spacing: 2px;
@@ -2273,6 +2372,14 @@ export const Resume = () => {
 
           .header-actions .btn {
             flex: 1;
+          }
+
+          .section-nav-actions {
+            justify-content: stretch;
+          }
+
+          .section-next-btn {
+            width: 100%;
           }
 
           .score-display {
