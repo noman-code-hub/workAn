@@ -1,268 +1,446 @@
-import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Lightbulb, TrendingUp, FileText, User, Bot } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
+import { Bot, FileText, Lightbulb, Send, Sparkles, TrendingUp, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import type { ChatMessage } from '../types';
 
 export const AICopilot = () => {
-    const { user } = useAuth();
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [input, setInput] = useState('');
-    const [loading, setLoading] = useState(false);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        // Initial greeting
-        const greeting: ChatMessage = {
-            id: '1',
-            role: 'assistant',
-            content: `Hello ${user?.name}! 👋 I'm your AI Career Copilot. I can help you with:\n\n• Finding jobs that match your skills\n• Improving your resume\n• Career guidance and trends\n• Interview preparation\n• Skill development advice\n\nWhat would you like to know?`,
-            timestamp: new Date(),
-        };
-        setMessages([greeting]);
-    }, [user]);
+  useEffect(() => {
+    const greeting: ChatMessage = {
+      id: '1',
+      role: 'assistant',
+      content: `Hello ${user?.name || 'there'}. I am your AI Career Copilot.\n\nI can help with:\n- Job matching\n- Resume improvement\n- Career trend insights\n- Interview preparation\n- Skill development plans\n\nWhat would you like to work on first?`,
+      timestamp: new Date(),
+    };
+    setMessages([greeting]);
+  }, [user]);
 
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const generateAIResponse = (query: string): string => {
+    const lowerQuery = query.toLowerCase();
+
+    if (lowerQuery.includes('job') || lowerQuery.includes('position')) {
+      return `Based on your profile as ${user?.profession || 'a professional'}, focus on:\n\nTop matches:\n- Senior full-stack roles\n- Remote-first product teams\n- Growth-stage companies using AI workflows\n\nActions:\n- Highlight measurable project impact\n- Prioritize ${user?.skills?.[0] || 'core technical'} strengths\n- Tailor each application to the role description\n\nIf you want, I can generate a targeted job search strategy next.`;
+    }
+
+    if (lowerQuery.includes('resume') || lowerQuery.includes('cv')) {
+      return `Resume upgrade checklist:\n\n1. Keep a clear value summary at the top\n2. Use action-focused bullet points with metrics\n3. Add relevant keywords for ATS matching\n4. Emphasize recent, role-relevant projects\n\nHigh-value keywords for your profile:\n- ${user?.skills?.slice(0, 3).join(', ') || 'Core stack, Architecture, Delivery'}\n- Collaboration and ownership\n- Performance and scalability\n\nI can also produce a section-by-section rewrite plan.`;
+    }
+
+    if (lowerQuery.includes('trend') || lowerQuery.includes('future') || lowerQuery.includes('outlook')) {
+      return `Market outlook summary:\n\n- High demand continues for AI, cloud, and platform engineering\n- Hiring remains strongest in product-led and B2B SaaS teams\n- Compensation still favors engineers with broad execution skills\n\nRecommended focus areas:\n1. AI-assisted engineering workflows\n2. Cloud architecture fundamentals\n3. System design communication\n4. End-to-end product ownership\n\nI can map these trends to your current role and goals.`;
+    }
+
+    if (lowerQuery.includes('interview') || lowerQuery.includes('prepare')) {
+      return `Interview preparation plan:\n\nTechnical:\n- Practice role-relevant coding and architecture questions\n- Prepare 2 deep project walkthroughs\n\nBehavioral:\n- Use STAR format for impact stories\n- Show ownership, tradeoff decisions, and outcomes\n\nExecution:\n- Research company product and team context\n- Prepare thoughtful final-round questions\n\nI can run a mock interview simulation if you want.`;
+    }
+
+    if (lowerQuery.includes('skill') || lowerQuery.includes('learn')) {
+      return `Skill development roadmap:\n\nPriority skills:\n- TypeScript and engineering quality practices\n- System design and architecture patterns\n- Cloud platform fundamentals\n- AI tooling for productivity\n\nExecution model:\n- 3 focused sessions per week\n- Build one portfolio project per skill cycle\n- Track progress with measurable outcomes\n\nTell me your target role and I will build a 30-day plan.`;
+    }
+
+    return `I can help with job strategy, resume optimization, interview prep, market trends, and skill planning.\n\nTell me your target role, current level, and goal timeline, and I will create a personalized action plan.`;
+  };
+
+  const handleSend = async () => {
+    const trimmed = input.trim();
+    if (!trimmed || loading) return;
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: trimmed,
+      timestamp: new Date(),
     };
 
-    const handleSend = async () => {
-        if (!input.trim() || loading) return;
+    setMessages((prev) => [...prev, userMessage]);
+    setInput('');
+    setLoading(true);
 
-        const userMessage: ChatMessage = {
-            id: Date.now().toString(),
-            role: 'user',
-            content: input,
-            timestamp: new Date(),
-        };
+    await new Promise((resolve) => setTimeout(resolve, 1200));
 
-        setMessages((prev) => [...prev, userMessage]);
-        setInput('');
-        setLoading(true);
-
-        // Simulate AI response
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-
-        const aiResponse = generateAIResponse(input);
-        const assistantMessage: ChatMessage = {
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            content: aiResponse,
-            timestamp: new Date(),
-        };
-
-        setMessages((prev) => [...prev, assistantMessage]);
-        setLoading(false);
+    const assistantMessage: ChatMessage = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: generateAIResponse(trimmed),
+      timestamp: new Date(),
     };
 
-    const generateAIResponse = (query: string): string => {
-        const lowerQuery = query.toLowerCase();
+    setMessages((prev) => [...prev, assistantMessage]);
+    setLoading(false);
+  };
 
-        if (lowerQuery.includes('job') || lowerQuery.includes('position')) {
-            return `Based on your profile as a **${user?.profession || 'professional'}**, I recommend focusing on:\n\n🎯 **Top Matches:**\n- Senior Full Stack Developer positions\n- Remote-first companies\n- Tech companies with strong AI/ML focus\n\n💡 **Tips:**\n- Update your LinkedIn with recent projects\n- Highlight your experience with ${user?.skills?.[0] || 'key technologies'}\n- Consider companies like TechCorp, Innovate Labs, and DataTech\n\nWould you like me to show you specific job listings?`;
-        }
+  const quickPrompts = [
+    { icon: Sparkles, text: 'What jobs match my profile?' },
+    { icon: FileText, text: 'How can I improve my resume?' },
+    { icon: TrendingUp, text: 'What are current market trends?' },
+    { icon: Lightbulb, text: 'What skills should I learn next?' },
+  ];
 
-        if (lowerQuery.includes('resume') || lowerQuery.includes('cv')) {
-            return `Let me help you optimize your resume! Here are key recommendations:\n\n📝 **Structure:**\n- Start with a strong summary highlighting your ${user?.interviewReadinessScore || 0}% readiness score\n- Use action verbs (Built, Designed, Implemented)\n- Quantify achievements with metrics\n\n✨ **Keywords to Include:**\n- ${user?.skills?.slice(0, 3).join(', ')}\n- Agile/Scrum methodologies\n- Team leadership\n\n🎯 **ATS Optimization:**\n- Use standard section headers\n- Avoid images and complex formatting\n- Include relevant keywords from job descriptions\n\nWould you like me to analyze your current resume?`;
-        }
+  const stagger = (index: number, delay = 0): CSSProperties => ({
+    ['--i' as string]: index,
+    ['--d' as string]: `${delay}ms`,
+  });
 
-        if (lowerQuery.includes('trend') || lowerQuery.includes('future') || lowerQuery.includes('outlook')) {
-            return `Great question! Here's the outlook for **${user?.profession || 'your field'}**:\n\n📈 **Growth Projections:**\n- **+25%** job growth over next 3 years\n- Average salary: $120k - $180k\n- High demand in AI/ML and cloud technologies\n\n🔥 **Hot Skills:**\n1. AI/Machine Learning\n2. Cloud Architecture (AWS, Azure)\n3. TypeScript & Modern Frameworks\n4. DevOps & CI/CD\n5. System Design\n\n💼 **Market Insights:**\n- Remote positions increased by 40%\n- Companies prioritizing full-stack versatility\n- Strong demand for senior-level talent\n\nWant to explore specific trends or skills?`;
-        }
+  return (
+    <div className="copilot-pro">
+      <div className="copilot-glow copilot-glow-a" />
+      <div className="copilot-glow copilot-glow-b" />
 
-        if (lowerQuery.includes('interview') || lowerQuery.includes('prepare')) {
-            return `Let's get you interview-ready! 💪\n\n🎯 **Common Questions:**\n- Tell me about your experience with ${user?.skills?.[0]}\n- Describe a challenging project you've worked on\n- How do you approach problem-solving?\n\n✅ **Preparation Tips:**\n1. Research the company thoroughly\n2. Prepare STAR method examples\n3. Practice technical problems on LeetCode\n4. Prepare thoughtful questions to ask\n\n💡 **Your Strengths:**\n- Strong technical foundation in ${user?.skills?.slice(0, 2).join(' and ')}\n- ${user?.interviewReadinessScore}% readiness score\n\nWould you like mock interview questions?`;
-        }
+      <section className="copilot-hero cp-fade cp-delay-0">
+        <div className="hero-left">
+          <p className="hero-kicker">AI Copilot</p>
+          <h1>Career Guidance, Personalized in Real Time</h1>
+          <p>
+            Ask strategic questions about jobs, resume quality, interview preparation,
+            and market direction. Get clear, practical responses instantly.
+          </p>
+          <div className="hero-chips">
+            <span>{user?.profession || 'Career planning'}</span>
+            <span>{user?.country || 'Global market insights'}</span>
+            <span>Assistant status: Online</span>
+          </div>
+        </div>
+        <div className="hero-status cp-fade cp-delay-1">
+          <div className="status-icon"><Sparkles size={18} /></div>
+          <div>
+            <small>Current Session</small>
+            <h3>{messages.length} messages</h3>
+            <p>Adaptive recommendations based on your prompts.</p>
+          </div>
+        </div>
+      </section>
 
-        if (lowerQuery.includes('skill') || lowerQuery.includes('learn')) {
-            return `Based on market trends, here are skills to focus on:\n\n🚀 **High-Impact Skills:**\n- **TypeScript**: Essential for modern development\n- **System Design**: Critical for senior roles\n- **Cloud Platforms**: AWS, Azure, or GCP\n- **AI/ML Basics**: Increasingly important across roles\n\n📚 **Learning Resources:**\n- Coursera for structured courses\n- Frontend Masters for deep dives\n- LeetCode for coding practice\n- System Design Primer on GitHub\n\n⏰ **Learning Plan:**\n- 2-3 hours per week recommended\n- Focus on one skill at a time\n- Build projects to apply knowledge\n\nWhich skill interests you most?`;
-        }
-
-        // Default response
-        return `I understand you're asking about "${query}". I can help you with:\n\n• **Job Search**: Find positions matching your skills\n• **Resume Help**: Optimize your CV for ATS and recruiters\n• **Career Trends**: Explore future opportunities in your field\n• **Interview Prep**: Get ready for your next interview\n• **Skill Development**: Learn what's in demand\n\nCould you please clarify what you'd like help with?`;
-    };
-
-    const quickPrompts = [
-        { icon: Sparkles, text: 'What jobs match my profile?' },
-        { icon: FileText, text: 'How can I improve my resume?' },
-        { icon: TrendingUp, text: 'What are the trends in my field?' },
-        { icon: Lightbulb, text: 'What skills should I learn?' },
-    ];
-
-    return (
-        <div className="ai-copilot-page">
-            <div className="page-header">
-                <div className="header-content">
-                    <div className="ai-icon">
-                        <Sparkles size={32} />
-                    </div>
-                    <div>
-                        <h1>AI Career Copilot</h1>
-                        <p>Get personalized career guidance powered by AI</p>
-                    </div>
-                </div>
+      <section className="chat-shell cp-fade cp-delay-1">
+        <div className="chat-head">
+          <div className="chat-head-left">
+            <div className="assistant-avatar"><Bot size={18} /></div>
+            <div>
+              <h2>AI Career Copilot</h2>
+              <small>Professional mode enabled</small>
             </div>
+          </div>
+          <span className="chat-status">Live</span>
+        </div>
 
-            <div className="chat-container">
-                <div className="chat-messages">
-                    {messages.map((message) => (
-                        <div
-                            key={message.id}
-                            className={`message ${message.role === 'user' ? 'user-message' : 'assistant-message'}`}
-                        >
-                            <div className="message-avatar">
-                                {message.role === 'user' ? (
-                                    user?.photoURL ? (
-                                        <img src={user.photoURL} alt={user.name} />
-                                    ) : (
-                                        <User size={20} />
-                                    )
-                                ) : (
-                                    <Bot size={20} />
-                                )}
-                            </div>
-                            <div className="message-content">
-                                <div className="message-text">{message.content}</div>
-                                <div className="message-time">
-                                    {message.timestamp.toLocaleTimeString([], {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                    })}
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-
-                    {loading && (
-                        <div className="message assistant-message">
-                            <div className="message-avatar">
-                                <Bot size={20} />
-                            </div>
-                            <div className="message-content">
-                                <div className="typing-indicator">
-                                    <span></span>
-                                    <span></span>
-                                    <span></span>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    <div ref={messagesEndRef} />
-                </div>
-
-                {messages.length <= 1 && (
-                    <div className="quick-prompts">
-                        <p>Quick prompts:</p>
-                        <div className="prompts-grid">
-                            {quickPrompts.map((prompt) => {
-                                const Icon = prompt.icon;
-                                return (
-                                    <button
-                                        key={prompt.text}
-                                        className="prompt-btn"
-                                        onClick={() => setInput(prompt.text)}
-                                    >
-                                        <Icon size={20} />
-                                        <span>{prompt.text}</span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
+        <div className="chat-messages">
+          {messages.map((message, index) => (
+            <article
+              key={message.id}
+              className={`message ${message.role === 'user' ? 'user-message' : 'assistant-message'} cp-fade cp-delay-2`}
+              style={stagger(index)}
+            >
+              <div className="message-avatar">
+                {message.role === 'user' ? (
+                  user?.photoURL ? (
+                    <img src={user.photoURL} alt={user.name || 'User'} />
+                  ) : (
+                    <User size={18} />
+                  )
+                ) : (
+                  <Bot size={18} />
                 )}
-
-                <div className="chat-input-container">
-                    <div className="chat-input">
-                        <input
-                            type="text"
-                            className="input"
-                            placeholder="Ask me anything about your career..."
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                        />
-                        <button
-                            className="btn btn-primary"
-                            onClick={handleSend}
-                            disabled={!input.trim() || loading}
-                        >
-                            <Send size={20} />
-                        </button>
-                    </div>
-                    <p className="input-hint">
-                        💡 Tip: Ask about job recommendations, resume tips, or career trends
-                    </p>
+              </div>
+              <div className="message-content">
+                <div className="message-text">{message.content}</div>
+                <div className="message-time">
+                  {message.timestamp.toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
                 </div>
+              </div>
+            </article>
+          ))}
+
+          {loading && (
+            <article className="message assistant-message cp-fade cp-delay-2">
+              <div className="message-avatar">
+                <Bot size={18} />
+              </div>
+              <div className="message-content">
+                <div className="typing-indicator">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              </div>
+            </article>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {messages.length <= 1 && (
+          <div className="quick-prompts cp-fade cp-delay-2">
+            <p>Start with a prompt:</p>
+            <div className="prompts-grid">
+              {quickPrompts.map((prompt, index) => {
+                const Icon = prompt.icon;
+                return (
+                  <button
+                    key={prompt.text}
+                    className="prompt-btn cp-fade cp-delay-2"
+                    style={stagger(index, 140)}
+                    onClick={() => setInput(prompt.text)}
+                  >
+                    <Icon size={18} />
+                    <span>{prompt.text}</span>
+                  </button>
+                );
+              })}
             </div>
+          </div>
+        )}
 
-            <style>{`
-        .ai-copilot-page {
-          max-width: 900px;
-          margin: 0 auto;
-          display: flex;
-          flex-direction: column;
-          height: calc(100vh - 64px - var(--spacing-xl) * 2);
+        <div className="chat-input-container">
+          <div className="chat-input">
+            <input
+              type="text"
+              className="input"
+              placeholder="Ask about jobs, resume, interviews, or growth strategy..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            />
+            <button className="btn btn-primary send-btn" onClick={handleSend} disabled={!input.trim() || loading}>
+              <Send size={18} />
+            </button>
+          </div>
+          <p className="input-hint">Tip: include your goal role and timeline for better guidance.</p>
+        </div>
+      </section>
+
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Manrope:wght@500;600;700&display=swap');
+
+        .copilot-pro {
+          --cp-ease: cubic-bezier(0.22, 1, 0.36, 1);
+          width: 100%;
+          min-height: calc(100vh - 72px);
+          display: grid;
+          gap: 16px;
+          position: relative;
+          isolation: isolate;
         }
 
-        .page-header {
-          margin-bottom: var(--spacing-xl);
+        .copilot-glow {
+          position: absolute;
+          width: 260px;
+          height: 260px;
+          border-radius: 999px;
+          filter: blur(84px);
+          z-index: -1;
+          opacity: 0.35;
+          pointer-events: none;
+          animation: cp-drift 10s ease-in-out infinite alternate;
         }
 
-        .header-content {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-lg);
+        .copilot-glow-a {
+          top: -120px;
+          right: 7%;
+          background: #67e8f9;
         }
 
-        .ai-icon {
-          width: 64px;
-          height: 64px;
-          background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-          border-radius: var(--radius-xl);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
+        .copilot-glow-b {
+          bottom: 8%;
+          left: -90px;
+          background: #5eead4;
+          animation-delay: -3s;
         }
 
-        .page-header h1 {
-          font-size: var(--font-size-3xl);
-          margin-bottom: var(--spacing-xs);
+        .cp-fade {
+          opacity: 0;
+          transform: translateY(14px) scale(0.986);
+          animation: cp-rise 620ms var(--cp-ease) forwards;
+          animation-delay: calc(var(--d, 0ms) + var(--i, 0) * 72ms);
         }
 
-        .page-header p {
-          font-size: var(--font-size-lg);
-          color: var(--color-text-secondary);
+        .cp-delay-0 { --d: 20ms; }
+        .cp-delay-1 { --d: 80ms; }
+        .cp-delay-2 { --d: 130ms; }
+
+        .copilot-hero {
+          border: 1px solid #dbe5ef;
+          border-radius: 20px;
+          background:
+            radial-gradient(circle at top right, rgba(45, 212, 191, 0.16), transparent 42%),
+            linear-gradient(145deg, #ffffff, #f7fbff);
+          box-shadow: 0 24px 42px -34px rgba(15, 23, 42, 0.45);
+          padding: 18px;
+          display: grid;
+          grid-template-columns: 1fr 320px;
+          gap: 12px;
+        }
+
+        .hero-kicker {
           margin: 0;
+          text-transform: uppercase;
+          letter-spacing: 0.14em;
+          color: #0f766e;
+          font-size: 0.74rem;
+          font-weight: 700;
+          font-family: 'Manrope', var(--font-family);
         }
 
-        .chat-container {
-          flex: 1;
-          background: var(--color-surface);
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-lg);
+        .hero-left h1 {
+          margin: 10px 0;
+          color: #0f172a;
+          font-family: 'Space Grotesk', 'Manrope', var(--font-family);
+          font-size: clamp(1.6rem, 3.2vw, 2.2rem);
+          line-height: 1.08;
+          letter-spacing: -0.03em;
+        }
+
+        .hero-left > p {
+          margin: 0;
+          color: #64748b;
+          max-width: 62ch;
+          font-size: 0.9rem;
+        }
+
+        .hero-chips {
+          margin-top: 12px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .hero-chips span {
+          padding: 6px 10px;
+          border-radius: 999px;
+          border: 1px solid #dbeafe;
+          background: #f8fafc;
+          color: #334155;
+          font-size: 0.72rem;
+          font-weight: 700;
+        }
+
+        .hero-status {
+          border: 1px solid #dbe5ef;
+          border-radius: 14px;
+          background: #ffffff;
+          padding: 12px;
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+        }
+
+        .status-icon {
+          width: 34px;
+          height: 34px;
+          border-radius: 10px;
+          display: grid;
+          place-items: center;
+          color: #ffffff;
+          background: linear-gradient(135deg, #14b8a6, #0f766e);
+          flex-shrink: 0;
+        }
+
+        .hero-status small {
+          color: #64748b;
+          font-size: 0.72rem;
+          font-weight: 700;
+        }
+
+        .hero-status h3 {
+          margin: 2px 0;
+          color: #0f172a;
+          font-family: 'Space Grotesk', 'Manrope', var(--font-family);
+          font-size: 1.15rem;
+          line-height: 1.1;
+        }
+
+        .hero-status p {
+          margin: 0;
+          color: #94a3b8;
+          font-size: 0.74rem;
+        }
+
+        .chat-shell {
+          border: 1px solid #dbe5ef;
+          border-radius: 18px;
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), #ffffff);
+          box-shadow: 0 24px 40px -36px rgba(15, 23, 42, 0.6);
           display: flex;
           flex-direction: column;
+          min-height: 0;
+          flex: 1;
           overflow: hidden;
+        }
+
+        .chat-head {
+          border-bottom: 1px solid #e2e8f0;
+          padding: 12px 14px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          background: #f8fafc;
+        }
+
+        .chat-head-left {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .assistant-avatar {
+          width: 34px;
+          height: 34px;
+          border-radius: 10px;
+          background: linear-gradient(135deg, #14b8a6, #0f766e);
+          color: #ffffff;
+          display: grid;
+          place-items: center;
+        }
+
+        .chat-head h2 {
+          margin: 0;
+          font-size: 0.94rem;
+          color: #0f172a;
+          font-family: 'Space Grotesk', 'Manrope', var(--font-family);
+        }
+
+        .chat-head small {
+          color: #64748b;
+          font-size: 0.72rem;
+          font-weight: 600;
+        }
+
+        .chat-status {
+          padding: 5px 10px;
+          border-radius: 999px;
+          border: 1px solid #a7f3d0;
+          background: #ecfdf5;
+          color: #047857;
+          font-size: 0.72rem;
+          font-weight: 700;
         }
 
         .chat-messages {
           flex: 1;
+          min-height: 0;
           overflow-y: auto;
-          padding: var(--spacing-xl);
+          padding: 14px;
           display: flex;
           flex-direction: column;
-          gap: var(--spacing-lg);
+          gap: 10px;
         }
 
         .message {
           display: flex;
-          gap: var(--spacing-md);
-          max-width: 85%;
+          gap: 8px;
+          max-width: min(88%, 760px);
         }
 
         .user-message {
@@ -275,61 +453,65 @@ export const AICopilot = () => {
         }
 
         .message-avatar {
-          width: 40px;
-          height: 40px;
-          border-radius: var(--radius-full);
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          width: 34px;
+          height: 34px;
+          border-radius: 10px;
+          display: grid;
+          place-items: center;
           flex-shrink: 0;
+          border: 1px solid #dbe5ef;
         }
 
         .user-message .message-avatar {
-          background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-          color: white;
+          background: linear-gradient(135deg, #14b8a6, #0f766e);
+          color: #ffffff;
+          border: none;
         }
 
         .assistant-message .message-avatar {
-          background: var(--color-bg-tertiary);
-          color: var(--color-primary);
+          background: #f8fafc;
+          color: #0f766e;
         }
 
         .message-avatar img {
           width: 100%;
           height: 100%;
-          border-radius: var(--radius-full);
+          border-radius: 10px;
           object-fit: cover;
         }
 
         .message-content {
-          flex: 1;
+          min-width: 0;
         }
 
         .message-text {
-          padding: var(--spacing-md) var(--spacing-lg);
-          border-radius: var(--radius-lg);
-          font-size: var(--font-size-sm);
-          line-height: 1.6;
           white-space: pre-wrap;
-        }
-
-        .user-message .message-text {
-          background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
-          color: white;
-          border-bottom-right-radius: var(--radius-sm);
+          font-size: 0.86rem;
+          line-height: 1.58;
+          padding: 10px 12px;
+          border-radius: 12px;
+          border: 1px solid transparent;
         }
 
         .assistant-message .message-text {
-          background: var(--color-bg-secondary);
-          color: var(--color-text-primary);
-          border-bottom-left-radius: var(--radius-sm);
+          background: #f8fafc;
+          border-color: #e2e8f0;
+          color: #1e293b;
+          border-bottom-left-radius: 6px;
+        }
+
+        .user-message .message-text {
+          background: linear-gradient(135deg, #14b8a6, #0f766e);
+          color: #ffffff;
+          border-bottom-right-radius: 6px;
         }
 
         .message-time {
-          font-size: var(--font-size-xs);
-          color: var(--color-text-tertiary);
-          margin-top: var(--spacing-xs);
-          padding: 0 var(--spacing-lg);
+          margin-top: 4px;
+          color: #94a3b8;
+          font-size: 0.68rem;
+          font-weight: 600;
+          padding: 0 8px;
         }
 
         .user-message .message-time {
@@ -337,111 +519,152 @@ export const AICopilot = () => {
         }
 
         .typing-indicator {
-          display: flex;
-          gap: var(--spacing-xs);
-          padding: var(--spacing-md) var(--spacing-lg);
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 10px 12px;
+          background: #f8fafc;
         }
 
         .typing-indicator span {
-          width: 8px;
-          height: 8px;
-          background: var(--color-text-tertiary);
-          border-radius: var(--radius-full);
-          animation: typing 1.4s infinite;
+          width: 6px;
+          height: 6px;
+          border-radius: 999px;
+          background: #94a3b8;
+          animation: cp-typing 1.4s infinite;
         }
 
-        .typing-indicator span:nth-child(2) {
-          animation-delay: 0.2s;
-        }
-
-        .typing-indicator span:nth-child(3) {
-          animation-delay: 0.4s;
-        }
-
-        @keyframes typing {
-          0%, 60%, 100% {
-            transform: translateY(0);
-            opacity: 0.5;
-          }
-          30% {
-            transform: translateY(-10px);
-            opacity: 1;
-          }
-        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
 
         .quick-prompts {
-          padding: 0 var(--spacing-xl) var(--spacing-lg);
+          border-top: 1px solid #e2e8f0;
+          padding: 12px 14px;
+          background: #f8fafc;
         }
 
         .quick-prompts > p {
-          font-size: var(--font-size-sm);
-          color: var(--color-text-secondary);
-          margin-bottom: var(--spacing-md);
+          margin: 0 0 8px;
+          color: #64748b;
+          font-size: 0.78rem;
+          font-weight: 700;
         }
 
         .prompts-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: var(--spacing-sm);
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 8px;
         }
 
         .prompt-btn {
+          border: 1px solid #dbe5ef;
+          border-radius: 10px;
+          background: #ffffff;
+          color: #334155;
           display: flex;
           align-items: center;
-          gap: var(--spacing-sm);
-          padding: var(--spacing-md);
-          background: var(--color-surface);
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-md);
-          color: var(--color-text-secondary);
-          font-size: var(--font-size-sm);
-          cursor: pointer;
-          transition: all var(--transition-base);
+          gap: 8px;
+          padding: 10px;
+          font-size: 0.78rem;
+          font-weight: 600;
           text-align: left;
+          cursor: pointer;
+          transition: transform 180ms var(--cp-ease), border-color 180ms ease, color 180ms ease;
         }
 
         .prompt-btn:hover {
-          border-color: var(--color-primary);
-          color: var(--color-primary);
-          background: var(--color-bg-secondary);
+          transform: translateY(-1px);
+          border-color: #14b8a6;
+          color: #0f766e;
         }
 
         .chat-input-container {
-          padding: var(--spacing-lg) var(--spacing-xl);
-          border-top: 1px solid var(--color-border);
-          background: var(--color-bg-secondary);
+          border-top: 1px solid #e2e8f0;
+          background: #ffffff;
+          padding: 12px 14px;
         }
 
         .chat-input {
           display: flex;
-          gap: var(--spacing-sm);
-          margin-bottom: var(--spacing-sm);
+          gap: 8px;
+          align-items: center;
+          margin-bottom: 6px;
         }
 
-        .chat-input input {
-          flex: 1;
+        .chat-input .input {
+          border-radius: 11px;
+          border: 1px solid #dbe5ef;
+          background: #f8fafc;
+          font-size: 0.86rem;
         }
 
-        .chat-input .btn {
-          padding: 0.625rem 1.25rem;
+        .chat-input .input:focus {
+          border-color: #14b8a6;
+          box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.14);
+        }
+
+        .send-btn {
+          min-width: 44px;
+          height: 42px;
+          padding: 0;
+          border-radius: 11px;
+          background: linear-gradient(135deg, #14b8a6, #0f766e);
+          box-shadow: 0 12px 20px -16px rgba(15, 118, 110, 0.8);
+          transition: transform 200ms var(--cp-ease), box-shadow 200ms var(--cp-ease);
+        }
+
+        .send-btn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 14px 22px -16px rgba(15, 118, 110, 0.84);
         }
 
         .input-hint {
-          font-size: var(--font-size-xs);
-          color: var(--color-text-tertiary);
           margin: 0;
+          color: #94a3b8;
+          font-size: 0.72rem;
         }
 
-        @media (max-width: 768px) {
-          .message {
-            max-width: 95%;
-          }
+        @keyframes cp-rise {
+          from { opacity: 0; transform: translateY(14px) scale(0.986); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
 
-          .prompts-grid {
+        @keyframes cp-drift {
+          from { transform: translateY(0) translateX(0); }
+          to { transform: translateY(-12px) translateX(10px); }
+        }
+
+        @keyframes cp-typing {
+          0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+          30% { transform: translateY(-5px); opacity: 1; }
+        }
+
+        @media (max-width: 1024px) {
+          .copilot-hero {
             grid-template-columns: 1fr;
           }
         }
+
+        @media (max-width: 768px) {
+          .prompts-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .message {
+            max-width: 96%;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .copilot-pro *,
+          .copilot-glow {
+            animation: none !important;
+            transition: none !important;
+          }
+        }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 };

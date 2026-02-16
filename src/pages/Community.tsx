@@ -1,12 +1,11 @@
 import { useAuth } from '../contexts/AuthContext';
 import { BlogSection } from '../components/BlogSection';
 import {
-    Bookmark,
-    Users,
-    Newspaper,
-    Calendar,
+    TrendingUp,
+    Target,
+    Award,
+    Briefcase,
     ChevronDown,
-    Plus,
     Info,
     MoreHorizontal
 } from 'lucide-react';
@@ -17,11 +16,11 @@ export const Community = () => {
 
 
     return (
-        <div style={styles.pageWrapper}>
-            <div style={styles.contentContainer}>
+        <div className="community-page" style={styles.pageWrapper}>
+            <div className="community-layout" style={styles.contentContainer}>
 
                 {/* --- LEFT SIDEBAR --- */}
-                <aside style={styles.leftSidebar}>
+                <aside className="community-sidebar community-left" style={styles.leftSidebar}>
                     {user ? (
                         <>
                             {/* Profile Card */}
@@ -48,15 +47,28 @@ export const Community = () => {
                                 </div>
                             </div>
 
-                            {/* Analytics Card */}
+                            {/* Career Stats Card */}
                             <div style={styles.card}>
                                 <div style={styles.analyticsRow}>
-                                    <span style={styles.analyticsLabel}>Profile viewers</span>
-                                    <span style={styles.analyticsValue}>39</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <TrendingUp size={16} color="#00d4aa" />
+                                        <span style={styles.analyticsLabel}>Resume Score</span>
+                                    </div>
+                                    <span style={styles.analyticsValue}>{user.analytics?.resumeScore || 0}%</span>
                                 </div>
                                 <div style={styles.analyticsRow}>
-                                    <span style={styles.analyticsLabel}>Post impressions</span>
-                                    <span style={styles.analyticsValue}>283</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Target size={16} color="#00d4aa" />
+                                        <span style={styles.analyticsLabel}>Job Matches</span>
+                                    </div>
+                                    <span style={styles.analyticsValue}>12</span>
+                                </div>
+                                <div style={styles.analyticsRow}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Award size={16} color="#00d4aa" />
+                                        <span style={styles.analyticsLabel}>Skills Verified</span>
+                                    </div>
+                                    <span style={styles.analyticsValue}>{user.skills?.length || 0}</span>
                                 </div>
                             </div>
                         </>
@@ -64,7 +76,7 @@ export const Community = () => {
                         <div style={styles.card}>
                             <div style={{ padding: '24px', textAlign: 'center' }}>
                                 <div style={{ width: '48px', height: '48px', backgroundColor: '#00d4aa', borderRadius: '50%', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                                    <Users size={24} />
+                                    <Briefcase size={24} />
                                 </div>
                                 <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 8px 0' }}>Join the community</h3>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0 0 20px 0' }}>Connect with professionals and share your journey.</p>
@@ -78,37 +90,25 @@ export const Community = () => {
                         </div>
                     )}
 
-                    {user && (
-                        <div style={styles.card}>
-                            <div style={{ padding: '12px' }}>
-                                <p style={{ fontSize: '12px', color: '#666' }}>Unlock exclusive tools & insights</p>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                                    <div style={{ width: '16px', height: '16px', backgroundColor: '#d1a15e', borderRadius: '4px' }} />
-                                    <span style={{ fontSize: '12px', fontWeight: 600, textDecoration: 'underline' }}>Try Premium for PKR0</span>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Nav Items Card */}
+                    {/* Quick Actions Card */}
                     <div style={styles.card}>
-                        <div style={styles.navItem}>
-                            <Bookmark size={16} /> <span style={styles.navText}>Saved items</span>
+                        <div style={styles.navItem} onClick={() => window.location.href = '/resume'}>
+                            <TrendingUp size={16} /> <span style={styles.navText}>Build Resume</span>
                         </div>
-                        <div style={styles.navItem}>
-                            <Users size={16} /> <span style={styles.navText}>Groups</span>
+                        <div style={styles.navItem} onClick={() => window.location.href = '/jobs'}>
+                            <Briefcase size={16} /> <span style={styles.navText}>Browse Jobs</span>
                         </div>
-                        <div style={styles.navItem}>
-                            <Newspaper size={16} /> <span style={styles.navText}>Newsletters</span>
+                        <div style={styles.navItem} onClick={() => window.location.href = '/ai-copilot'}>
+                            <Target size={16} /> <span style={styles.navText}>Career Advisor</span>
                         </div>
-                        <div style={styles.navItem}>
-                            <Calendar size={16} /> <span style={styles.navText}>Events</span>
+                        <div style={styles.navItem} onClick={() => window.location.href = '/trends'}>
+                            <Award size={16} /> <span style={styles.navText}>Industry Trends</span>
                         </div>
                     </div>
                 </aside>
 
                 {/* --- MAIN FEED --- */}
-                <main style={styles.mainContent}>
+                <main className="community-main" style={styles.mainContent}>
                     <div style={styles.feedHeaderContainer}>
                         <h1 style={styles.feedTitle}>Community Feed</h1>
                         <p style={styles.feedSubtitle}>Share your achievements, job updates, and career milestones with others.</p>
@@ -117,54 +117,91 @@ export const Community = () => {
                 </main>
 
                 {/* --- RIGHT SIDEBAR --- */}
-                <aside style={styles.rightSidebar}>
-                    {/* Puzzle Games Card */}
+                <aside className="community-sidebar community-right" style={styles.rightSidebar}>
+                    {/* Job Alerts Card */}
                     <div style={styles.card}>
                         <div style={{ padding: '12px' }}>
-                            <h3 style={styles.cardTitle}>Today's puzzle games</h3>
-                            <div style={styles.gameItem}>
-                                <div style={{ ...styles.gameIcon, backgroundColor: '#f15e22' }}>Z</div>
-                                <div style={styles.gameInfo}>
-                                    <p style={styles.gameName}>Zip <span style={{ color: '#666', fontWeight: 400 }}>#323</span></p>
-                                    <p style={styles.gameDesc}>7 connections played</p>
+                            <h3 style={styles.cardTitle}>🚀 Trending Jobs</h3>
+                            <div style={styles.jobItem}>
+                                <div style={styles.jobInfo}>
+                                    <p style={styles.jobTitle}>Senior React Developer</p>
+                                    <p style={styles.jobCompany}>Tech Corp • Remote</p>
+                                    <p style={styles.jobSalary}>$80k - $120k</p>
                                 </div>
                             </div>
-                            <div style={styles.gameItem}>
-                                <div style={{ ...styles.gameIcon, backgroundColor: '#4caf50' }}>M</div>
-                                <div style={styles.gameInfo}>
-                                    <p style={styles.gameName}>Mini Sudoku <span style={{ color: '#666', fontWeight: 400 }}>#176</span></p>
-                                    <p style={styles.gameDesc}>3 connections played</p>
+                            <div style={styles.jobItem}>
+                                <div style={styles.jobInfo}>
+                                    <p style={styles.jobTitle}>Full Stack Engineer</p>
+                                    <p style={styles.jobCompany}>StartupXYZ • Hybrid</p>
+                                    <p style={styles.jobSalary}>$70k - $100k</p>
                                 </div>
                             </div>
-                            <button style={styles.showMoreBtn}>Show more <ChevronDown size={16} /></button>
+                            <div style={styles.jobItem}>
+                                <div style={styles.jobInfo}>
+                                    <p style={styles.jobTitle}>Product Manager</p>
+                                    <p style={styles.jobCompany}>Global Inc • On-site</p>
+                                    <p style={styles.jobSalary}>$90k - $130k</p>
+                                </div>
+                            </div>
+                            <button
+                                style={styles.showMoreBtn}
+                                onClick={() => window.location.href = '/jobs'}
+                            >
+                                View all jobs <ChevronDown size={16} />
+                            </button>
                         </div>
                     </div>
 
-                    {/* Add to Feed Card */}
+                    {/* Career Resources Card */}
                     <div style={styles.card}>
                         <div style={{ padding: '12px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                                <h3 style={styles.cardTitle}>Add to your feed</h3>
+                                <h3 style={styles.cardTitle}>📚 Career Resources</h3>
                                 <Info size={14} color="#666" />
                             </div>
 
-                            {/* Recommendation 1 */}
-                            <div style={styles.recItem}>
-                                <div style={styles.recAvatar}>C</div>
-                                <div style={styles.recInfo}>
-                                    <p style={styles.recName}>Cisco</p>
-                                    <p style={styles.recDesc}>Company • Software Development</p>
-                                    <button style={styles.followBtn}><Plus size={16} /> Follow</button>
+                            {/* Resource 1 */}
+                            <div style={styles.resourceItem}>
+                                <div style={{ ...styles.resourceIcon, backgroundColor: '#00d4aa' }}>📝</div>
+                                <div style={styles.resourceInfo}>
+                                    <p style={styles.resourceName}>Resume Builder</p>
+                                    <p style={styles.resourceDesc}>Create ATS-optimized resumes</p>
+                                    <button
+                                        style={styles.resourceBtn}
+                                        onClick={() => window.location.href = '/resume'}
+                                    >
+                                        Start Building
+                                    </button>
                                 </div>
                             </div>
 
-                            {/* Recommendation 2 */}
-                            <div style={styles.recItem}>
-                                <div style={{ ...styles.recAvatar, backgroundColor: '#333' }}>MB</div>
-                                <div style={styles.recInfo}>
-                                    <p style={styles.recName}>Matt Burgess</p>
-                                    <p style={styles.recDesc}>Social Media Content Creator</p>
-                                    <button style={styles.followBtn}><Plus size={16} /> Follow</button>
+                            {/* Resource 2 */}
+                            <div style={styles.resourceItem}>
+                                <div style={{ ...styles.resourceIcon, backgroundColor: '#4caf50' }}>🤖</div>
+                                <div style={styles.resourceInfo}>
+                                    <p style={styles.resourceName}>AI Career Copilot</p>
+                                    <p style={styles.resourceDesc}>Get personalized career advice</p>
+                                    <button
+                                        style={styles.resourceBtn}
+                                        onClick={() => window.location.href = '/ai-copilot'}
+                                    >
+                                        Chat Now
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Resource 3 */}
+                            <div style={styles.resourceItem}>
+                                <div style={{ ...styles.resourceIcon, backgroundColor: '#f15e22' }}>📊</div>
+                                <div style={styles.resourceInfo}>
+                                    <p style={styles.resourceName}>Career Trends</p>
+                                    <p style={styles.resourceDesc}>Explore industry insights</p>
+                                    <button
+                                        style={styles.resourceBtn}
+                                        onClick={() => window.location.href = '/trends'}
+                                    >
+                                        Explore
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -183,6 +220,113 @@ export const Community = () => {
                     <MoreHorizontal size={18} />
                 </div>
             )}
+
+            <style>{`
+                .community-page {
+                    height: 100vh;
+                    overflow: hidden;
+                    background: linear-gradient(135deg, #e8f5f3 0%, #f0f8f7 50%, #e3f2f1 100%);
+                    position: relative;
+                }
+                
+                .community-page::before {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background-image: 
+                        radial-gradient(circle at 20% 30%, rgba(0, 212, 170, 0.03) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 70%, rgba(0, 212, 170, 0.04) 0%, transparent 50%),
+                        radial-gradient(circle at 40% 80%, rgba(0, 212, 170, 0.02) 0%, transparent 40%);
+                    pointer-events: none;
+                    z-index: 0;
+                }
+                
+                
+                .community-layout {
+                    position: relative;
+                    z-index: 1;
+                    display: grid;
+                    grid-template-columns: 280px minmax(0, 1fr) 360px;
+                    gap: 24px;
+                    padding: 16px;
+                    max-height: 100vh;
+                    width: 100%;
+                    overflow: hidden;
+                }
+
+                .community-sidebar {
+                    position: sticky;
+                    top: 0;
+                    height: calc(100vh - 32px);
+                    overflow: hidden;
+                    align-self: start;
+                }
+
+                .community-main {
+                    height: calc(100vh - 32px);
+                    min-height: 0;
+                    overflow-y: auto;
+                    overflow-x: hidden;
+                    scrollbar-width: none; /* Firefox */
+                    -ms-overflow-style: none; /* IE and Edge */
+                }
+                
+                .community-main::-webkit-scrollbar {
+                    display: none; /* Chrome, Safari, Opera */
+                }
+
+                @media (max-width: 1200px) {
+                    .community-layout {
+                        grid-template-columns: 240px minmax(0, 1fr) 320px;
+                    }
+                }
+
+                @media (max-width: 1024px) {
+                    .community-layout {
+                        grid-template-columns: 200px minmax(0, 1fr);
+                    }
+                    .community-right {
+                        display: none;
+                    }
+                }
+
+                @media (max-width: 768px) {
+                    .community-page {
+                        height: auto;
+                        overflow-y: auto;
+                    }
+
+                    .community-layout {
+                        display: block;
+                        height: auto;
+                        max-height: none;
+                        padding: 12px;
+                        gap: 0;
+                    }
+
+                    .community-sidebar {
+                        display: none !important;
+                    }
+
+                    .community-left {
+                        display: none !important;
+                    }
+
+                    .community-right {
+                        display: none !important;
+                    }
+
+                    .community-main {
+                        height: auto;
+                        overflow: visible;
+                        width: 100%;
+                        display: block;
+                    }
+                }
+            `}</style>
         </div>
     );
 };
@@ -190,25 +334,19 @@ export const Community = () => {
 const styles: Record<string, React.CSSProperties> = {
     pageWrapper: {
         backgroundColor: '#f3f2f0',
-        minHeight: '100vh',
-        paddingTop: '24px',
+        paddingTop: 0,
+        paddingBottom: 0,
         fontFamily: 'var(--font-family)',
+        display: 'flex',
+        flexDirection: 'column',
     },
     contentContainer: {
-        maxWidth: '1128px',
-        margin: '0 auto',
-        display: 'grid',
-        gridTemplateColumns: '225px 1fr 300px',
-        gap: '24px',
-        padding: '0 16px',
+        flex: 1,
     },
     leftSidebar: {
         display: 'flex',
         flexDirection: 'column',
         gap: '8px',
-        position: 'sticky',
-        top: '88px',
-        alignSelf: 'start',
     },
     mainContent: {
         display: 'flex',
@@ -237,9 +375,6 @@ const styles: Record<string, React.CSSProperties> = {
         display: 'flex',
         flexDirection: 'column',
         gap: '8px',
-        position: 'sticky',
-        top: '88px',
-        alignSelf: 'start',
     },
     card: {
         backgroundColor: 'white',
@@ -338,34 +473,33 @@ const styles: Record<string, React.CSSProperties> = {
         margin: '0 0 12px 0',
         color: 'rgba(0,0,0,0.9)',
     },
-    gameItem: {
-        display: 'flex',
-        gap: '12px',
+    // Job Alert Styles
+    jobItem: {
+        padding: '12px',
+        borderRadius: '8px',
+        backgroundColor: '#f9fafb',
         marginBottom: '12px',
-        alignItems: 'center',
+        cursor: 'pointer',
+        transition: 'background-color 0.2s',
     },
-    gameIcon: {
-        width: '40px',
-        height: '40px',
-        borderRadius: '4px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'white',
-        fontWeight: 700,
-        fontSize: '20px',
-    },
-    gameInfo: {
+    jobInfo: {
         flex: 1,
     },
-    gameName: {
+    jobTitle: {
         fontSize: '14px',
         fontWeight: 600,
-        margin: 0,
+        margin: '0 0 4px 0',
+        color: '#1a1a1a',
     },
-    gameDesc: {
+    jobCompany: {
         fontSize: '12px',
         color: '#666',
+        margin: '0 0 4px 0',
+    },
+    jobSalary: {
+        fontSize: '12px',
+        fontWeight: 600,
+        color: '#00d4aa',
         margin: 0,
     },
     showMoreBtn: {
@@ -384,48 +518,48 @@ const styles: Record<string, React.CSSProperties> = {
         borderTop: '1px solid #f3f2f0',
         marginTop: '8px',
     },
-    recItem: {
+    // Resource Styles
+    resourceItem: {
         display: 'flex',
         gap: '12px',
-        marginBottom: '16px',
+        marginBottom: '20px',
+        alignItems: 'flex-start',
     },
-    recAvatar: {
+    resourceIcon: {
         width: '48px',
         height: '48px',
-        borderRadius: '50%',
-        backgroundColor: '#00d4aa',
-        color: 'white',
+        borderRadius: '8px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontWeight: 700,
+        fontSize: '24px',
+        flexShrink: 0,
     },
-    recInfo: {
+    resourceInfo: {
         flex: 1,
     },
-    recName: {
+    resourceName: {
         fontSize: '14px',
         fontWeight: 600,
-        margin: 0,
+        margin: '0 0 4px 0',
+        color: '#1a1a1a',
     },
-    recDesc: {
+    resourceDesc: {
         fontSize: '12px',
         color: '#666',
-        margin: '2px 0 8px 0',
+        margin: '0 0 8px 0',
         lineHeight: '1.4',
     },
-    followBtn: {
-        background: 'none',
-        border: '1px solid #666',
+    resourceBtn: {
+        background: '#00d4aa',
+        border: 'none',
         borderRadius: '16px',
-        padding: '4px 16px',
-        fontSize: '14px',
+        padding: '6px 16px',
+        fontSize: '12px',
         fontWeight: 600,
-        color: '#666',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '4px',
+        color: 'white',
         cursor: 'pointer',
+        transition: 'background-color 0.2s',
     },
     messagingButton: {
         position: 'fixed',

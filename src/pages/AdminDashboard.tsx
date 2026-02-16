@@ -820,9 +820,24 @@ export const AdminDashboard = () => {
                         text-align: left;
                     }
 
+                    .tabs-container {
+                        width: 100%;
+                        overflow-x: auto;
+                        white-space: nowrap;
+                        display: flex; /* Override inline-flex to allow scroll */
+                        padding: 8px;
+                        border-radius: var(--radius-lg);
+                        -webkit-overflow-scrolling: touch;
+                    }
+
+                    .tab-btn {
+                        flex-shrink: 0;
+                    }
+
                     .table-controls {
                         flex-direction: column;
                         align-items: stretch;
+                        gap: 12px;
                     }
 
                     .search-wrapper,
@@ -831,7 +846,26 @@ export const AdminDashboard = () => {
                     }
 
                     .users-table-container {
-                        padding: var(--spacing-md);
+                        padding: var(--spacing-sm);
+                    }
+
+                    .user-cell {
+                        gap: 8px;
+                    }
+
+                    .user-avatar, .user-avatar-fallback {
+                        width: 32px;
+                        height: 32px;
+                        font-size: 14px;
+                    }
+
+                    .user-name {
+                        font-size: 13px;
+                    }
+
+                    .role-badge {
+                        padding: 4px 8px;
+                        font-size: 11px;
                     }
 
                     .users-table {
@@ -847,4 +881,3 @@ export const AdminDashboard = () => {
         </div>
     );
 };
-

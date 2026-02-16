@@ -1613,7 +1613,21 @@ export const LandingPage = () => {
                     justify-content: center;
                 }
 
-                /* Responsive */
+                /* =========================================
+                   MOBILE RESPONSIVE STYLES
+                   ========================================= */
+
+                /* Tablet & Small Desktop - 1024px */
+                @media (max-width: 1024px) {
+                    .container {
+                        padding: 0 16px;
+                    }
+                    .hero-headline {
+                        font-size: 48px;
+                    }
+                }
+
+                /* Tablets - 900px */
                 @media (max-width: 900px) {
                     .jobs-layout {
                         grid-template-columns: 1fr;
@@ -1625,12 +1639,17 @@ export const LandingPage = () => {
                         margin-bottom: 24px;
                     }
                     .hero-headline {
-                        font-size: 36px;
+                        font-size: 40px;
                     }
                     .search-box {
                         flex-direction: column;
                         padding: 16px;
                         border-radius: 16px;
+                    }
+                    .search-box-results {
+                        flex-direction: column;
+                        padding: 12px;
+                        border-radius: 12px;
                     }
                     .search-divider {
                         width: 100%;
@@ -1640,6 +1659,9 @@ export const LandingPage = () => {
                     .search-btn {
                         width: 100%;
                         border-radius: 12px;
+                    }
+                    .search-btn-results {
+                        width: 100%;
                     }
                     .chat-btn {
                         right: 16px;
@@ -1657,42 +1679,143 @@ export const LandingPage = () => {
                         font-size: 20px;
                     }
                     .upwork-job-card {
-                        padding: 24px 0;
+                        padding: 20px 0;
                     }
                     .card-top-row {
                         flex-direction: column;
                         align-items: flex-start;
-                        gap: 8px;
+                        gap: 12px;
                     }
                     .card-actions {
                         width: 100%;
-                        justify-content: flex-end;
+                        justify-content: flex-start;
                     }
                     .job-meta-row {
-                        flex-direction: column;
-                        align-items: flex-start;
-                        gap: 8px;
-                    }
-                    .job-meta-row .meta-item:not(:last-child)::after {
-                        content: "";
-                        margin: 0;
+                        flex-wrap: wrap;
+                        gap: 8px 12px;
                     }
                     .company-verification-row {
-                        flex-direction: column;
-                        align-items: flex-start;
-                        gap: 8px;
+                        flex-wrap: wrap;
+                        gap: 8px 12px;
+                    }
+                }
+
+                /* Mobile - 768px */
+                @media (max-width: 768px) {
+                    .main-nav {
+                        display: none;
+                    }
+                    .compact-search-form {
+                        display: none;
+                    }
+                    .hero {
+                        padding: 60px 0 40px;
+                        min-height: 500px;
+                    }
+                    .hero-headline {
+                        font-size: 32px;
+                    }
+                    .hero-subtitle {
+                        font-size: 16px;
+                        margin-bottom: 32px;
+                    }
+                    .jobs-section {
+                        padding: 40px 0;
+                    }
+                    .popular-tags {
+                        flex-wrap: wrap;
+                        justify-content: flex-start;
+                    }
+                }
+
+                /* Mobile - 640px */
+                @media (max-width: 640px) {
+                    .container {
+                        padding: 0 12px;
+                    }
+                    .hero {
+                        padding: 40px 0 30px;
+                        min-height: auto;
+                    }
+                    .hero-headline {
+                        font-size: 28px;
+                        margin-bottom: 16px;
+                    }
+                    .hero-subtitle {
+                        font-size: 15px;
+                        margin-bottom: 24px;
+                    }
+                    .search-box {
+                        padding: 12px;
+                    }
+                    .search-box-results {
+                        padding: 10px;
+                    }
+                    .popular-label {
+                        width: 100%;
+                        text-align: left;
+                        margin-bottom: 4px;
+                    }
+                    .job-title-upwork {
+                        font-size: 16px;
+                    }
+                    .job-description-upwork {
+                        font-size: 13px;
+                        max-width: 100%;
+                    }
+                    .upwork-skill-tag {
+                        font-size: 11px;
+                        padding: 3px 10px;
+                    }
+                    .empty-state {
+                        padding: 40px 16px;
+                    }
+                    .meta-item:not(:last-child)::after {
+                        display: none;
                     }
                     .company-verification-row .separator {
                         display: none;
                     }
                 }
 
-                @media (max-width: 768px) {
-                    .main-nav {
-                        display: none;
+                /* Small Mobile - 480px */
+                @media (max-width: 480px) {
+                    .hero-headline {
+                        font-size: 24px;
+                        line-height: 1.2;
                     }
-                    .compact-search-form {
-                        display: none; /* Hide compact search on smaller screens if hero search is present */
+                    .hero-subtitle {
+                        font-size: 14px;
+                    }
+                    .search-btn {
+                        padding: 12px 24px;
+                        font-size: 14px;
+                    }
+                    .search-btn-results {
+                        padding: 10px 20px;
+                        font-size: 13px;
+                    }
+                    .tag-pill {
+                        font-size: 13px;
+                        padding: 6px 14px;
+                    }
+                    .circle-btn {
+                        width: 32px;
+                        height: 32px;
+                    }
+                    .btn-primary-modern {
+                        padding: 10px 24px;
+                        font-size: 14px;
+                    }
+                    .job-company-logo {
+                        width: 32px;
+                        height: 32px;
+                    }
+                    .results-count-heading {
+                        font-size: 16px;
+                    }
+                    .upwork-job-card {
+                        padding: 16px 0;
                     }
                 }
             `}</style>

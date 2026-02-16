@@ -175,6 +175,28 @@ export const Profile = () => {
     // We'll just render placeholder text if no user is present.
     const hasPhoto = user?.photoURL;
     const initial = user?.name?.charAt(0).toUpperCase() || 'U';
+    const resumeScore = typeof user?.analytics?.resumeScore === 'number'
+        ? Math.round(user.analytics.resumeScore)
+        : null;
+    const matchedSkillsCount = Array.isArray(user?.analytics?.matchedSkills)
+        ? user.analytics.matchedSkills.length
+        : typeof user?.analytics?.keywordsMatched === 'number'
+            ? user.analytics.keywordsMatched
+            : 0;
+    const missingSkillsCount = Array.isArray(user?.analytics?.missingSkills)
+        ? user.analytics.missingSkills.length
+        : 0;
+    const profileCompletion = Math.round(
+        ([user?.name, user?.profession, user?.about, user?.country, user?.photoURL, user?.bannerURL, user?.resumeURL]
+            .filter(Boolean).length / 7) * 100
+    );
+    const scoreStateClass = resumeScore === null
+        ? 'score-neutral'
+        : resumeScore >= 80
+            ? 'score-strong'
+            : resumeScore >= 60
+                ? 'score-fair'
+                : 'score-needs-work';
 
     return (
         <div className="profile-page">
@@ -267,7 +289,8 @@ export const Profile = () => {
                                 <div className="name-section">
                                     <h1 className="profile-name">{user?.name || 'Your Name'}</h1>
                                     <span className="verified-badge">
-                                        <span className="shield-icon">🛡️</span> Add verification badge
+                                        <span className="verified-dot" />
+                                        Profile status: active
                                     </span>
                                 </div>
 
@@ -291,14 +314,27 @@ export const Profile = () => {
 
                             {/* Right Side: Company & Education */}
                             <div className="profile-sidebar-info">
-                                {/* <div className="info-item">
-                                    <img src="https://ui-avatars.com/api/?name=Quantum+Labs+AI&background=0ea5e9&color=fff&size=40" alt="Quantum Labs" className="info-logo" />
-                                    <span className="info-text">Quantum Labs AI</span>
+                                <div className="quick-stats-card">
+                                    <h3 className="quick-stats-title">Profile Snapshot</h3>
+                                    <div className="quick-stat-item">
+                                        <span>Profile completion</span>
+                                        <strong>{profileCompletion}%</strong>
+                                    </div>
+                                    <div className="quick-stat-item">
+                                        <span>Resume score</span>
+                                        <strong className={scoreStateClass}>
+                                            {isSyncingScore ? 'Syncing...' : resumeScore !== null ? `${resumeScore}/100` : 'Not analyzed'}
+                                        </strong>
+                                    </div>
+                                    <div className="quick-stat-item">
+                                        <span>Matched skills</span>
+                                        <strong>{matchedSkillsCount}</strong>
+                                    </div>
+                                    <div className="quick-stat-item">
+                                        <span>Missing skills</span>
+                                        <strong>{missingSkillsCount}</strong>
+                                    </div>
                                 </div>
-                                <div className="info-item">
-                                    <img src="https://ui-avatars.com/api/?name=University+of+Swat&background=15803d&color=fff&size=40" alt="University of Swat" className="info-logo" />
-                                    <span className="info-text">University of Swat</span>
-                                </div> */}
                             </div>
                         </div>
 
@@ -350,37 +386,74 @@ export const Profile = () => {
                             {/* Open to Work Card */}
                             <div className="status-card open-to-work">
                                 <div className="status-header">
-                                    <span className="status-title">Open to work</span>
+                                    <span className="status-title">Career focus</span>
                                     <button className="edit-status-btn"><Pencil size={14} /></button>
                                 </div>
-                                <p className="status-desc">Mobile Application Developer and Web Developer roles</p>
-                                <a href="#" className="status-link">Show details</a>
+                                <p className="status-desc">
+                                    {user?.profession
+                                        ? `Targeting ${user.profession} opportunities with impact-focused teams.`
+                                        : 'Add your role focus to attract the right opportunities.'}
+                                </p>
+                                <button
+                                    className="status-link status-link-btn"
+                                    onClick={() => {
+                                        setEditName(user?.name || '');
+                                        setEditProfession(user?.profession || '');
+                                        setEditAbout(user?.about || '');
+                                        setIsEditModalOpen(true);
+                                    }}
+                                >
+                                    Refine details
+                                </button>
                             </div>
 
                             {/* Hiring Card */}
                             <div className="status-card hiring">
-                                <div className="status-close"><X size={16} /></div>
                                 <div className="status-header">
-                                    <span className="status-title">Share that you're hiring</span>
+                                    <span className="status-title">Profile strength</span>
                                 </div>
-                                <p className="status-desc">and attract qualified candidates.</p>
-                                <button className="btn-status-action">Get started</button>
+                                <p className="status-desc">
+                                    {profileCompletion >= 80
+                                        ? 'Your profile is in great shape. Keep it fresh with new projects and resume updates.'
+                                        : 'Complete your profile to improve visibility and recommendation quality.'}
+                                </p>
+                                <button
+                                    className="btn-status-action"
+                                    onClick={() => {
+                                        setEditName(user?.name || '');
+                                        setEditProfession(user?.profession || '');
+                                        setEditAbout(user?.about || '');
+                                        setIsEditModalOpen(true);
+                                    }}
+                                >
+                                    Improve profile
+                                </button>
                             </div>
                         </div>
 
                         {/* Analytics Section */}
                         {/* Full Resume Analytics Dashboard */}
-                        <AnalyticsDashboard />
+                        <div className="analytics-shell">
+                            <AnalyticsDashboard />
+                        </div>
 
 
                     </div>
                 </div>
 
                 {/* About Section */}
-                {user && <AboutSection user={user} />}
+                {user && (
+                    <div className="profile-section-shell">
+                        <AboutSection user={user} />
+                    </div>
+                )}
 
                 {/* Activity/Blog Section */}
-                {user && <BlogSection user={user} limit={3} />}
+                {user && (
+                    <div className="profile-section-shell">
+                        <BlogSection user={user} limit={3} />
+                    </div>
+                )}
 
                 {/* Edit Profile Modal */}
                 {isEditModalOpen && (
@@ -469,7 +542,8 @@ export const Profile = () => {
 
             <style>{`
         .profile-page {
-            min-height: 100vh;
+            min-height: 100%;
+            width: 100%;
             background-color: #f8fffe; /* Updated to match other pages */
             padding: 0px 0;
             font-family: var(--font-family);
@@ -477,18 +551,21 @@ export const Profile = () => {
         }
 
         .profile-container {
-            max-width: 1128px;
-            margin: 0 auto;
-            padding: 0 16px;
+            width: 100%;
+            max-width: none;
+            margin: 0;
+            padding: 0;
+            min-height: 100%;
         }
 
         .profile-card {
             background: white;
-            border-radius: 8px;
+            border-radius: 0;
             box-shadow: 0 0 0 1px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
             overflow: hidden;
             position: relative;
             margin-bottom: 24px;
+            min-height: calc(100dvh - 72px);
         }
 
 
@@ -960,6 +1037,7 @@ export const Profile = () => {
         @media (max-width: 768px) {
             .profile-info-grid {
                 grid-template-columns: 1fr;
+                text-align: center;
             }
             .profile-banner {
                 height: 150px;
@@ -967,9 +1045,32 @@ export const Profile = () => {
             .profile-avatar-wrapper {
                 width: 120px;
                 height: 120px;
-                margin-top: -80px;
+                margin: -60px auto 0;
             }
-
+            .profile-header-top {
+                flex-direction: column;
+                align-items: center;
+                margin-bottom: 24px;
+            }
+            .edit-intro-btn {
+                margin-top: 12px;
+            }
+            .name-section {
+                justify-content: center;
+            }
+            .profile-actions {
+                justify-content: center;
+            }
+            .resume-btn-wrapper {
+                width: 100%;
+                justify-content: center;
+            }
+            .status-card {
+                min-width: 260px;
+            }
+            .profile-name {
+                font-size: 20px;
+            }
         }
 
         /* Modal Styles */
@@ -1213,7 +1314,939 @@ export const Profile = () => {
             border-color: #00d4aa;
             box-shadow: 0 0 0 3px rgba(10, 102, 194, 0.1);
         }
+
+        /* =============================================
+           MOBILE RESPONSIVE STYLES - PROFILE PAGE
+           ============================================= */
+
+        /* Tablet - 1024px */
+        @media (max-width: 1024px) {
+            .profile-container {
+                padding: 0;
+            }
+            
+            .profile-info-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+        }
+
+        /* Tablet - 768px */
+        @media (max-width: 768px) {
+            .profile-banner {
+                height: 160px;
+            }
+
+            .banner-content {
+                right: 12px;
+                bottom: 12px;
+            }
+
+            .banner-text {
+                font-size: 11px;
+                letter-spacing: 0.5px;
+            }
+
+            .banner-contact {
+                font-size: 10px;
+            }
+
+            .profile-avatar-wrapper {
+                width: 120px;
+                height: 120px;
+                margin-top: -80px;
+            }
+
+            .profile-avatar-fallback {
+                font-size: 48px;
+            }
+
+            .edit-intro-btn {
+                margin-top: 12px;
+            }
+
+            .profile-name {
+                font-size: 20px;
+            }
+
+            .verified-badge {
+                font-size: 12px;
+                padding: 2px 6px;
+            }
+
+            .profile-headline {
+                font-size: 14px;
+            }
+
+            .profile-location {
+                font-size: 13px;
+            }
+
+            .profile-info-grid {
+                gap: 12px;
+            }
+
+            .profile-actions {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 8px;
+            }
+
+            .btn-primary-profile,
+            .btn-outline-profile {
+                width: auto;
+                flex: 0 1 auto;
+                padding: 6px 14px;
+                font-size: 12px;
+            }
+            
+            .resume-btn-wrapper {
+                width: auto;
+                justify-content: center;
+            }
+
+            .status-carousel {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .status-card {
+                min-width: 100%;
+            }
+
+            .modal-content {
+                width: 95%;
+                max-height: 95vh;
+            }
+        }
+
+        /* Mobile - 640px */
+        @media (max-width: 640px) {
+            .profile-page {
+                padding: 0;
+            }
+
+            .profile-container {
+                padding: 0;
+            }
+
+            .profile-banner {
+                height: 140px;
+            }
+
+            .banner-content {
+                right: 8px;
+                bottom: 8px;
+                max-width: 60%;
+            }
+
+            .banner-text {
+                font-size: 10px;
+                margin-bottom: 2px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .banner-contact {
+                font-size: 9px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .edit-banner-btn {
+                top: 12px;
+                left: 12px;
+                width: 28px;
+                height: 28px;
+            }
+
+            .profile-avatar-wrapper {
+                width: 100px;
+                height: 100px;
+                margin-top: -60px;
+            }
+
+            .edit-avatar-btn {
+                width: 28px;
+                height: 28px;
+                bottom: 5px;
+                right: 5px;
+            }
+
+            .profile-content {
+                padding: 0 12px 16px;
+            }
+
+            .profile-header-top {
+                margin-bottom: 12px;
+            }
+
+            .edit-intro-btn {
+                position: static;
+                margin-top: 8px;
+                align-self: flex-start;
+            }
+
+            .name-section {
+                flex-direction: row;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 6px;
+                margin-bottom: 6px;
+            }
+
+            .profile-name {
+                font-size: 18px;
+                line-height: 1.3;
+            }
+
+            .verified-badge {
+                font-size: 9px;
+                padding: 2px 4px;
+                margin-top: 0;
+                gap: 2px;
+            }
+
+            .shield-icon {
+                font-size: 9px;
+            }
+
+            .profile-headline {
+                font-size: 13px;
+                margin: 6px 0;
+            }
+
+            .profile-location {
+                font-size: 12px;
+                margin-bottom: 16px;
+                word-break: break-word;
+            }
+
+            .contact-info-link {
+                display: inline-block;
+                max-width: 200px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                vertical-align: bottom;
+            }
+
+            .profile-actions {
+                flex-direction: row;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+            }
+
+            .btn-primary-profile,
+            .btn-outline-profile {
+                flex: 0 1 auto;
+                text-align: center;
+                justify-content: center;
+                padding: 6px 14px;
+                font-size: 12px;
+                font-weight: 600;
+                white-space: nowrap;
+                width: auto;
+            }
+
+            .resume-btn-wrapper {
+                width: auto;
+                display: flex;
+                gap: 8px;
+            }
+
+            .resume-btn-wrapper .btn-outline-profile {
+                flex: 0 1 auto;
+            }
+
+            .view-resume-link {
+                flex-shrink: 0;
+                padding: 8px 12px;
+            }
+
+            .status-carousel {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                overflow: visible;
+            }
+
+            .status-card {
+                flex: none;
+                width: 100%;
+                min-width: 100%;
+                margin-bottom: 0;
+            }
+
+            .status-card.open-to-work,
+            .status-card.hiring {
+                width: 100%;
+            }
+
+            .modal-content {
+                width: 100%;
+                max-height: 100vh;
+                border-radius: 0;
+            }
+
+            .modal-banner-preview {
+                height: 140px;
+            }
+
+            .modal-header {
+                padding: 12px 16px;
+            }
+
+            .modal-header h2 {
+                font-size: 18px;
+            }
+
+            .modal-body {
+                padding: 12px 16px;
+            }
+
+            .modal-footer {
+                padding: 12px 16px;
+                flex-direction: column-reverse;
+                gap: 8px;
+            }
+
+            .modal-footer .btn-secondary,
+            .modal-footer .btn-primary {
+                width: 100%;
+            }
+        }
+
+        /* Small Mobile - 480px */
+        @media (max-width: 480px) {
+            .profile-banner {
+                height: 120px;
+            }
+
+            .banner-content {
+                max-width: 50%;
+            }
+
+            .banner-text {
+                font-size: 9px;
+                letter-spacing: 0.3px;
+            }
+
+            .banner-contact {
+                font-size: 8px;
+            }
+
+            .profile-avatar-wrapper {
+                width: 80px;
+                height: 80px;
+                margin-top: -50px;
+            }
+
+            .profile-avatar-fallback {
+                font-size: 32px;
+            }
+
+            .edit-avatar-btn {
+                width: 24px;
+                height: 24px;
+            }
+
+            .profile-name {
+                font-size: 16px;
+            }
+
+            .profile-headline {
+                font-size: 12px;
+            }
+
+            .verified-badge {
+                font-size: 10px;
+                padding: 1px 4px;
+                gap: 2px;
+            }
+
+            .shield-icon {
+                font-size: 10px;
+            }
+
+            .profile-location {
+                font-size: 11px;
+            }
+
+            .contact-info-link {
+                max-width: 150px;
+            }
+
+            .profile-content {
+                padding: 0 8px 12px;
+            }
+
+
+            /* Mobile size buttons */
+            .btn-primary-profile,
+            .btn-outline-profile {
+                padding: 4px 10px !important;
+                font-size: 11px !important;
+                font-weight: 600;
+                white-space: nowrap;
+                min-height: 24px;
+                width: auto !important;
+                flex: 0 1 auto !important;
+            }
+            
+            .profile-actions {
+                justify-content: center;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+            
+            .resume-btn-wrapper {
+                width: auto !important;
+                justify-content: center;
+            }
+
+            .status-card {
+                padding: 12px;
+            }
+
+            .status-title {
+                font-size: 13px;
+            }
+
+            .status-desc {
+                font-size: 12px;
+            }
+
+            .btn-status-action {
+                padding: 6px 12px;
+                font-size: 13px;
+            }
+        }
+
+        /* Extra Small Mobile - 375px */
+        @media (max-width: 375px) {
+            .banner-text {
+                font-size: 8px;
+            }
+
+            .banner-contact {
+                font-size: 7px;
+            }
+
+            .verified-badge {
+                font-size: 9px;
+                padding: 1px 3px;
+                gap: 2px;
+            }
+
+            .shield-icon {
+                font-size: 9px;
+            }
+
+            .profile-name {
+                font-size: 15px;
+            }
+
+            .profile-headline {
+                font-size: 11px;
+            }
+
+            .contact-info-link {
+                max-width: 120px;
+            }
+
+            .btn-primary-profile,
+            .btn-outline-profile {
+                width: auto !important;
+                flex: 0 1 auto !important;
+                padding: 4px 8px !important;
+                font-size: 10px !important;
+                min-height: 22px !important;
+            }
+            
+            .view-resume-link {
+                padding: 4px 8px !important;
+                font-size: 10px !important;
+            }
+            
+            .profile-actions {
+                justify-content: center;
+                gap: 6px;
+                flex-wrap: wrap;
+            }
+            
+            .resume-btn-wrapper {
+                width: auto !important;
+                justify-content: center;
+            }
+        }
+
+        /* ==================================================
+           Profile UI Refresh
+           ================================================== */
+        .profile-page {
+            --profile-ink: #0f172a;
+            --profile-muted: #475569;
+            --profile-border: rgba(15, 23, 42, 0.08);
+            --profile-surface: #ffffff;
+            --profile-shadow: 0 14px 36px rgba(15, 23, 42, 0.07);
+            background:
+                linear-gradient(180deg, #f3f6fa 0%, #eef2f7 100%);
+            padding: 0;
+            color: var(--profile-ink);
+        }
+
+        .profile-container {
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            gap: 22px;
+        }
+
+        .profile-card {
+            border-radius: 0;
+            border: none;
+            box-shadow: none;
+            margin-bottom: 0;
+            min-height: calc(100dvh - 72px);
+            background: transparent;
+            animation: profileReveal 0.25s ease-out both;
+        }
+
+        .profile-banner {
+            height: clamp(220px, 29vw, 340px);
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
+            background-position: center;
+        }
+
+        .profile-banner::before {
+            background: linear-gradient(105deg, rgba(2, 8, 23, 0.7) 0%, rgba(2, 8, 23, 0.46) 48%, rgba(30, 64, 175, 0.28) 100%);
+        }
+
+        .profile-banner::after {
+            content: none;
+        }
+
+        .banner-content {
+            left: clamp(16px, 3vw, 36px);
+            right: auto;
+            bottom: clamp(16px, 3vw, 34px);
+            text-align: left;
+            max-width: min(640px, 86%);
+        }
+
+        .banner-text {
+            font-size: clamp(12px, 1.1vw, 15px);
+            letter-spacing: 0.14em;
+            opacity: 0.95;
+        }
+
+        .banner-contact {
+            font-size: clamp(11px, 0.9vw, 13px);
+            opacity: 0.9;
+        }
+
+        .edit-banner-btn {
+            top: 18px;
+            left: 18px;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            color: #0f172a;
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 8px 20px rgba(2, 8, 23, 0.16);
+        }
+
+        .edit-banner-btn:hover {
+            transform: translateY(-1px);
+            background: #ffffff;
+        }
+
+        .profile-content {
+            width: min(1140px, 100%);
+            margin: 0 auto;
+            padding: 0 clamp(12px, 2.4vw, 30px) clamp(22px, 3vw, 36px);
+            display: grid;
+            gap: 18px;
+        }
+
+        .profile-header-top {
+            margin-bottom: 0;
+            align-items: flex-end;
+        }
+
+        .profile-avatar-wrapper {
+            width: clamp(128px, 15vw, 168px);
+            height: clamp(128px, 15vw, 168px);
+            margin-top: calc(clamp(128px, 15vw, 168px) * -0.62);
+            filter: drop-shadow(0 12px 26px rgba(2, 8, 23, 0.18));
+        }
+
+        .profile-avatar,
+        .profile-avatar-fallback {
+            border: 4px solid rgba(255, 255, 255, 0.92);
+            box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.08);
+        }
+
+        .profile-avatar-fallback {
+            background: linear-gradient(135deg, #00d4aa, #006f78);
+        }
+
+        .edit-avatar-btn {
+            border-radius: 10px;
+            width: 34px;
+            height: 34px;
+            bottom: 6px;
+            right: 4px;
+            color: #0f172a;
+            box-shadow: 0 8px 18px rgba(2, 8, 23, 0.2);
+        }
+
+        .edit-intro-btn {
+            margin-top: 0;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid var(--profile-border);
+            color: #0f172a;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .edit-intro-btn:hover {
+            background: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        .profile-info-grid {
+            grid-template-columns: minmax(0, 1.5fr) minmax(260px, 0.8fr);
+            gap: 20px;
+            margin-bottom: 6px;
+        }
+
+        .profile-main-info {
+            padding: clamp(16px, 2vw, 24px);
+            border-radius: 16px;
+            border: 1px solid var(--profile-border);
+            background: var(--profile-surface);
+            box-shadow: var(--profile-shadow);
+        }
+
+        .profile-name {
+            font-size: clamp(1.5rem, 2.4vw, 2.1rem);
+            line-height: 1.12;
+            letter-spacing: -0.02em;
+            margin-bottom: 0;
+        }
+
+        .verified-badge {
+            border-radius: 999px;
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            background: #f8fafc;
+            color: #334155;
+            font-size: 12px;
+            padding: 4px 10px;
+            gap: 6px;
+        }
+
+        .verified-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #16a34a;
+        }
+
+        .profile-headline {
+            margin: 10px 0 12px;
+            color: #1e293b;
+            font-size: clamp(14px, 1.35vw, 17px);
+        }
+
+        .profile-location {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            color: var(--profile-muted);
+            margin-bottom: 0;
+        }
+
+        .profile-sidebar-info {
+            display: block;
+        }
+
+        .quick-stats-card {
+            border-radius: 16px;
+            border: 1px solid var(--profile-border);
+            background: #ffffff;
+            box-shadow: var(--profile-shadow);
+            padding: 18px;
+        }
+
+        .quick-stats-title {
+            margin: 0 0 12px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #334155;
+        }
+
+        .quick-stat-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 0;
+            font-size: 14px;
+            color: #334155;
+            border-top: 1px solid rgba(15, 23, 42, 0.08);
+        }
+
+        .quick-stat-item:first-of-type {
+            border-top: none;
+            padding-top: 0;
+        }
+
+        .quick-stat-item strong {
+            font-size: 14px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .score-strong {
+            color: #047857;
+        }
+
+        .score-fair {
+            color: #0369a1;
+        }
+
+        .score-needs-work {
+            color: #b45309;
+        }
+
+        .score-neutral {
+            color: #475569;
+        }
+
+        .profile-actions {
+            gap: 10px;
+            margin-bottom: 0;
+        }
+
+        .btn-outline-profile {
+            border-radius: 999px;
+            border: 1px solid #0f172a;
+            padding: 8px 16px;
+            font-size: 13px;
+            letter-spacing: 0.01em;
+            color: #ffffff;
+            background: #0f172a;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.2);
+        }
+
+        .btn-outline-profile:hover {
+            background: #1e293b;
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.28);
+        }
+
+        .resume-btn-wrapper {
+            gap: 10px;
+        }
+
+        .view-resume-link {
+            border-radius: 999px;
+            padding: 8px 14px;
+            border: 1px solid rgba(15, 23, 42, 0.16);
+            color: #1e293b;
+            background: #ffffff;
+        }
+
+        .status-carousel {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 0;
+            overflow: visible;
+            padding-bottom: 0;
+        }
+
+        .status-card {
+            min-width: 0;
+            border-radius: 16px;
+            border: 1px solid var(--profile-border);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+            padding: 18px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .status-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 30px rgba(15, 23, 42, 0.1);
+        }
+
+        .status-card.open-to-work {
+            background: #ffffff;
+        }
+
+        .status-card.hiring {
+            background: #ffffff;
+        }
+
+        .status-title {
+            font-size: 15px;
+        }
+
+        .status-desc {
+            color: #334155;
+            margin-bottom: 10px;
+        }
+
+        .status-link-btn {
+            border: none;
+            background: none;
+            padding: 0;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .analytics-shell,
+        .profile-section-shell {
+            width: min(1140px, 100%);
+            margin: 0 auto;
+            border-radius: 16px;
+            border: 1px solid var(--profile-border);
+            background: var(--profile-surface);
+            box-shadow: var(--profile-shadow);
+            padding: clamp(12px, 2vw, 20px);
+        }
+
+        .profile-footer-logout {
+            width: min(1140px, 100%);
+            margin: 0 auto 16px;
+            border-radius: 16px;
+            background: var(--profile-surface);
+            border: 1px solid var(--profile-border);
+            box-shadow: var(--profile-shadow);
+            padding: 24px;
+        }
+
+        .btn-logout-bottom {
+            background: #ffffff;
+            color: #b91c1c;
+            border: 1px solid rgba(185, 28, 28, 0.3);
+            letter-spacing: 0;
+            font-weight: 600;
+            box-shadow: 0 8px 20px rgba(185, 28, 28, 0.14);
+        }
+
+        .btn-logout-bottom:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 22px rgba(185, 28, 28, 0.18);
+            filter: none;
+        }
+
+        .btn-logout-bottom:hover svg {
+            transform: none;
+        }
+
+        .modal-content {
+            border-radius: 14px;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+        }
+
+        @keyframes profileReveal {
+            from {
+                opacity: 0;
+                transform: translateY(14px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .profile-info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .quick-stats-card {
+                padding: 16px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .profile-banner {
+                height: 220px;
+            }
+
+            .profile-header-top {
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .profile-avatar-wrapper {
+                margin-top: -80px;
+            }
+
+            .edit-intro-btn {
+                align-self: flex-end;
+            }
+
+            .status-carousel {
+                grid-template-columns: 1fr;
+            }
+
+            .profile-footer-logout,
+            .analytics-shell,
+            .profile-section-shell {
+                border-radius: 16px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .profile-banner {
+                height: 188px;
+            }
+
+            .banner-content {
+                max-width: calc(100% - 24px);
+            }
+
+            .profile-content {
+                padding: 0 10px 18px;
+            }
+
+            .profile-main-info,
+            .quick-stats-card,
+            .status-card {
+                border-radius: 14px;
+            }
+
+            .profile-actions {
+                justify-content: flex-start;
+            }
+
+            .btn-outline-profile,
+            .view-resume-link {
+                font-size: 12px;
+                padding: 7px 12px;
+            }
+        }
       `}</style>
         </div>
     );
 };
+

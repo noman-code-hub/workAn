@@ -1,5 +1,6 @@
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Sun, Zap, Globe } from 'lucide-react';
+import { Sun, Zap, Globe, Menu, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { ProfileDropdown } from './ProfileDropdown';
 
@@ -7,9 +8,26 @@ export const Header = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (isMenuOpen) {
+      document.body.classList.add('no-scroll');
+    } else {
+      document.body.classList.remove('no-scroll');
+    }
+    return () => document.body.classList.remove('no-scroll');
+  }, [isMenuOpen]);
 
   const handleLogoClick = () => {
     navigate('/');
+    setIsMenuOpen(false);
+  };
+
+  const handleNavClick = (path: string) => {
+    navigate(path);
+    setIsMenuOpen(false);
   };
 
   return (
@@ -24,39 +42,40 @@ export const Header = () => {
           </div>
         </div>
 
+        {/* Desktop Navigation */}
         <nav className="header-nav">
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => handleNavClick('/dashboard')}
             className={`nav-link ${location.pathname === '/dashboard' ? 'active' : ''}`}
           >
             Overview
           </button>
           <button
-            onClick={() => navigate('/jobs')}
+            onClick={() => handleNavClick('/jobs')}
             className={`nav-link ${location.pathname === '/jobs' ? 'active' : ''}`}
           >
             Job Search
           </button>
           <button
-            onClick={() => navigate('/resume')}
+            onClick={() => handleNavClick('/resume')}
             className={`nav-link ${location.pathname === '/resume' ? 'active' : ''}`}
           >
             Resume Optimizer
           </button>
           <button
-            onClick={() => navigate('/community')}
+            onClick={() => handleNavClick('/community')}
             className={`nav-link ${location.pathname === '/community' ? 'active' : ''}`}
           >
             Community
           </button>
           <button
-            onClick={() => navigate('/trends')}
+            onClick={() => handleNavClick('/trends')}
             className={`nav-link ${location.pathname === '/trends' ? 'active' : ''}`}
           >
             Trends
           </button>
           <button
-            onClick={() => navigate('/ai-copilot')}
+            onClick={() => handleNavClick('/ai-copilot')}
             className={`nav-link ${location.pathname === '/ai-copilot' ? 'active' : ''}`}
           >
             AI Copilot
@@ -65,7 +84,7 @@ export const Header = () => {
           {/* Role-based navigation */}
           {user?.role === 'admin' && (
             <button
-              onClick={() => navigate('/admin')}
+              onClick={() => handleNavClick('/admin')}
               className={`nav-link admin-link ${location.pathname === '/admin' ? 'active' : ''}`}
             >
               👨‍💼 Admin
@@ -73,7 +92,7 @@ export const Header = () => {
           )}
           {(user?.role === 'recruiter' || user?.role === 'admin') && (
             <button
-              onClick={() => navigate('/recruiter')}
+              onClick={() => handleNavClick('/recruiter')}
               className={`nav-link recruiter-link ${location.pathname === '/recruiter' ? 'active' : ''}`}
             >
               💼 Recruiter
@@ -83,11 +102,11 @@ export const Header = () => {
 
         <div className="header-right">
           <div className="header-actions">
-            <button className="icon-btn-universal">
+            <button className="icon-btn-universal desktop-only">
               <Globe size={18} />
               <span>EN</span>
             </button>
-            <button className="icon-btn-universal">
+            <button className="icon-btn-universal desktop-only">
               <Sun size={18} />
             </button>
             {user ? (
@@ -95,14 +114,92 @@ export const Header = () => {
             ) : (
               <button
                 className="signin-btn-universal"
-                onClick={() => navigate('/login')}
+                onClick={() => handleNavClick('/login')}
+              >
+                Sign In
+              </button>
+            )}
+            {/* Mobile Menu Toggle */}
+            <button
+              className="icon-btn-universal mobile-menu-btn"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Navigation Menu */}
+      {isMenuOpen && (
+        <div className="mobile-menu">
+          <div className="mobile-nav-links">
+            <button
+              onClick={() => handleNavClick('/dashboard')}
+              className={`mobile-nav-link ${location.pathname === '/dashboard' ? 'active' : ''}`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => handleNavClick('/jobs')}
+              className={`mobile-nav-link ${location.pathname === '/jobs' ? 'active' : ''}`}
+            >
+              Job Search
+            </button>
+            <button
+              onClick={() => handleNavClick('/resume')}
+              className={`mobile-nav-link ${location.pathname === '/resume' ? 'active' : ''}`}
+            >
+              Resume Optimizer
+            </button>
+            <button
+              onClick={() => handleNavClick('/community')}
+              className={`mobile-nav-link ${location.pathname === '/community' ? 'active' : ''}`}
+            >
+              Community
+            </button>
+            <button
+              onClick={() => handleNavClick('/trends')}
+              className={`mobile-nav-link ${location.pathname === '/trends' ? 'active' : ''}`}
+            >
+              Trends
+            </button>
+            <button
+              onClick={() => handleNavClick('/ai-copilot')}
+              className={`mobile-nav-link ${location.pathname === '/ai-copilot' ? 'active' : ''}`}
+            >
+              AI Copilot
+            </button>
+
+            {/* Role-based navigation */}
+            {user?.role === 'admin' && (
+              <button
+                onClick={() => handleNavClick('/admin')}
+                className={`mobile-nav-link admin-link ${location.pathname === '/admin' ? 'active' : ''}`}
+              >
+                👨‍💼 Admin Dashboard
+              </button>
+            )}
+            {(user?.role === 'recruiter' || user?.role === 'admin') && (
+              <button
+                onClick={() => handleNavClick('/recruiter')}
+                className={`mobile-nav-link recruiter-link ${location.pathname === '/recruiter' ? 'active' : ''}`}
+              >
+                💼 Recruiter Dashboard
+              </button>
+            )}
+
+            {!user && (
+              <button
+                onClick={() => handleNavClick('/login')}
+                className="mobile-nav-link highlight"
               >
                 Sign In
               </button>
             )}
           </div>
         </div>
-      </div>
+      )}
 
       <style>{`
         .universal-header {
@@ -240,8 +337,63 @@ export const Header = () => {
           background: #1f2937;
         }
 
+        .mobile-menu-btn {
+          display: none;
+        }
+        
+        /* Mobile Menu Styles */
+        .mobile-menu {
+          position: fixed;
+          top: 72px;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: white;
+          z-index: 999;
+          padding: 24px;
+          overflow-y: auto;
+          border-top: 1px solid #e5e7eb;
+        }
+
+        .mobile-nav-links {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .mobile-nav-link {
+          padding: 16px;
+          border: none;
+          background: #f9fafb;
+          border-radius: 12px;
+          font-size: 16px;
+          font-weight: 600;
+          color: #374151;
+          text-align: left;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .mobile-nav-link:hover, .mobile-nav-link.active {
+          background: #f0fdf9;
+          color: #00d4aa;
+        }
+        
+        .mobile-nav-link.highlight {
+           background: #111827;
+           color: white;
+           text-align: center;
+           margin-top: 16px;
+        }
+
         @media (max-width: 1024px) {
           .header-nav {
+            display: none;
+          }
+          .mobile-menu-btn {
+            display: flex;
+          }
+          .desktop-only {
             display: none;
           }
         }
@@ -249,9 +401,6 @@ export const Header = () => {
         @media (max-width: 640px) {
           .header-inner {
             padding: 0 12px;
-          }
-          .icon-btn-universal span {
-            display: none;
           }
           .logo-text {
             font-size: 18px;

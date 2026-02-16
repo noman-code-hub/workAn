@@ -48,7 +48,9 @@ export const Resume = () => {
   const [previewScale, setPreviewScale] = useState(1);
   const [previewSize, setPreviewSize] = useState({ width: 800, height: 1100 });
   const [templateStep, setTemplateStep] = useState<'choose' | 'edit'>('choose');
+
   const [activeTemplateFilter, setActiveTemplateFilter] = useState('All templates');
+  const [showMobilePreview, setShowMobilePreview] = useState(false);
 
   const {
     templates,
@@ -841,7 +843,7 @@ export const Resume = () => {
 
 
   return (
-    <div className="resume-page">
+    <div className={`resume-page ${isTemplateSelection ? 'is-template-mode' : ''}`}>
       <section className={`resume-hero ${isTemplateSelection ? 'is-templates' : ''}`}>
         <div className="resume-hero-content">
           {isTemplateSelection ? (
@@ -850,6 +852,11 @@ export const Resume = () => {
               <p className="subtitle">
                 Each resume template is designed to help you get hired faster. Pick a layout and start editing in seconds.
               </p>
+              <div className="resume-hero-meta">
+                <span>{templateLoading ? 'Loading templates...' : `${filteredTemplates.length} templates ready`}</span>
+                <span>ATS-friendly layouts</span>
+                <span>One-click editing</span>
+              </div>
               <div className="resume-hero-actions">
                 <button
                   type="button"
@@ -879,6 +886,11 @@ export const Resume = () => {
             <>
               <h1>Build Your <span className="highlight">Resume</span></h1>
               <p className="subtitle">Create a modern resume with live preview and ready-to-download formats.</p>
+              <div className="resume-hero-meta">
+                <span>Template: {selectedTemplateLabel}</span>
+                <span>{sectionOrder.length} editable sections</span>
+                <span>Live preview enabled</span>
+              </div>
             </>
           )}
         </div>
@@ -932,40 +944,50 @@ export const Resume = () => {
               Build your resume with a live preview. Drag sections to reorder and add multiple experiences or education entries.
             </p>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-                  <div className="text-sm text-gray-600">
-                    Selected Template: <span className="font-semibold text-gray-800">{selectedTemplateLabel}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setTemplateStep('choose')}
-                    className="text-sm font-semibold text-primary hover:text-primary/80"
-                  >
-                    Change Template
-                  </button>
-                </div>
+            <div className="resume-toolbar-row">
+              <div className="text-sm text-gray-600">
+                Selected Template: <span className="font-semibold text-gray-800">{selectedTemplateLabel}</span>
+              </div>
+              <div className="resume-toolbar-actions">
+                <button
+                  type="button"
+                  onClick={handleGenerateResume}
+                  className="resume-action-btn primary"
+                  disabled={generating}
+                >
+                  {generating ? 'Refreshing...' : 'Refresh Preview'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTemplateStep('choose')}
+                  className="resume-action-btn ghost"
+                >
+                  Change Template
+                </button>
+              </div>
+            </div>
 
-                {templateSourceHtml && templateFields.length === 0 && (
-                  <div className="text-sm text-gray-500 mb-6">
-                    This template has no placeholders. Use a dynamic template to enable live editing.
-                  </div>
-                )}
+            {templateSourceHtml && templateFields.length === 0 && (
+              <div className="text-sm text-gray-500 mb-6">
+                This template has no placeholders. Use a dynamic template to enable live editing.
+              </div>
+            )}
 
-                <div className="resume-builder-grid">
-                  <div className="builder-panel">
-                    <div className="space-y-5">
-                      {sectionOrder.map((sectionId) => {
-                      const sectionTitle = {
-                        contact: 'Contact',
-                        summary: 'Professional Summary',
-                        experience: 'Work Experience',
-                        projects: 'Projects',
-                        education: 'Education',
-                        skills: 'Skills',
-                        custom: 'Custom Details',
-                        additional: 'Additional Information',
-                        extra: 'Other Fields',
-                      }[sectionId];
+            <div className="resume-builder-grid">
+              <div className="builder-panel">
+                <div className="space-y-5">
+                  {sectionOrder.map((sectionId) => {
+                    const sectionTitle = {
+                      contact: 'Contact',
+                      summary: 'Professional Summary',
+                      experience: 'Work Experience',
+                      projects: 'Projects',
+                      education: 'Education',
+                      skills: 'Skills',
+                      custom: 'Custom Details',
+                      additional: 'Additional Information',
+                      extra: 'Other Fields',
+                    }[sectionId];
 
                     const sectionContent = {
                       contact: (
@@ -1319,11 +1341,30 @@ export const Resume = () => {
                   </div>
                 )}
 
+                {/* Mobile Only: Generate Resume Button */}
+                <div className="mt-6 md:hidden">
+                  <button
+                    type="button"
+                    onClick={() => setShowMobilePreview(true)}
+                    className="w-full btn btn-primary py-3 font-bold text-lg shadow-lg"
+                  >
+                    Generate Resume & Preview
+                  </button>
+                </div>
               </div>
 
-              <div className="builder-preview">
+              <div className={`builder-preview ${showMobilePreview ? 'is-visible' : ''}`}>
                 <div className="builder-preview-header">
-                  <h3 className="text-lg font-semibold">Live Preview</h3>
+                  <div className="flex items-center gap-2">
+                    {/* Mobile Only: Back Button */}
+                    <button
+                      onClick={() => setShowMobilePreview(false)}
+                      className="md:hidden p-2 -ml-2 text-gray-600 hover:text-gray-900"
+                    >
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
+                    </button>
+                    <h3 className="text-lg font-semibold">Live Preview</h3>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     <button
                       onClick={handleDownloadPDF}
@@ -1389,16 +1430,26 @@ export const Resume = () => {
       </div>
 
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Sora:wght@600;700&display=swap');
+
         .resume-page {
-          min-height: calc(100vh - 72px);
-          height: calc(100vh - 72px);
           background: #f8fffe;
           font-family: var(--font-family);
           padding: 0;
           width: 100%;
           display: flex;
           flex-direction: column;
-          overflow: hidden;
+          min-height: calc(100vh - 72px);
+        }
+
+        .resume-page:not(.is-template-mode) {
+           height: calc(100vh - 72px);
+           overflow: hidden;
+        }
+
+        .resume-page.is-template-mode {
+           height: auto;
+           overflow-y: auto;
         }
 
         .page-content {
@@ -1493,8 +1544,16 @@ export const Resume = () => {
           gap: var(--spacing-xl);
           padding: 0 24px 24px;
           flex: 1;
-          min-height: 0;
-          overflow: hidden;
+        }
+
+        .resume-page:not(.is-template-mode) .resume-content {
+           min-height: 0;
+           overflow: hidden;
+        }
+
+        .resume-page.is-template-mode .resume-content {
+           min-height: auto;
+           overflow: visible;
         }
 
         .template-gallery {
@@ -1882,7 +1941,8 @@ export const Resume = () => {
         .template-card-compact-preview img {
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          object-fit: contain;
+          transition: transform 0.3s ease;
         }
 
         .template-card-compact-content {
@@ -2228,6 +2288,33 @@ export const Resume = () => {
             grid-template-columns: 1fr;
           }
 
+          /* Mobile Builder Layout Logic */
+          .builder-panel {
+            display: flex;
+          }
+
+          .builder-preview {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 50;
+            background: #fff;
+            padding: 16px;
+            overflow-y: auto;
+          }
+
+          .builder-preview.is-visible {
+            display: flex;
+          }
+          
+          /* When preview is visible, hide main page scrolling */
+          body.preview-active {
+            overflow: hidden;
+          }
+
           .resume-content {
             padding: 0 16px 48px;
           }
@@ -2238,7 +2325,14 @@ export const Resume = () => {
           }
 
           .template-card-compact-preview {
-            height: 450px;
+            height: auto;
+            aspect-ratio: 210/297;
+            overflow: hidden;
+          }
+
+          .template-card-compact-preview img {
+            object-fit: contain;
+            background: #f0f0f0;
           }
 
           .template-card-compact-content {
@@ -2306,7 +2400,13 @@ export const Resume = () => {
           }
 
           .resume-hero-actions .btn {
-            flex: 1 1 180px;
+            flex: 0 1 auto;
+            width: auto;
+            max-width: 140px;
+            padding: 6px 12px;
+            font-size: 12px;
+            min-height: 32px;
+            white-space: nowrap;
           }
 
           .template-grid {
@@ -2323,10 +2423,10 @@ export const Resume = () => {
         }
         .bg-primary { background-color: var(--color-primary); }
         .text-primary { color: var(--color-primary); }
-        .bg-primary\/5 { background-color: rgba(99, 102, 241, 0.05); }
-        .bg-primary\/10 { background-color: rgba(99, 102, 241, 0.1); }
-        .border-primary\/10 { border-color: rgba(99, 102, 241, 0.1); }
-        .border-primary\/20 { border-color: rgba(99, 102, 241, 0.2); }
+        .bg-primary\/5 { background-color: rgba(23, 201, 176, 0.05); }
+        .bg-primary\/10 { background-color: rgba(23, 201, 176, 0.1); }
+        .border-primary\/10 { border-color: rgba(23, 201, 176, 0.14); }
+        .border-primary\/20 { border-color: rgba(23, 201, 176, 0.24); }
 
         @media (max-width: 640px) {
           .template-compact-grid {
@@ -2335,7 +2435,14 @@ export const Resume = () => {
           }
 
           .template-card-compact-preview {
-            height: 380px;
+            height: auto;
+            aspect-ratio: 210/297;
+            overflow: hidden;
+          }
+          
+          .template-card-compact-preview img {
+            object-fit: contain;
+            background: #f0f0f0;
           }
 
           .template-card-compact-content {
@@ -2362,6 +2469,263 @@ export const Resume = () => {
           }
         }
 
+        /* Premium Resume UI Layer */
+
+        .resume-page {
+          position: relative;
+          isolation: isolate;
+          background:
+            radial-gradient(circle at 85% -8%, rgba(147, 197, 253, 0.32), transparent 40%),
+            radial-gradient(circle at 10% 12%, rgba(94, 234, 212, 0.22), transparent 42%),
+            linear-gradient(180deg, #f7fbff 0%, #f5f8fb 100%);
+        }
+
+        .resume-page::before,
+        .resume-page::after {
+          content: '';
+          position: absolute;
+          width: 260px;
+          height: 260px;
+          border-radius: 999px;
+          filter: blur(86px);
+          z-index: -1;
+          opacity: 0.35;
+          pointer-events: none;
+          animation: resume-drift 11s ease-in-out infinite alternate;
+        }
+
+        .resume-page::before {
+          top: -120px;
+          right: 6%;
+          background: #67e8f9;
+        }
+
+        .resume-page::after {
+          bottom: 6%;
+          left: -80px;
+          background: #5eead4;
+          animation-delay: -3s;
+        }
+
+        .resume-hero {
+          position: relative;
+          overflow: hidden;
+          border: 1px solid #dbe5ef;
+          border-radius: 22px;
+          margin: 20px 24px 24px;
+          padding: 52px 24px 34px;
+          background:
+            radial-gradient(circle at top right, rgba(45, 212, 191, 0.16), transparent 42%),
+            linear-gradient(145deg, #ffffff, #f6fbff);
+          box-shadow: 0 24px 44px -34px rgba(15, 23, 42, 0.45);
+          animation: resume-rise 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .resume-hero h1 {
+          font-family: 'Sora', 'Manrope', var(--font-family);
+          letter-spacing: -0.03em;
+          line-height: 1.08;
+          margin-bottom: 10px;
+          font-size: clamp(2rem, 3.8vw, 3rem);
+        }
+
+        .resume-hero-content {
+          max-width: 1080px;
+        }
+
+        .resume-hero .subtitle {
+          margin: 0 auto;
+          max-width: 68ch;
+        }
+
+        .resume-hero-meta {
+          margin-top: 16px;
+          display: flex;
+          justify-content: center;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .resume-hero-meta span {
+          display: inline-flex;
+          align-items: center;
+          padding: 6px 10px;
+          border-radius: 999px;
+          border: 1px solid #dbeafe;
+          background: #f8fafc;
+          color: #334155;
+          font-size: 0.74rem;
+          font-weight: 700;
+          font-family: 'Manrope', var(--font-family);
+          transition: transform 170ms ease;
+        }
+
+        .resume-hero-meta span:hover {
+          transform: translateY(-1px);
+        }
+
+        .template-card-compact {
+          border-radius: 16px;
+          border-color: #dbe5ef;
+          background: linear-gradient(165deg, #ffffff 0%, #f9fbff 100%);
+        }
+
+        .template-card-compact:hover {
+          border-color: #14b8a6;
+          box-shadow: 0 22px 32px -30px rgba(15, 23, 42, 0.6);
+        }
+
+        .template-card-compact-preview {
+          border-bottom: 1px solid #e2e8f0;
+        }
+
+        .ai-generator-section {
+          border: 1px solid #dbe5ef;
+          border-radius: 20px;
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), #ffffff);
+          box-shadow: 0 24px 44px -34px rgba(15, 23, 42, 0.45);
+          padding: 20px;
+          animation: resume-rise 640ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .resume-toolbar-row {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          margin-bottom: 22px;
+          padding: 12px 14px;
+          border: 1px solid #dbe5ef;
+          border-radius: 12px;
+          background: #f8fafc;
+        }
+
+        .resume-toolbar-actions {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .resume-action-btn {
+          border: 1px solid #dbe5ef;
+          border-radius: 10px;
+          padding: 8px 12px;
+          font-size: 0.8rem;
+          font-weight: 700;
+          font-family: 'Manrope', var(--font-family);
+          cursor: pointer;
+          transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+        }
+
+        .resume-action-btn.primary {
+          border-color: #14b8a6;
+          background: linear-gradient(135deg, #14b8a6, #0f766e);
+          color: #ffffff;
+          box-shadow: 0 12px 22px -16px rgba(15, 118, 110, 0.8);
+        }
+
+        .resume-action-btn.primary:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 14px 24px -16px rgba(15, 118, 110, 0.84);
+        }
+
+        .resume-action-btn.ghost {
+          background: #ffffff;
+          color: #334155;
+        }
+
+        .resume-action-btn.ghost:hover {
+          transform: translateY(-1px);
+          border-color: #14b8a6;
+          color: #0f766e;
+        }
+
+        .resume-action-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .resume-builder-grid {
+          gap: 18px;
+        }
+
+        .builder-panel {
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e1 transparent;
+        }
+
+        .builder-section {
+          border-color: #dbe5ef;
+          border-radius: 14px;
+          transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+          animation: resume-rise 540ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .builder-section:hover {
+          transform: translateY(-1px);
+          border-color: #99f6e4;
+          box-shadow: 0 18px 30px -28px rgba(15, 23, 42, 0.7);
+        }
+
+        .builder-section:nth-child(2) { animation-delay: 60ms; }
+        .builder-section:nth-child(3) { animation-delay: 100ms; }
+        .builder-section:nth-child(4) { animation-delay: 140ms; }
+        .builder-section:nth-child(5) { animation-delay: 180ms; }
+        .builder-section:nth-child(6) { animation-delay: 220ms; }
+        .builder-section:nth-child(7) { animation-delay: 260ms; }
+
+        .builder-section-header h3,
+        .builder-preview-header h3 {
+          font-family: 'Sora', 'Manrope', var(--font-family);
+        }
+
+        .builder-preview {
+          border-color: #dbe5ef;
+          border-radius: 16px;
+          box-shadow: 0 20px 36px -32px rgba(15, 23, 42, 0.7);
+        }
+
+        .builder-preview-frame {
+          border-radius: 12px;
+          background:
+            radial-gradient(circle at top right, rgba(45, 212, 191, 0.12), transparent 40%),
+            linear-gradient(180deg, #f8fafc, #f1f5f9);
+          border: 1px solid #e2e8f0;
+          padding: 10px;
+        }
+
+        .preview-frame-inner {
+          border-radius: 12px;
+          border-color: #cbd5e1;
+          background: #ffffff;
+        }
+
+        .resume-page .form-group input,
+        .resume-page .form-group textarea,
+        .resume-page .form-group select {
+          border-color: #dbe5ef !important;
+          background: #ffffff;
+          transition: border-color 180ms ease, box-shadow 180ms ease;
+        }
+
+        .resume-page .form-group input:focus,
+        .resume-page .form-group textarea:focus,
+        .resume-page .form-group select:focus {
+          border-color: #14b8a6 !important;
+          box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.14) !important;
+        }
+
+        @keyframes resume-rise {
+          from { opacity: 0; transform: translateY(12px) scale(0.99); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes resume-drift {
+          from { transform: translateY(0) translateX(0); }
+          to { transform: translateY(-12px) translateX(10px); }
+        }
+
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
@@ -2373,7 +2737,29 @@ export const Resume = () => {
         .career-advisor-section .form-group label {
           color: var(--color-text-secondary);
         }
+
+        @media (max-width: 900px) {
+          .resume-hero {
+            margin: 14px 14px 18px;
+            padding: 34px 16px 22px;
+            border-radius: 16px;
+          }
+
+          .resume-toolbar-row {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .resume-page *,
+          .resume-page::before,
+          .resume-page::after {
+            animation: none !important;
+            transition: none !important;
+          }
+        }
       `}</style>
-    </div>
+    </div >
   );
 };

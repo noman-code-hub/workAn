@@ -144,6 +144,20 @@ export const ProfileDropdown = ({ onViewProfile }: ProfileDropdownProps) => {
                     border: 2px solid var(--color-border);
                 }
 
+                /* Mobile responsive styles */
+                @media (max-width: 768px) {
+                    .topbar-avatar {
+                        width: 32px;
+                        height: 32px;
+                    }
+
+                    .topbar-avatar-fallback {
+                        width: 32px;
+                        height: 32px;
+                        font-size: 14px;
+                    }
+                }
+
                 .profile-dropdown {
                     position: absolute;
                     top: 120%;

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Image as ImageIcon,
     Trash2,
@@ -6,12 +7,10 @@ import {
     ChevronUp,
     Briefcase,
     FileText,
-    Calendar,
     ArrowRight
 } from 'lucide-react';
 import type { User, BlogPost } from '@/types';
 import { createPost, getUserPosts, getAllPosts, deletePost } from '@/services/postService';
-import { format } from 'date-fns';
 
 interface BlogSectionProps {
     user?: User;
@@ -23,6 +22,7 @@ interface BlogSectionProps {
 }
 
 export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limit, type = 'community', isFeed = false }: BlogSectionProps) => {
+    const navigate = useNavigate();
     const [posts, setPosts] = useState<BlogPost[]>([]);
     const [newPostContent, setNewPostContent] = useState('');
     const [postTitle, setPostTitle] = useState('');
@@ -229,26 +229,14 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
                                     </div>
                                 )}
 
-                                <div style={styles.authorRow}>
-                                    <div style={styles.miniAvatar}>
-                                        {post.authorAvatar ? <img src={post.authorAvatar} alt="" style={styles.avatarImg} /> : post.authorName.charAt(0)}
-                                    </div>
-                                    <div style={styles.authorInfo}>
-                                        <p style={styles.authorName}>{post.authorName}</p>
-                                        <div style={styles.modernMeta}>
-                                            <Calendar size={14} color="#4f5e7b" />
-                                            <span style={styles.modernDate}>
-                                                {format(new Date(post.createdAt), 'MMM dd, yyyy')}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-
                                 <h3 style={styles.modernTitle}>{post.title || (type === 'community' ? "Update" : "Untitled Article")}</h3>
 
                                 <p style={styles.modernExcerpt}>{post.content}</p>
 
-                                <button style={styles.readMoreBtn}>
+                                <button
+                                    style={styles.readMoreBtn}
+                                    onClick={() => navigate(`/blog/${post.id}`)}
+                                >
                                     Read More <ArrowRight size={18} />
                                 </button>
                             </div>
@@ -311,9 +299,19 @@ const styles: Record<string, React.CSSProperties> = {
     createActions: { display: 'flex', justifyContent: 'space-between', padding: '4px 0' },
     actionBtn: { display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', border: 'none', background: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: 600, color: '#666' },
 
-    // Feed Layouts
+    //Feed Layouts
     listFeed: { display: 'flex', flexDirection: 'column', gap: '24px' },
-    gridFeed: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '24px' },
+    gridFeed: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+        gap: '24px',
+        '@media (max-width: 768px)': {
+            gridTemplateColumns: '1fr'
+        },
+        '@media (max-width: 640px)': {
+            gap: '16px'
+        }
+    },
 
     // --- MODERN CARD STYLE (The one in the image) ---
     modernCard: {
@@ -387,9 +385,9 @@ const styles: Record<string, React.CSSProperties> = {
         fontSize: '15px',
         color: '#4f5e7b',
         lineHeight: '1.6',
-        margin: '0 0 24px 0',
+        margin: '0 0 16px 0',
         display: '-webkit-box',
-        WebkitLineClamp: 3,
+        WebkitLineClamp: 2,
         WebkitBoxOrient: 'vertical',
         overflow: 'hidden',
         flex: 1,

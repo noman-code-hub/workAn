@@ -1,20 +1,28 @@
 import { useState, useEffect } from 'react';
+import type { CSSProperties } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  Briefcase,
-  FileText,
-  TrendingUp,
-  Award,
   ArrowRight,
-  Clock,
-  MapPin,
-  DollarSign,
+  Award,
   BookmarkPlus,
+  Briefcase,
+  CheckCircle2,
+  Clock,
+  Compass,
+  DollarSign,
+  FileText,
+  LineChart,
+  MapPin,
+  Sparkles,
+  Target,
+  TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import type { Job } from '../types';
 import { JobLogo } from '../components/JobLogo';
 import { getApplyLink } from '../utils/jobUtils';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 const getCompanyUrl = (company: string) => {
   const clean = company.toLowerCase()
@@ -25,14 +33,22 @@ const getCompanyUrl = (company: string) => {
   return `https://www.${clean}.com`;
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-
 export const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [recommendedJobs, setRecommendedJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [applyingId, setApplyingId] = useState<string | null>(null);
+
+  const firstName = user?.name?.trim()?.split(/\s+/)[0] || 'there';
+  const score = Math.max(0, Math.min(user?.interviewReadinessScore || 0, 100));
+  const scoreState = score >= 80 ? 'Strong' : score >= 60 ? 'Improving' : 'Needs attention';
+  const ringStyle = { ['--score' as string]: `${score}%` } as CSSProperties;
+  const today = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric' }).format(new Date());
+  const staggerStyle = (index: number, delay = 0): CSSProperties => ({
+    ['--i' as string]: index,
+    ['--delay' as string]: `${delay}ms`,
+  });
 
   const handleApply = async (job: Job) => {
     setApplyingId(job.id);
@@ -48,674 +64,729 @@ export const Dashboard = () => {
 
   useEffect(() => {
     const controller = new AbortController();
-
-    const fetchJobs = async () => {
+    const run = async () => {
       setLoading(true);
       try {
-        // Map user country to Adzuna API country code
-        const getCountryCode = (country?: string) => {
-          if (!country) return 'us'; // Default to US
-          const countryLower = country.toLowerCase();
-          if (countryLower.includes('united states') || countryLower.includes('usa') || countryLower.includes('america')) {
-            return 'us';
-          }
-          if (countryLower.includes('united kingdom') || countryLower.includes('uk') || countryLower.includes('britain')) {
-            return 'gb';
-          }
-          if (countryLower.includes('canada')) return 'ca';
-          if (countryLower.includes('australia')) return 'au';
-          if (countryLower.includes('india')) return 'in';
-          // Default to US for remote or unknown countries
-          return 'us';
-        };
-
-        const countryCode = getCountryCode(user?.country);
-
-        // Fetch recommended jobs based on user profile
+        const country = (user?.country || '').toLowerCase();
+        const countryCode =
+          country.includes('uk') || country.includes('britain') ? 'gb'
+            : country.includes('canada') ? 'ca'
+              : country.includes('australia') ? 'au'
+                : country.includes('india') ? 'in'
+                  : 'us';
         const params = new URLSearchParams({
           query: user?.profession || 'Software Developer',
           results_per_page: '3',
-          country: countryCode
+          country: countryCode,
         });
-
-        // Only add location if it's not "Remote" to get broader results
-        const location = user?.country || '';
-        if (location && !location.toLowerCase().includes('remote')) {
-          params.append('location', location);
-        }
-
-        const response = await fetch(`${API_BASE_URL}/api/jobs/search?${params.toString()}`, {
-          signal: controller.signal
-        });
+        if (user?.country && !user.country.toLowerCase().includes('remote')) params.append('location', user.country);
+        const response = await fetch(`${API_BASE_URL}/api/jobs/search?${params.toString()}`, { signal: controller.signal });
         if (!response.ok) throw new Error(`Server returned ${response.status}`);
         const data = await response.json();
-
-        if (data.success) {
-          setRecommendedJobs(data.results || []);
-        } else {
-          throw new Error(data.message || 'API error');
-        }
+        setRecommendedJobs(data.success ? (data.results || []) : []);
       } catch (error: any) {
-        if (error.name === 'AbortError') {
-          console.log('🟡 Fetch aborted due to component unmount or re-render.');
-        } else {
-          console.error("Error connecting to server:", error);
-          setRecommendedJobs([]);
-        }
+        if (error.name !== 'AbortError') setRecommendedJobs([]);
       } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
-
-    fetchJobs();
-
+    run();
     return () => controller.abort();
   }, [user]);
 
-  const stats = [
-    {
-      label: 'Jobs Applied',
-      value: '12',
-      icon: Briefcase,
-      color: 'primary',
-      change: '+3 this week',
-    },
-    {
-      label: 'Resume Score',
-      value: user?.interviewReadinessScore ? `${user.interviewReadinessScore}%` : 'N/A',
-      icon: FileText,
-      color: 'success',
-      change: 'Upload resume',
-    },
-    {
-      label: 'Interview Ready',
-      value: user?.interviewReadinessScore ? (user.interviewReadinessScore >= 80 ? 'High' : 'Medium') : 'Low',
-      icon: Award,
-      color: 'warning',
-      change: 'Get feedback',
-    },
-    {
-      label: 'Career Growth',
-      value: '+25%',
-      icon: TrendingUp,
-      color: 'accent',
-      change: 'Next 3 years',
-    },
-  ];
-
   const formatSalary = (job: Job) => {
+    if (!job.salary?.min || !job.salary?.max) return 'Salary not listed';
     return `$${(job.salary.min / 1000).toFixed(0)}k - $${(job.salary.max / 1000).toFixed(0)}k`;
   };
 
   const getTimeSince = (date: Date | string) => {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    const days = Math.floor((Date.now() - dateObj.getTime()) / (1000 * 60 * 60 * 24));
-    if (days === 0) return 'Today';
+    const days = Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
+    if (days <= 0) return 'Today';
     if (days === 1) return 'Yesterday';
     return `${days} days ago`;
   };
 
-  return (
-    <div className="dashboard">
-      {/* Welcome Header */}
-      <div className="dashboard-header">
-        <div>
-          <h1>Welcome back, {user?.name}! 👋</h1>
-          <p>Here's what's happening with your career journey today.</p>
-        </div>
-      </div>
+  const stats = [
+    { label: 'Jobs Applied', value: '12', text: '+3 this week', icon: Briefcase },
+    { label: 'Resume Score', value: score ? `${score}%` : 'N/A', text: score ? `${scoreState} readiness` : 'Upload resume', icon: FileText },
+    { label: 'Interview Ready', value: score ? scoreState : 'Low', text: score >= 80 ? 'Market-ready' : 'Use roadmap', icon: Sparkles },
+    { label: 'Career Growth', value: '+25%', text: 'Next 3 years', icon: LineChart },
+  ];
 
-      {/* Stats Grid */}
-      <div className="stats-grid">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
+  const roadmap = [
+    { title: 'Improve resume keywords', action: 'Open Resume Optimizer', path: '/resume', done: score >= 80, icon: FileText },
+    { title: 'Apply to 3 matched jobs', action: 'Browse jobs', path: '/jobs', done: false, icon: Briefcase },
+    { title: 'Review market trends', action: 'Open Career Trends', path: '/trends', done: false, icon: TrendingUp },
+  ];
+
+  return (
+    <div className="ov">
+      <section className="ov-hero ov-card ov-fade ov-delay-0">
+        <div>
+          <p className="ov-kicker">Overview</p>
+          <h1>Welcome back, {firstName}</h1>
+          <p className="ov-sub">A focused workspace to track progress, discover jobs, and improve readiness.</p>
+          <div className="ov-actions">
+            <button className="btn btn-primary" onClick={() => navigate('/jobs')}>Explore Jobs <ArrowRight size={16} /></button>
+            <button className="btn btn-secondary" onClick={() => navigate('/resume')}>Improve Resume</button>
+          </div>
+          <div className="ov-meta">
+            <span><Compass size={14} /> {user?.profession || 'Software Developer'}</span>
+            <span><MapPin size={14} /> {user?.country || 'United States'}</span>
+            <span><Clock size={14} /> {today}</span>
+          </div>
+        </div>
+        <aside className="ov-score">
+          <p>Interview Readiness</p>
+          <div className="ov-ring" style={ringStyle}>
+            <div><strong>{score || 'N/A'}</strong><small>{score ? '%' : 'score'}</small></div>
+          </div>
+          <b>{scoreState}</b>
+        </aside>
+      </section>
+
+      <section className="ov-stats">
+        {stats.map((s, index) => {
+          const Icon = s.icon;
           return (
-            <div key={stat.label} className={`stat-card stat-${stat.color}`}>
-              <div className="stat-icon">
-                <Icon size={24} />
-              </div>
-              <div className="stat-content">
-                <p className="stat-label">{stat.label}</p>
-                <h2 className="stat-value">{stat.value}</h2>
-                <p className="stat-change">{stat.change}</p>
-              </div>
-            </div>
+            <article key={s.label} className="ov-card ov-stat ov-fade ov-delay-1" style={staggerStyle(index)}>
+              <span className="ov-icon"><Icon size={18} /></span>
+              <div><p>{s.label}</p><h3>{s.value}</h3><small>{s.text}</small></div>
+            </article>
           );
         })}
-      </div>
+      </section>
 
-      {/* Main Content Grid */}
-      <div className="content-grid">
-        {/* Recommended Jobs */}
-        <div className="section jobs-section">
-          <div className="section-header">
-            <h2>Recommended Jobs</h2>
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => navigate('/jobs')}
-            >
-              View All
-              <ArrowRight size={16} />
-            </button>
-          </div>
-
+      <section className="ov-grid">
+        <div className="ov-card ov-jobs ov-fade ov-delay-2">
+          <div className="ov-head"><h2>Recommended Jobs</h2><button className="btn btn-ghost btn-sm" onClick={() => navigate('/jobs')}>View All <ArrowRight size={15} /></button></div>
           {loading ? (
-            <div className="skeleton-jobs">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="skeleton" style={{ height: 200 }} />
-              ))}
-            </div>
+            <div className="ov-skeleton-wrap">{[1, 2, 3].map((i) => <div key={i} className="ov-skeleton" />)}</div>
+          ) : recommendedJobs.length === 0 ? (
+            <div className="ov-empty"><Target size={20} /><p>No recommendations yet. Complete your profile for better matching.</p></div>
           ) : (
-            <div className="jobs-list">
-              {recommendedJobs.map((job) => (
-                <div
-                  key={job.id}
-                  className="job-card cursor-pointer group"
-                  onClick={() => navigate(`/jobs/${job.id}`)}
-                >
-                  <div className="job-header">
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(getCompanyUrl(job.company), '_blank');
-                      }}
-                      className="company-logo-link"
-                    >
-                      <JobLogo company={job.company} />
+            <div className="ov-list">
+              {recommendedJobs.map((job, index) => (
+                <article key={job.id} className="ov-job ov-fade ov-delay-2" style={staggerStyle(index + 1, 120)} onClick={() => navigate(`/jobs/${job.id}`)}>
+                  <div className="ov-job-top">
+                    <div className="ov-logo" onClick={(e) => { e.stopPropagation(); window.open(getCompanyUrl(job.company), '_blank'); }}><JobLogo company={job.company} /></div>
+                    <div className="ov-job-text">
+                      <h3>{job.title}</h3>
+                      <button className="ov-company" onClick={(e) => { e.stopPropagation(); window.open(getCompanyUrl(job.company), '_blank'); }}>{job.company}</button>
                     </div>
-                    <div className="job-meta">
-                      <h3 className="group-hover:text-[#00d4aa] transition-colors">{job.title}</h3>
-                      <div
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          window.open(getCompanyUrl(job.company), '_blank');
-                        }}
-                        style={{ color: 'var(--color-text-secondary)', textDecoration: 'none', fontSize: 'var(--font-size-sm)' }}
-                        className="hover:text-[#00d4aa] transition-colors cursor-pointer"
-                      >
-                        {job.company}
-                      </div>
-                    </div>
-                    {job.matchScore && (
-                      <div className="match-score">
-                        <span>{job.matchScore}%</span>
-                        <small>Match</small>
-                      </div>
-                    )}
+                    <div className="ov-match"><b>{job.matchScore || '--'}%</b><small>Match</small></div>
                   </div>
-
-                  <div className="job-details">
-                    <div className="job-detail-item">
-                      <MapPin size={16} />
-                      <span>{job.location}</span>
-                    </div>
-                    <div className="job-detail-item">
-                      <DollarSign size={16} />
-                      <span>{formatSalary(job)}</span>
-                    </div>
-                    <div className="job-detail-item">
-                      <Clock size={16} />
-                      <span>{getTimeSince(job.postedDate)}</span>
-                    </div>
+                  <div className="ov-line"><span><MapPin size={14} /> {job.location}</span><span><DollarSign size={14} /> {formatSalary(job)}</span><span><Clock size={14} /> {getTimeSince(job.postedDate)}</span></div>
+                  <div className="ov-tags">{(job.tags || []).slice(0, 3).map((tag) => <span key={tag}>{tag}</span>)}</div>
+                  <div className="ov-job-actions">
+                    <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); handleApply(job); }} disabled={applyingId === job.id}>{applyingId === job.id ? 'Applying...' : 'Apply Now'}</button>
+                    <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); navigate(`/jobs/${job.id}`); }}>Details</button>
+                    <button className="btn btn-ghost btn-sm ov-save" onClick={(e) => e.stopPropagation()}><BookmarkPlus size={15} /></button>
                   </div>
-
-                  <div className="job-tags">
-                    {job.tags.slice(0, 3).map((tag) => (
-                      <span key={tag} className="badge badge-primary">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="job-actions">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleApply(job);
-                      }}
-                      className="btn btn-primary btn-sm"
-                      disabled={applyingId === job.id}
-                    >
-                      {applyingId === job.id ? '...' : 'Apply Now'}
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/jobs/${job.id}`);
-                      }}
-                      className="btn btn-secondary btn-sm"
-                    >
-                      View Details
-                    </button>
-                    <button
-                      className="btn btn-ghost btn-sm icon-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // bookmarking logic if needed
-                      }}
-                    >
-                      <BookmarkPlus size={18} />
-                    </button>
-                  </div>
-                </div>
+                </article>
               ))}
             </div>
           )}
         </div>
 
-        {/* Quick Actions */}
-        <div className="section quick-actions-section">
-          <div className="section-header">
-            <h2>Quick Actions</h2>
+        <aside className="ov-side">
+          <div className="ov-card ov-side-card ov-fade ov-delay-3">
+            <div className="ov-head"><h2>Quick Actions</h2></div>
+            <button className="ov-action ov-fade ov-delay-3" style={staggerStyle(0, 120)} onClick={() => navigate('/resume')}><FileText size={16} /> Resume Optimizer <ArrowRight size={14} /></button>
+            <button className="ov-action ov-fade ov-delay-3" style={staggerStyle(1, 120)} onClick={() => navigate('/ai-copilot')}><Award size={16} /> AI Copilot <ArrowRight size={14} /></button>
+            <button className="ov-action ov-fade ov-delay-3" style={staggerStyle(2, 120)} onClick={() => navigate('/trends')}><TrendingUp size={16} /> Career Trends <ArrowRight size={14} /></button>
           </div>
-
-          <div className="quick-actions">
-            <button
-              className="action-card"
-              onClick={() => navigate('/resume')}
-            >
-              <div className="action-icon" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
-                <FileText size={24} />
-              </div>
-              <div>
-                <h3>Upload Resume</h3>
-                <p>Get AI-powered feedback</p>
-              </div>
-              <ArrowRight size={20} className="action-arrow" />
-            </button>
-
-            <button
-              className="action-card"
-              onClick={() => navigate('/trends')}
-            >
-              <div className="action-icon" style={{ background: 'linear-gradient(135deg, #06b6d4, #0891b2)' }}>
-                <TrendingUp size={24} />
-              </div>
-              <div>
-                <h3>Career Trends</h3>
-                <p>Explore future outlook</p>
-              </div>
-              <ArrowRight size={20} className="action-arrow" />
-            </button>
-
-            <button
-              className="action-card"
-              onClick={() => navigate('/ai-copilot')}
-            >
-              <div className="action-icon" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
-                <Award size={24} />
-              </div>
-              <div>
-                <h3>AI Copilot</h3>
-                <p>Get career guidance</p>
-              </div>
-              <ArrowRight size={20} className="action-arrow" />
-            </button>
+          <div className="ov-card ov-side-card ov-fade ov-delay-4">
+            <div className="ov-head"><h2>Weekly Roadmap</h2></div>
+            {roadmap.map((item, index) => {
+              const Icon = item.icon;
+              return (
+                <button key={item.title} className="ov-road ov-fade ov-delay-4" style={staggerStyle(index)} onClick={() => navigate(item.path)}>
+                  <span>{item.done ? <CheckCircle2 size={14} /> : <Icon size={14} />}</span>
+                  <div><b>{item.title}</b><small>{item.action}</small></div>
+                </button>
+              );
+            })}
           </div>
-
-          {/* Recent Activity */}
-          <div className="recent-activity">
-            <h3>Recent Activity</h3>
-            <div className="activity-list">
-              <div className="activity-item">
-                <div className="activity-icon">
-                  <Briefcase size={16} />
-                </div>
-                <div className="activity-content">
-                  <p>Applied to <strong>Senior Developer</strong></p>
-                  <small>2 hours ago</small>
-                </div>
-              </div>
-              <div className="activity-item">
-                <div className="activity-icon">
-                  <FileText size={16} />
-                </div>
-                <div className="activity-content">
-                  <p>Updated resume</p>
-                  <small>1 day ago</small>
-                </div>
-              </div>
-              <div className="activity-item">
-                <div className="activity-icon">
-                  <TrendingUp size={16} />
-                </div>
-                <div className="activity-content">
-                  <p>Viewed career trends</p>
-                  <small>2 days ago</small>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+        </aside>
+      </section>
 
       <style>{`
-        .dashboard {
-          max-width: 1400px;
-          margin: 0 auto;
-        }
-
-        .dashboard-header {
-          margin-bottom: var(--spacing-xl);
-        }
-
-        .dashboard-header h1 {
-          font-size: var(--font-size-3xl);
-          margin-bottom: var(--spacing-xs);
-        }
-
-        .dashboard-header p {
-          font-size: var(--font-size-lg);
-          color: var(--color-text-secondary);
-        }
-
-        .stats-grid {
+        .ov {
+          --ov-ease: cubic-bezier(0.22, 1, 0.36, 1);
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-          gap: var(--spacing-lg);
-          margin-bottom: var(--spacing-xl);
+          gap: 16px;
+          position: relative;
         }
 
-        .stat-card {
-          background: var(--color-surface);
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-lg);
-          padding: var(--spacing-lg);
+        .ov:before,
+        .ov:after {
+          content: '';
+          position: absolute;
+          width: 240px;
+          height: 240px;
+          border-radius: 999px;
+          filter: blur(72px);
+          z-index: -1;
+          opacity: 0.35;
+          pointer-events: none;
+          animation: ov-drift 9s ease-in-out infinite alternate;
+        }
+
+        .ov:before {
+          background: #67e8f9;
+          right: 8%;
+          top: -80px;
+        }
+
+        .ov:after {
+          background: #5eead4;
+          left: 2%;
+          bottom: 8%;
+          animation-delay: -3s;
+        }
+
+        .ov-fade {
+          opacity: 0;
+          transform: translateY(14px) scale(0.985);
+          animation: ov-rise 620ms var(--ov-ease) forwards;
+          animation-delay: calc(var(--delay, 0ms) + var(--i, 0) * 78ms);
+        }
+
+        .ov-delay-0 { --delay: 20ms; }
+        .ov-delay-1 { --delay: 60ms; }
+        .ov-delay-2 { --delay: 90ms; }
+        .ov-delay-3 { --delay: 130ms; }
+        .ov-delay-4 { --delay: 170ms; }
+
+        .ov-card {
+          background: linear-gradient(180deg, #fff, #f8fbff);
+          border: 1px solid #dbe5ef;
+          border-radius: 18px;
+          box-shadow: 0 18px 32px -26px rgba(15, 23, 42, 0.6);
+          transition: transform 260ms var(--ov-ease), box-shadow 260ms var(--ov-ease), border-color 220ms ease;
+        }
+
+        .ov h1,
+        .ov h2,
+        .ov h3,
+        .ov b,
+        .ov strong {
+          font-family: var(--font-family);
+        }
+
+        .ov-hero {
+          padding: 26px;
+          display: grid;
+          grid-template-columns: 1fr 250px;
+          gap: 18px;
+          background:
+            radial-gradient(circle at top right, rgba(45, 212, 191, 0.16), transparent 42%),
+            linear-gradient(155deg, #fff, #f6faff);
+          overflow: hidden;
+          position: relative;
+        }
+
+        .ov-kicker {
+          margin: 0;
+          text-transform: uppercase;
+          letter-spacing: 0.14em;
+          font-size: 0.75rem;
+          color: var(--color-primary-dark);
+          font-weight: 700;
+        }
+
+        .ov h1 {
+          margin: 8px 0 14px;
+          font-size: clamp(2.35rem, 5vw, 4rem);
+          line-height: 1.02;
+          letter-spacing: -0.038em;
+          font-weight: 800;
+          color: var(--color-text-primary);
+          text-wrap: balance;
+        }
+
+        .ov-sub {
+          margin: 0;
+          color: #475569;
+          max-width: 60ch;
+        }
+
+        .ov-actions {
+          margin-top: 16px;
           display: flex;
-          gap: var(--spacing-md);
-          transition: all var(--transition-base);
+          gap: 10px;
         }
 
-        .stat-card:hover {
-          box-shadow: var(--shadow-md);
+        .ov-actions .btn {
+          transition: transform 200ms var(--ov-ease), box-shadow 200ms var(--ov-ease);
+        }
+
+        .ov-actions .btn:hover {
           transform: translateY(-2px);
         }
 
-        .stat-icon {
-          width: 48px;
-          height: 48px;
-          border-radius: var(--radius-lg);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-        }
-
-        .stat-primary .stat-icon {
-          background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
-        }
-
-        .stat-success .stat-icon {
-          background: linear-gradient(135deg, var(--color-success), #34d399);
-        }
-
-        .stat-warning .stat-icon {
-          background: linear-gradient(135deg, var(--color-warning), #fbbf24);
-        }
-
-        .stat-accent .stat-icon {
-          background: linear-gradient(135deg, var(--color-accent), #22d3ee);
-        }
-
-        .stat-content {
-          flex: 1;
-        }
-
-        .stat-label {
-          font-size: var(--font-size-sm);
-          color: var(--color-text-secondary);
-          margin-bottom: var(--spacing-xs);
-        }
-
-        .stat-value {
-          font-size: var(--font-size-2xl);
-          font-weight: 700;
-          margin-bottom: var(--spacing-xs);
-        }
-
-        .stat-change {
-          font-size: var(--font-size-xs);
-          color: var(--color-text-tertiary);
-          margin: 0;
-        }
-
-        .content-grid {
-          display: grid;
-          grid-template-columns: 1fr 400px;
-          gap: var(--spacing-xl);
-        }
-
-        .section {
-          background: var(--color-surface);
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-lg);
-          padding: var(--spacing-xl);
-        }
-
-        .section-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: var(--spacing-lg);
-        }
-
-        .section-header h2 {
-          font-size: var(--font-size-xl);
-          margin: 0;
-        }
-
-        .jobs-list {
-          display: flex;
-          flex-direction: column;
-          gap: var(--spacing-lg);
-        }
-
-        .job-card {
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-lg);
-          padding: var(--spacing-lg);
-          transition: all var(--transition-base);
-        }
-
-        .job-card:hover {
-          box-shadow: var(--shadow-md);
-          border-color: var(--color-primary);
-        }
-
-        .job-header {
-          display: flex;
-          gap: var(--spacing-md);
-          margin-bottom: var(--spacing-md);
-        }
-
-
-
-        .job-meta {
-          flex: 1;
-        }
-
-        .job-meta h3 {
-          font-size: var(--font-size-base);
-          font-weight: 600;
-          margin-bottom: var(--spacing-xs);
-        }
-
-        .job-meta p {
-          font-size: var(--font-size-sm);
-          color: var(--color-text-secondary);
-          margin: 0;
-        }
-
-        .match-score {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          padding: var(--spacing-sm);
-          background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
-          border-radius: var(--radius-md);
-          min-width: 60px;
-        }
-
-        .match-score span {
-          font-size: var(--font-size-lg);
-          font-weight: 700;
-          color: var(--color-success);
-        }
-
-        .match-score small {
-          font-size: var(--font-size-xs);
-          color: var(--color-text-secondary);
-        }
-
-        .job-details {
-          display: flex;
-          gap: var(--spacing-lg);
-          margin-bottom: var(--spacing-md);
-        }
-
-        .job-detail-item {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-xs);
-          font-size: var(--font-size-sm);
-          color: var(--color-text-secondary);
-        }
-
-        .job-tags {
+        .ov-meta {
+          margin-top: 14px;
           display: flex;
           flex-wrap: wrap;
-          gap: var(--spacing-sm);
-          margin-bottom: var(--spacing-md);
+          gap: 8px;
         }
 
-        .job-actions {
-          display: flex;
-          gap: var(--spacing-sm);
-        }
-
-        .job-actions .btn {
-          flex: 1;
-        }
-
-        .job-actions .icon-btn {
-          flex: 0;
-        }
-
-        .quick-actions {
-          display: flex;
-          flex-direction: column;
-          gap: var(--spacing-md);
-          margin-bottom: var(--spacing-xl);
-        }
-
-        .action-card {
-          display: flex;
+        .ov-meta span {
+          display: inline-flex;
           align-items: center;
-          gap: var(--spacing-md);
-          padding: var(--spacing-lg);
-          background: var(--color-surface);
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-lg);
-          cursor: pointer;
-          transition: all var(--transition-base);
-          text-align: left;
-          width: 100%;
-        }
-
-        .action-card:hover {
-          box-shadow: var(--shadow-md);
-          transform: translateY(-2px);
-        }
-
-        .action-icon {
-          width: 48px;
-          height: 48px;
-          border-radius: var(--radius-lg);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-        }
-
-        .action-card div:nth-child(2) {
-          flex: 1;
-        }
-
-        .action-card h3 {
-          font-size: var(--font-size-base);
+          gap: 6px;
+          padding: 6px 10px;
+          border-radius: 999px;
+          border: 1px solid #d4dde8;
+          background: #f8fafc;
+          color: #334155;
+          font-size: 0.78rem;
           font-weight: 600;
-          margin-bottom: var(--spacing-xs);
+          transition: transform 200ms var(--ov-ease), border-color 200ms ease;
         }
 
-        .action-card p {
-          font-size: var(--font-size-sm);
-          color: var(--color-text-secondary);
+        .ov-meta span:hover {
+          transform: translateY(-1px);
+          border-color: #99f6e4;
+        }
+
+        .ov-score {
+          background: linear-gradient(155deg, #0f172a, #1e293b);
+          border-radius: 14px;
+          color: #dbe7f5;
+          padding: 16px;
+          text-align: center;
+          display: grid;
+          place-items: center;
+          gap: 8px;
+        }
+
+        .ov-score p {
+          margin: 0;
+          color: #94a3b8;
+          text-transform: uppercase;
+          letter-spacing: 0.12em;
+          font-size: 0.7rem;
+        }
+
+        .ov-ring {
+          --score: 0%;
+          width: 118px;
+          height: 118px;
+          border-radius: 999px;
+          background: conic-gradient(var(--color-primary) var(--score), rgba(148, 163, 184, 0.25) 0);
+          display: grid;
+          place-items: center;
+          animation: ov-ring-in 700ms var(--ov-ease) both;
+        }
+
+        .ov-ring div {
+          width: 90px;
+          height: 90px;
+          border-radius: 999px;
+          background: #0f172a;
+          border: 1px solid rgba(148, 163, 184, 0.26);
+          display: grid;
+          place-content: center;
+          line-height: 1;
+        }
+
+        .ov-ring strong {
+          color: #f8fafc;
+          font-size: 1.4rem;
+        }
+
+        .ov-ring small {
+          color: #94a3b8;
+          font-size: 0.72rem;
+          margin-top: 3px;
+        }
+
+        .ov-score b {
+          font-size: 0.85rem;
+          color: #cbd5e1;
+        }
+
+        .ov-stats {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .ov-stat {
+          padding: 14px;
+          display: flex;
+          gap: 10px;
+          align-items: flex-start;
+        }
+
+        .ov-stat:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 20px 34px -26px rgba(15, 23, 42, 0.72);
+        }
+
+        .ov-icon {
+          width: 34px;
+          height: 34px;
+          border-radius: 10px;
+          display: grid;
+          place-items: center;
+          background: linear-gradient(145deg, var(--color-primary), var(--color-secondary));
+          color: #fff;
+          flex-shrink: 0;
+          transition: transform 260ms var(--ov-ease);
+        }
+
+        .ov-stat:hover .ov-icon {
+          transform: rotate(-7deg) scale(1.06);
+        }
+
+        .ov-stat p {
+          margin: 0;
+          color: #64748b;
+          font-size: 0.78rem;
+        }
+
+        .ov-stat h3 {
+          margin: 2px 0;
+          color: #0f172a;
+          font-size: 1.2rem;
+        }
+
+        .ov-stat small {
+          color: #94a3b8;
+          font-size: 0.72rem;
+        }
+
+        .ov-grid {
+          display: grid;
+          grid-template-columns: 1fr 330px;
+          gap: 16px;
+        }
+
+        .ov-jobs {
+          padding: 18px;
+        }
+
+        .ov-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 12px;
+          gap: 10px;
+        }
+
+        .ov-head h2 {
+          margin: 0;
+          font-size: 1.05rem;
+        }
+
+        .ov-list,
+        .ov-skeleton-wrap {
+          display: grid;
+          gap: 10px;
+        }
+
+        .ov-skeleton {
+          height: 140px;
+          border-radius: 14px;
+          border: 1px solid #e2e8f0;
+          background: linear-gradient(110deg, #e2e8f0, #f8fafc, #e2e8f0);
+          background-size: 200% 100%;
+          animation: shim 1.2s linear infinite;
+        }
+
+        .ov-empty {
+          border: 1px dashed #cbd5e1;
+          border-radius: 14px;
+          padding: 18px;
+          text-align: center;
+          color: #475569;
+          display: grid;
+          gap: 6px;
+          place-items: center;
+        }
+
+        .ov-empty p {
           margin: 0;
         }
 
-        .action-arrow {
-          color: var(--color-text-tertiary);
+        .ov-job {
+          border: 1px solid #dfe7f0;
+          border-radius: 14px;
+          background: linear-gradient(150deg, #fff, #f9fbff);
+          padding: 12px;
+          cursor: pointer;
+          position: relative;
+          overflow: hidden;
+          transition: transform 240ms var(--ov-ease), border-color 220ms ease, box-shadow 240ms var(--ov-ease);
         }
 
-        .recent-activity h3 {
-          font-size: var(--font-size-base);
-          margin-bottom: var(--spacing-md);
+        .ov-job:before {
+          content: '';
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: 0;
+          height: 2px;
+          background: linear-gradient(90deg, var(--color-primary-light), var(--color-secondary));
+          transform: scaleX(0);
+          transform-origin: left;
+          transition: transform 280ms var(--ov-ease);
         }
 
-        .activity-list {
+        .ov-job:hover {
+          border-color: var(--color-primary);
+          transform: translateY(-3px);
+          box-shadow: 0 18px 30px -22px rgba(15, 23, 42, 0.65);
+        }
+
+        .ov-job:hover:before {
+          transform: scaleX(1);
+        }
+
+        .ov-job-top {
           display: flex;
-          flex-direction: column;
-          gap: var(--spacing-md);
+          align-items: flex-start;
+          gap: 10px;
+          margin-bottom: 10px;
         }
 
-        .activity-item {
-          display: flex;
-          gap: var(--spacing-md);
-          padding: var(--spacing-md);
-          background: var(--color-bg-secondary);
-          border-radius: var(--radius-md);
+        .ov-logo {
+          flex-shrink: 0;
+          transition: transform 220ms var(--ov-ease);
         }
 
-        .activity-icon {
-          width: 32px;
-          height: 32px;
-          background: var(--color-surface);
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-md);
+        .ov-job:hover .ov-logo {
+          transform: translateY(-1px);
+        }
+
+        .ov-job-text {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .ov-job-text h3 {
+          margin: 0;
+          font-size: 0.98rem;
+          color: #0f172a;
+          line-height: 1.22;
+        }
+
+        .ov-company {
+          margin-top: 4px;
+          background: transparent;
+          border: none;
+          padding: 0;
+          color: #64748b;
+          font-size: 0.83rem;
+          cursor: pointer;
+          transition: color 180ms ease;
+        }
+
+        .ov-company:hover {
+          color: var(--color-primary-dark);
+        }
+
+        .ov-match {
+          min-width: 62px;
+          border-radius: 10px;
+          background: linear-gradient(165deg, rgba(23, 201, 176, 0.2), rgba(56, 215, 194, 0.2));
+          text-align: center;
+          padding: 7px 6px;
+          animation: ov-pulse 3s ease-in-out infinite;
+        }
+
+        .ov-match b {
+          display: block;
+          font-size: 0.96rem;
+          color: var(--color-primary-dark);
+          line-height: 1;
+        }
+
+        .ov-match small {
+          font-size: 0.67rem;
+          color: #475569;
+          font-weight: 600;
+        }
+
+        .ov-line {
           display: flex;
+          flex-wrap: wrap;
+          gap: 8px 12px;
+          color: #475569;
+          font-size: 0.8rem;
+          margin-bottom: 10px;
+        }
+
+        .ov-line span {
+          display: inline-flex;
           align-items: center;
-          justify-content: center;
-          color: var(--color-primary);
+          gap: 5px;
         }
 
-        .activity-content {
+        .ov-tags {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-bottom: 10px;
+        }
+
+        .ov-tags span {
+          padding: 4px 10px;
+          border-radius: 999px;
+          font-size: 0.7rem;
+          font-weight: 600;
+          color: var(--color-primary-dark);
+          border: 1px solid rgba(23, 201, 176, 0.25);
+          background: rgba(23, 201, 176, 0.13);
+        }
+
+        .ov-job-actions {
+          display: flex;
+          gap: 8px;
+        }
+
+        .ov-job-actions .btn {
           flex: 1;
         }
 
-        .activity-content p {
-          font-size: var(--font-size-sm);
-          margin-bottom: var(--spacing-xs);
+        .ov-save {
+          flex: 0 0 40px;
+          padding: 0;
         }
 
-        .activity-content small {
-          font-size: var(--font-size-xs);
-          color: var(--color-text-tertiary);
+        .ov-side {
+          display: grid;
+          gap: 12px;
         }
 
-        @media (max-width: 1024px) {
-          .content-grid {
-            grid-template-columns: 1fr;
+        .ov-side-card {
+          padding: 14px;
+        }
+
+        .ov-action,
+        .ov-road {
+          width: 100%;
+          border: 1px solid #dfe7f0;
+          border-radius: 11px;
+          background: #fff;
+          padding: 10px;
+          display: grid;
+          grid-template-columns: 18px 1fr 14px;
+          gap: 8px;
+          align-items: center;
+          cursor: pointer;
+          text-align: left;
+          color: #0f172a;
+          transition: transform 220ms var(--ov-ease), border-color 200ms ease, box-shadow 220ms var(--ov-ease);
+          margin-top: 8px;
+        }
+
+        .ov-action svg:last-child {
+          transition: transform 200ms var(--ov-ease);
+        }
+
+        .ov-action:hover,
+        .ov-road:hover {
+          border-color: var(--color-primary);
+          transform: translateY(-2px);
+          box-shadow: 0 14px 24px -22px rgba(15, 23, 42, 0.7);
+        }
+
+        .ov-action:hover svg:last-child {
+          transform: translateX(2px);
+        }
+
+        .ov-road {
+          grid-template-columns: 24px 1fr;
+        }
+
+        .ov-road span {
+          width: 24px;
+          height: 24px;
+          border-radius: 8px;
+          display: grid;
+          place-items: center;
+          background: #ecfeff;
+          color: #0e7490;
+          transition: transform 220ms var(--ov-ease);
+        }
+
+        .ov-road:hover span {
+          transform: scale(1.06);
+        }
+
+        .ov-road b {
+          display: block;
+          font-size: 0.8rem;
+        }
+
+        .ov-road small {
+          color: #64748b;
+          font-size: 0.72rem;
+        }
+
+        @keyframes ov-rise {
+          from { opacity: 0; transform: translateY(14px) scale(0.985); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes ov-ring-in {
+          from { transform: scale(0.84) rotate(-24deg); opacity: 0.4; }
+          to { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        @keyframes ov-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(20, 184, 166, 0); }
+          50% { box-shadow: 0 0 0 7px rgba(20, 184, 166, 0.08); }
+        }
+
+        @keyframes ov-drift {
+          0% { transform: translateY(0) translateX(0); }
+          100% { transform: translateY(-14px) translateX(10px); }
+        }
+
+        @keyframes shim {
+          from { background-position: 200% 0; }
+          to { background-position: -200% 0; }
+        }
+
+        @media (max-width: 1100px) {
+          .ov-grid { grid-template-columns: 1fr; }
+          .ov-side { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+        @media (max-width: 900px) {
+          .ov-hero { grid-template-columns: 1fr; }
+          .ov-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .ov-side { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 640px) {
+          .ov-hero,
+          .ov-jobs,
+          .ov-side-card {
+            padding: 12px;
+            border-radius: 14px;
           }
+
+          .ov-actions { flex-direction: column; }
+          .ov-stats { grid-template-columns: 1fr; }
+          .ov-job-actions { flex-direction: column; }
         }
 
-        @media (max-width: 768px) {
-          .stats-grid {
-            grid-template-columns: 1fr;
+        @media (prefers-reduced-motion: reduce) {
+          .ov *,
+          .ov:before,
+          .ov:after {
+            animation: none !important;
+            transition: none !important;
           }
         }
       `}</style>
-    </div >
+    </div>
   );
 };

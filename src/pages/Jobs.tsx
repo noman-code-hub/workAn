@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import type { CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -285,12 +286,29 @@ export const Jobs = () => {
     return `${days} days ago`;
   };
 
+  const staggerStyle = (index: number, delay = 0): CSSProperties => ({
+    ['--i' as string]: index,
+    ['--delay' as string]: `${delay}ms`,
+  });
+
+  const activeFiltersCount = [locationFilter, typeFilter].filter(Boolean).length;
+  const activeFilterPills = [
+    locationFilter ? { key: 'location' as const, label: `Location: ${locationFilter}` } : null,
+    typeFilter ? { key: 'type' as const, label: `Type: ${typeFilter.replace('-', ' ')}` } : null,
+  ].filter(Boolean) as Array<{ key: 'location' | 'type'; label: string }>;
+
+  const clearSingleFilter = (key: 'location' | 'type') => {
+    if (key === 'location') setLocationFilter('');
+    if (key === 'type') setTypeFilter('');
+  };
+
   return (
     <div className="jobs-page-modern">
-
+      <div className="jobs-glow jobs-glow-top" />
+      <div className="jobs-glow jobs-glow-bottom" />
 
       {/* Hero Search Section */}
-      <section className="search-hero">
+      <section className="search-hero panel fade-in delay-0">
         <div className="search-hero-content">
           <h1>Find Your <span className="highlight">Dream Job</span></h1>
           <p className="subtitle">AI-powered job recommendations matched to your skills and preferences</p>
@@ -327,10 +345,16 @@ export const Jobs = () => {
             </button>
           </div>
 
+          <div className="hero-info-row">
+            <span className="hero-chip">Live listings: {totalJobs.toLocaleString()}</span>
+            <span className="hero-chip">Active filters: {activeFiltersCount}</span>
+            <span className="hero-chip">Auto-scroll load enabled</span>
+          </div>
+
           {/* Filter Toggle */}
           <div className="filter-toggle-row">
             <button
-              className="filter-toggle-btn"
+              className={`filter-toggle-btn ${showFilters ? 'active' : ''}`}
               onClick={() => setShowFilters(!showFilters)}
             >
               <Filter size={18} />
@@ -346,7 +370,7 @@ export const Jobs = () => {
 
           {/* Filters Panel */}
           {showFilters && (
-            <div className="filters-panel-modern">
+            <div className="filters-panel-modern fade-in delay-1">
               <div className="filter-item">
                 <label>Job Type</label>
                 <select
@@ -380,10 +404,35 @@ export const Jobs = () => {
 
       {/* Jobs List */}
       <div className="jobs-container">
+        <div className="jobs-toolbar fade-in delay-1">
+          <div className="jobs-toolbar-copy">
+            <h2>Matched Opportunities</h2>
+            <p>
+              {displayedQuery
+                ? `${totalJobs.toLocaleString()} results for "${displayedQuery}"`
+                : 'Discover curated roles aligned with your profile'}
+            </p>
+          </div>
+          {activeFilterPills.length > 0 && (
+            <div className="jobs-toolbar-filters">
+              {activeFilterPills.map((pill) => (
+                <button
+                  key={pill.key}
+                  className="active-filter-pill"
+                  onClick={() => clearSingleFilter(pill.key)}
+                >
+                  {pill.label}
+                  <X size={14} />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {loading ? (
           <div className="jobs-list">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="job-card-skeleton">
+            {[1, 2, 3, 4, 5, 6].map((i, index) => (
+              <div key={i} className="job-card-skeleton fade-in delay-2" style={staggerStyle(index, 120)}>
                 <div className="skeleton-header"></div>
                 <div className="skeleton-content"></div>
                 <div className="skeleton-footer"></div>
@@ -409,8 +458,8 @@ export const Jobs = () => {
         ) : (
           <>
             <div className="jobs-list">
-              {filteredJobs.map((job) => (
-                <div key={job.id} className="modern-job-card">
+              {filteredJobs.map((job, index) => (
+                <div key={job.id} className="modern-job-card fade-in delay-2" style={staggerStyle(index, 80)}>
                   <div className="job-card-header-modern">
                     <a href={getCompanyUrl(job.company)} target="_blank" rel="noopener noreferrer">
                       <JobLogo company={job.company} />
@@ -428,7 +477,10 @@ export const Jobs = () => {
                     </div>
                     <button
                       className={`bookmark-modern ${bookmarkedIds.has(job.id) ? 'active' : ''}`}
-                      onClick={() => toggleBookmark(job.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleBookmark(job.id);
+                      }}
                     >
                       {bookmarkedIds.has(job.id) ? (
                         <Bookmark size={20} fill="currentColor" />
@@ -491,14 +543,20 @@ export const Jobs = () => {
 
                   <div className="job-actions-modern">
                     <button
-                      onClick={() => handleApply(job)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleApply(job);
+                      }}
                       className="btn-apply-modern"
                       disabled={applyingId === job.id}
                     >
                       {applyingId === job.id ? 'Checking...' : 'Apply Now'}
                     </button>
                     <button
-                      onClick={() => navigate(`/jobs/${job.id}`)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/jobs/${job.id}`);
+                      }}
                       className="btn-details-modern"
                     >
                       <ExternalLink size={18} />
@@ -532,6 +590,8 @@ export const Jobs = () => {
       </button>
 
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap');
+
         * {
           box-sizing: border-box;
         }
@@ -1095,6 +1155,386 @@ export const Jobs = () => {
             flex-direction: column;
             align-items: stretch;
           }
+        }
+
+        /* Professional Motion + Visual Upgrade */
+        .jobs-page-modern {
+          --jobs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+          position: relative;
+          isolation: isolate;
+          background:
+            radial-gradient(circle at 15% -5%, rgba(186, 230, 253, 0.42), transparent 40%),
+            radial-gradient(circle at 84% 12%, rgba(94, 234, 212, 0.3), transparent 46%),
+            linear-gradient(180deg, #f7fbff 0%, #f4f7fb 100%);
+        }
+
+        .jobs-glow {
+          position: absolute;
+          width: 280px;
+          height: 280px;
+          border-radius: 999px;
+          filter: blur(82px);
+          pointer-events: none;
+          z-index: -1;
+          opacity: 0.34;
+          animation: jobs-drift 10s ease-in-out infinite alternate;
+        }
+
+        .jobs-glow-top { top: -120px; right: 6%; background: #67e8f9; }
+        .jobs-glow-bottom { bottom: 4%; left: -80px; background: #5eead4; animation-delay: -3s; }
+
+        .panel {
+          border: 1px solid #dbe5ef;
+          border-radius: 22px;
+          box-shadow: 0 22px 42px -34px rgba(15, 23, 42, 0.45);
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), #ffffff);
+        }
+
+        .fade-in {
+          opacity: 0;
+          transform: translateY(14px) scale(0.986);
+          animation: jobs-rise 620ms var(--jobs-ease) forwards;
+          animation-delay: calc(var(--delay, 0ms) + var(--i, 0) * 68ms);
+        }
+
+        .delay-0 { --delay: 20ms; }
+        .delay-1 { --delay: 80ms; }
+        .delay-2 { --delay: 120ms; }
+        .delay-3 { --delay: 180ms; }
+
+        .search-hero {
+          max-width: none;
+          width: 100%;
+          margin: 0;
+          padding: 44px 24px 28px;
+          border-radius: 0;
+          border: none;
+          background:
+            radial-gradient(circle at top right, rgba(45, 212, 191, 0.16), transparent 42%),
+            linear-gradient(145deg, #ffffff, #f6fbff);
+        }
+
+        .search-hero-content {
+          max-width: none;
+          width: 100%;
+          margin: 0;
+          padding: 0 8px;
+        }
+
+        .search-hero h1 {
+          font-family: 'Space Grotesk', var(--font-family);
+          letter-spacing: -0.03em;
+          font-size: clamp(2rem, 3.8vw, 3rem);
+          margin-bottom: 12px;
+          line-height: 1.05;
+          color: #0f172a;
+        }
+
+        .highlight {
+          background: linear-gradient(135deg, #0ea5e9, #0f766e);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+        }
+
+        .subtitle { font-size: 1.02rem; margin-bottom: 24px; }
+
+        .modern-search-box {
+          border: 1px solid #c8f2e9;
+          border-radius: 18px;
+          box-shadow: 0 18px 34px -28px rgba(15, 23, 42, 0.54);
+          transition: border-color 220ms ease, box-shadow 220ms ease, transform 220ms var(--jobs-ease);
+          width: min(100%, 760px);
+          margin: 0 auto 14px;
+          padding: 6px 8px 6px 14px;
+        }
+
+        .modern-search-box:focus-within {
+          border-color: #14b8a6;
+          box-shadow: 0 18px 36px -26px rgba(20, 184, 166, 0.42);
+          transform: translateY(-1px);
+        }
+
+        .search-btn-modern {
+          border-radius: 12px;
+          background: linear-gradient(135deg, #14b8a6, #0f766e);
+          box-shadow: 0 12px 22px -14px rgba(15, 118, 110, 0.74);
+          transition: transform 220ms var(--jobs-ease), box-shadow 220ms var(--jobs-ease);
+          padding: 10px 18px;
+          min-width: 124px;
+        }
+
+        .search-btn-modern:hover {
+          transform: translateY(-2px);
+          background: linear-gradient(135deg, #14b8a6, #0f766e);
+          box-shadow: 0 16px 26px -14px rgba(15, 118, 110, 0.8);
+        }
+
+        .search-input-group { gap: 8px; }
+        .search-divider { margin: 0 10px; height: 28px; }
+        .search-input { font-size: 0.9rem; }
+
+        .hero-info-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+        .hero-chip {
+          display: inline-flex;
+          align-items: center;
+          padding: 6px 11px;
+          border-radius: 999px;
+          border: 1px solid #dbeafe;
+          background: #f8fafc;
+          color: #334155;
+          font-size: 0.74rem;
+          font-weight: 600;
+        }
+
+        .filter-toggle-btn {
+          border-radius: 999px;
+          font-weight: 600;
+          transition: transform 180ms var(--jobs-ease), border-color 180ms ease, color 180ms ease;
+        }
+
+        .filter-toggle-btn.active,
+        .filter-toggle-btn:hover {
+          transform: translateY(-1px);
+        }
+
+        .filters-panel-modern {
+          margin-top: 14px;
+          border-radius: 14px;
+          padding: 14px;
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 14px;
+          border-color: #dbe5ef;
+          animation: jobs-rise 420ms var(--jobs-ease) both;
+        }
+
+        .jobs-container {
+          max-width: none;
+          width: 100%;
+          margin: 0;
+          padding: 24px 32px 40px;
+        }
+        .jobs-list {
+          gap: 16px;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .jobs-toolbar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          margin-bottom: 14px;
+          padding: 14px 16px;
+          border: 1px solid #dbe5ef;
+          border-radius: 14px;
+          background: rgba(255, 255, 255, 0.84);
+          backdrop-filter: blur(6px);
+        }
+
+        .jobs-toolbar-copy h2 {
+          margin: 0;
+          font-size: 1rem;
+          font-family: 'Space Grotesk', var(--font-family);
+          color: #0f172a;
+        }
+
+        .jobs-toolbar-copy p {
+          margin: 2px 0 0;
+          color: #64748b;
+          font-size: 0.82rem;
+        }
+
+        .jobs-toolbar-filters {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          justify-content: flex-end;
+        }
+
+        .active-filter-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          border: 1px solid #bae6fd;
+          background: #f0f9ff;
+          color: #0c4a6e;
+          border-radius: 999px;
+          padding: 6px 10px;
+          font-size: 0.74rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: transform 160ms var(--jobs-ease), border-color 160ms ease;
+        }
+
+        .active-filter-pill:hover {
+          transform: translateY(-1px);
+          border-color: #7dd3fc;
+        }
+
+        .modern-job-card {
+          border-color: #dbe5ef;
+          border-radius: 18px;
+          padding: 18px;
+          background: linear-gradient(165deg, #ffffff, #f9fbff);
+          box-shadow: none;
+          position: relative;
+          overflow: hidden;
+          transition: transform 240ms var(--jobs-ease), border-color 220ms ease, box-shadow 240ms var(--jobs-ease);
+        }
+
+        .modern-job-card::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: 0;
+          height: 2px;
+          background: linear-gradient(90deg, #22d3ee, #14b8a6);
+          transform: scaleX(0);
+          transform-origin: left;
+          transition: transform 280ms var(--jobs-ease);
+        }
+
+        .modern-job-card:hover {
+          transform: translateY(-3px);
+          border-color: #14b8a6;
+          box-shadow: 0 24px 34px -30px rgba(15, 23, 42, 0.72);
+        }
+
+        .modern-job-card:hover::before { transform: scaleX(1); }
+
+        .job-title-modern {
+          font-family: 'Space Grotesk', var(--font-family);
+          font-size: clamp(1.05rem, 2.4vw, 1.24rem);
+          line-height: 1.2;
+        }
+
+        .bookmark-modern { width: 42px; height: 42px; border-radius: 11px; }
+
+        .job-details-modern {
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 12px;
+          gap: 10px;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .match-badge {
+          border-radius: 999px;
+          padding: 5px 10px;
+          font-size: 0.72rem;
+          animation: jobs-pulse 3s ease-in-out infinite;
+        }
+
+        .job-description-modern { font-size: 0.9rem; }
+        .skill-tag { border-radius: 999px; font-size: 0.74rem; font-weight: 600; }
+        .job-actions-modern { gap: 10px; }
+
+        .btn-apply-modern,
+        .btn-details-modern { border-radius: 11px; font-size: 0.9rem; }
+
+        .btn-apply-modern {
+          background: linear-gradient(135deg, #14b8a6, #0f766e);
+          box-shadow: 0 12px 22px -16px rgba(15, 118, 110, 0.78);
+          transition: transform 220ms var(--jobs-ease), box-shadow 220ms var(--jobs-ease);
+        }
+
+        .btn-apply-modern:hover {
+          background: linear-gradient(135deg, #14b8a6, #0f766e);
+          transform: translateY(-2px);
+          box-shadow: 0 14px 24px -14px rgba(15, 118, 110, 0.84);
+        }
+
+        .btn-details-modern { transition: transform 200ms var(--jobs-ease), border-color 200ms ease, color 200ms ease; }
+        .btn-details-modern:hover { transform: translateY(-2px); }
+
+        .loading-text {
+          position: relative;
+          padding-left: 14px;
+          font-size: 0.84rem;
+        }
+
+        .loading-text::before {
+          content: '';
+          width: 7px;
+          height: 7px;
+          border-radius: 999px;
+          background: #14b8a6;
+          position: absolute;
+          left: 0;
+          top: 6px;
+          animation: jobs-dot 1s ease-in-out infinite;
+        }
+
+        .chat-assistant {
+          right: 20px;
+          bottom: 20px;
+          top: auto;
+          transform: none;
+          transform-origin: initial;
+          padding: 8px 12px 8px 8px;
+          border-radius: 999px;
+          background: linear-gradient(135deg, #14b8a6, #0f766e);
+          box-shadow: 0 16px 24px -14px rgba(15, 118, 110, 0.78);
+          transition: transform 220ms var(--jobs-ease), box-shadow 220ms var(--jobs-ease);
+        }
+
+        .chat-assistant:hover {
+          transform: translateY(-2px);
+          background: linear-gradient(135deg, #14b8a6, #0f766e);
+          box-shadow: 0 20px 28px -14px rgba(15, 118, 110, 0.85);
+        }
+
+        .chat-icon-modern {
+          width: 30px;
+          height: 30px;
+          border-radius: 999px;
+          color: #0f766e;
+        }
+
+        @keyframes jobs-rise {
+          from { opacity: 0; transform: translateY(14px) scale(0.986); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes jobs-drift {
+          from { transform: translateY(0) translateX(0); }
+          to { transform: translateY(-12px) translateX(10px); }
+        }
+
+        @keyframes jobs-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(20, 184, 166, 0); }
+          50% { box-shadow: 0 0 0 6px rgba(20, 184, 166, 0.08); }
+        }
+
+        @keyframes jobs-dot {
+          0%, 100% { transform: scale(0.92); opacity: 0.5; }
+          50% { transform: scale(1.1); opacity: 1; }
+        }
+
+        @media (max-width: 900px) {
+          .search-hero { margin-top: 0; padding: 24px 16px 18px; border-radius: 0; }
+          .modern-search-box { border-radius: 14px; }
+          .filters-panel-modern { grid-template-columns: 1fr; }
+          .job-details-modern { grid-template-columns: 1fr; }
+          .jobs-list { grid-template-columns: 1fr; }
+          .jobs-toolbar { flex-direction: column; align-items: flex-start; }
+          .jobs-toolbar-filters { justify-content: flex-start; }
+        }
+
+        @media (max-width: 640px) {
+          .hero-info-row { display: none; }
+          .jobs-container { padding: 16px; }
+          .chat-assistant { right: 14px; bottom: 14px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .jobs-page-modern *,
+          .jobs-glow { animation: none !important; transition: none !important; }
         }
       `}</style>
     </div>

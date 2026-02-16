@@ -19,6 +19,7 @@ import { AICopilot } from './pages/AICopilot';
 import { Settings } from './pages/Settings';
 import { Profile } from './pages/Profile';
 import { Community } from './pages/Community';
+import { BlogDetail } from './pages/BlogDetail';
 import { JobApplicants } from './pages/JobApplicants';
 import { useAuth } from './contexts/AuthContext';
 
@@ -113,56 +114,57 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/select-role" element={<SelectRole />} />
 
-      {/* App Routes with Flat Layout (No Sidebar) */}
-      <Route element={<Layout />}>
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/jobs" element={<Jobs />} />
-        <Route path="/jobs/:id" element={<JobDetails />} />
-        <Route path="/resume" element={<Resume />} />
-        <Route path="/trends" element={<CareerTrends />} />
-        <Route path="/ai-copilot" element={<AICopilot />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/community" element={<Community />} />
+        {/* App Routes with Flat Layout (No Sidebar) */}
+        <Route element={<Layout />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/jobs" element={<Jobs />} />
+          <Route path="/jobs/:id" element={<JobDetails />} />
+          <Route path="/resume" element={<Resume />} />
+          <Route path="/trends" element={<CareerTrends />} />
+          <Route path="/ai-copilot" element={<AICopilot />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/community" element={<Community />} />
+          <Route path="/blog/:id" element={<BlogDetail />} />
 
-        {/* Admin-Only Routes */}
-        <Route
-          path="/admin-dashboard"
-          element={
-            <RoleGuard allowedRoles={['admin']}>
-              <AdminDashboard />
-            </RoleGuard>
-          }
-        />
-        <Route
-          path="/admin/templates"
-          element={
-            <RoleGuard allowedRoles={['admin']}>
-              <AdminTemplates />
-            </RoleGuard>
-          }
-        />
-        {/* Legacy admin route redirects to dashboard */}
-        <Route path="/admin" element={<Navigate to="/admin-dashboard" replace />} />
+          {/* Admin-Only Routes */}
+          <Route
+            path="/admin-dashboard"
+            element={
+              <RoleGuard allowedRoles={['admin']}>
+                <AdminDashboard />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/admin/templates"
+            element={
+              <RoleGuard allowedRoles={['admin']}>
+                <AdminTemplates />
+              </RoleGuard>
+            }
+          />
+          {/* Legacy admin route redirects to dashboard */}
+          <Route path="/admin" element={<Navigate to="/admin-dashboard" replace />} />
 
-        {/* Recruiter-Only Routes */}
-        <Route
-          path="/recruiter"
-          element={
-            <RoleGuard allowedRoles={['admin', 'recruiter']}>
-              <RecruiterDashboard />
-            </RoleGuard>
-          }
-        />
-        <Route
-          path="/recruiter/job/:id/applicants"
-          element={
-            <RoleGuard allowedRoles={['admin', 'recruiter']}>
-              <JobApplicants />
-            </RoleGuard>
-          }
-        />
-      </Route>
+          {/* Recruiter-Only Routes */}
+          <Route
+            path="/recruiter"
+            element={
+              <RoleGuard allowedRoles={['admin', 'recruiter']}>
+                <RecruiterDashboard />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/recruiter/job/:id/applicants"
+            element={
+              <RoleGuard allowedRoles={['admin', 'recruiter']}>
+                <JobApplicants />
+              </RoleGuard>
+            }
+          />
+        </Route>
 
         {/* Redirect any unknown routes to home */}
         <Route path="*" element={<Navigate to="/" />} />
