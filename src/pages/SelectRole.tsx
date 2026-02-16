@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import type { UserRole } from '../types';
-import { User as UserIcon, Briefcase, Shield } from 'lucide-react';
+import { User as UserIcon, Briefcase } from 'lucide-react';
 
 export const SelectRole = () => {
     const { user, updateProfile, loading } = useAuth();
@@ -30,7 +29,7 @@ export const SelectRole = () => {
         return null;
     }
 
-    const handleRoleSelect = async (role: UserRole) => {
+    const handleRoleSelect = async (role: 'user' | 'recruiter') => {
         if (!user) return;
 
         try {
@@ -94,17 +93,6 @@ export const SelectRole = () => {
                         </div>
                         <h3>Recruiter</h3>
                         <p>I want to post jobs and find great talent.</p>
-                    </button>
-
-                    <button
-                        className="role-card"
-                        onClick={() => handleRoleSelect('admin')}
-                    >
-                        <div className="icon admin">
-                            <Shield size={48} />
-                        </div>
-                        <h3>Administrator</h3>
-                        <p>I manage the platform and users.</p>
                     </button>
                 </div>
             </div>
@@ -199,16 +187,6 @@ export const SelectRole = () => {
 
                 .role-card:hover .icon.recruiter {
                     background: #22c55e;
-                    color: white;
-                }
-
-                .icon.admin {
-                    background: #fee2e2;
-                    color: #ef4444;
-                }
-
-                .role-card:hover .icon.admin {
-                    background: #ef4444;
                     color: white;
                 }
 

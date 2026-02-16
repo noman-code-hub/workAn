@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useRoleBasedRedirect } from '../hooks/useRoleBasedRedirect';
-import { Eye, EyeOff, Mail, Lock, Zap, AlertCircle, User as UserIcon, Briefcase, Shield } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Zap, AlertCircle, User as UserIcon, Briefcase } from 'lucide-react';
 
 export const Register = () => {
 
@@ -24,7 +24,8 @@ export const Register = () => {
         setLoading(true);
 
         try {
-            await register(email, password, name, role);
+            const selectedRole = role === 'recruiter' ? 'recruiter' : 'user';
+            await register(email, password, name, selectedRole);
         } catch (err: any) {
             setError(err.message || 'Registration failed. Please try again.');
             setLoading(false);
@@ -115,14 +116,6 @@ export const Register = () => {
                                     >
                                         <Briefcase size={18} />
                                         <span>Recruiter</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={`role-btn ${role === 'admin' ? 'active' : ''}`}
-                                        onClick={() => setRole('admin')}
-                                    >
-                                        <Shield size={18} />
-                                        <span>Admin</span>
                                     </button>
                                 </div>
                             </div>
@@ -527,7 +520,7 @@ export const Register = () => {
                 /* Role Selector Styles */
                 .role-selector {
                     display: grid;
-                    grid-template-columns: 1fr 1fr 1fr;
+                    grid-template-columns: 1fr 1fr;
                     gap: 10px;
                     margin-bottom: 8px;
                 }

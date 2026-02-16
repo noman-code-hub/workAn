@@ -30,6 +30,13 @@ export const Header = () => {
     setIsMenuOpen(false);
   };
 
+  const overviewPath =
+    user?.role === 'admin'
+      ? '/admin-dashboard'
+      : user?.role === 'recruiter'
+        ? '/recruiter'
+        : '/dashboard';
+
   return (
     <header className="universal-header">
       <div className="header-inner">
@@ -45,8 +52,8 @@ export const Header = () => {
         {/* Desktop Navigation */}
         <nav className="header-nav">
           <button
-            onClick={() => handleNavClick('/dashboard')}
-            className={`nav-link ${location.pathname === '/dashboard' ? 'active' : ''}`}
+            onClick={() => handleNavClick(overviewPath)}
+            className={`nav-link ${location.pathname === overviewPath ? 'active' : ''}`}
           >
             Overview
           </button>
@@ -135,8 +142,8 @@ export const Header = () => {
         <div className="mobile-menu">
           <div className="mobile-nav-links">
             <button
-              onClick={() => handleNavClick('/dashboard')}
-              className={`mobile-nav-link ${location.pathname === '/dashboard' ? 'active' : ''}`}
+              onClick={() => handleNavClick(overviewPath)}
+              className={`mobile-nav-link ${location.pathname === overviewPath ? 'active' : ''}`}
             >
               Overview
             </button>

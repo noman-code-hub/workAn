@@ -1,1827 +1,745 @@
-import { useState, useEffect, useRef } from 'react';
+import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, MapPin, User, Briefcase, BookmarkPlus, Bookmark, CheckCircle, X } from 'lucide-react';
-import type { Job } from '../types';
-import { useAuth } from '../contexts/AuthContext';
-import { useRoleBasedRedirect } from '../hooks/useRoleBasedRedirect';
-import { JobLogo } from '../components/JobLogo';
-import { Profile } from './Profile';
-import { Header } from '../components/Header';
+import { Bot, Briefcase, MapPin, Search, Sparkles, TrendingUp } from 'lucide-react';
+import { Header } from '@/components/Header';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const popularRoles = ['Remote Engineer', 'Product Manager', 'Data Scientist'];
+
+const networkNodes = [
+  { top: '13%', left: '12%' },
+  { top: '22%', left: '30%' },
+  { top: '13%', left: '47%' },
+  { top: '33%', left: '63%' },
+  { top: '58%', left: '30%' },
+  { top: '69%', left: '47%' },
+  { top: '45%', left: '20%' },
+  { top: '45%', left: '57%' },
+];
+
+const networkLines = [
+  { top: '15%', left: '13%', width: '18%', rotate: '15deg' },
+  { top: '23%', left: '31%', width: '16%', rotate: '-13deg' },
+  { top: '14%', left: '47%', width: '17%', rotate: '20deg' },
+  { top: '24%', left: '31%', width: '18%', rotate: '63deg' },
+  { top: '34%', left: '21%', width: '27%', rotate: '15deg' },
+  { top: '45%', left: '20%', width: '10%', rotate: '-74deg' },
+  { top: '59%', left: '31%', width: '16%', rotate: '17deg' },
+  { top: '58%', left: '30%', width: '28%', rotate: '-14deg' },
+];
 
 export const LandingPage = () => {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const [jobTitle, setJobTitle] = useState('');
+  const [location, setLocation] = useState('');
 
-  // Redirect based on role if user is logged in
-  useRoleBasedRedirect(user, authLoading);
+  const handleSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const query = new URLSearchParams();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [locationQuery, setLocationQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<string>('');
-  const [hasSearched, setHasSearched] = useState(false);
-  const [activeView, setActiveView] = useState<'home' | 'jobs' | 'profile'>('home');
+    if (jobTitle.trim()) query.set('q', jobTitle.trim());
+    if (location.trim()) query.set('location', location.trim());
 
-  // Job search state
-  const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
-  const [totalJobs, setTotalJobs] = useState<number>(0);
-  const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [displayedQuery, setDisplayedQuery] = useState('');
-  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
-  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
-  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
-  const [page, setPage] = useState(1);
-
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const observerTarget = useRef(null);
-  const jobsSectionRef = useRef<HTMLElement>(null);
-
-  const popularSearches = [
-    'Remote Engineer',
-    'Product Manager',
-    'Data Scientist'
-  ];
-
-
-
-  const scrollToJobs = () => {
-    setTimeout(() => {
-      jobsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 300);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (filteredJobs.length > 0) {
-      localStorage.setItem('recentJobs', JSON.stringify(filteredJobs));
-    }
-  }, [filteredJobs]);
-
-  useEffect(() => {
-    if (!hasSearched) return;
-
-    const timer = setTimeout(() => {
-      setPage(1);
-      fetchJobs(1, true);
-    }, 800);
-
-    return () => clearTimeout(timer);
-  }, [locationQuery, typeFilter]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      entries => {
-        if (entries[0].isIntersecting && !loadingMore && nextPageToken) {
-          handleLoadMore();
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (observerTarget.current) {
-      observer.observe(observerTarget.current);
-    }
-
-    return () => {
-      if (observerTarget.current) {
-        observer.unobserve(observerTarget.current);
-      }
-    };
-  }, [loadingMore, nextPageToken]);
-
-  const fetchJobs = async (pageNum = 1, shouldReplace = false) => {
-    if (shouldReplace && abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    if (shouldReplace) {
-      setLoading(true);
-      setNextPageToken(null);
-    } else {
-      setLoadingMore(true);
-    }
-
-    try {
-      const effectiveQuery = searchQuery.trim() || (user?.profession ? user.profession : 'jobs');
-
-      const getCountryCode = (location: string) => {
-        if (!location) return 'us';
-        const locationLower = location.toLowerCase();
-        if (locationLower.includes('united states') || locationLower.includes('usa') || locationLower.includes('america')) {
-          return 'us';
-        }
-        if (locationLower.includes('united kingdom') || locationLower.includes('uk') || locationLower.includes('britain') || locationLower.includes('london')) {
-          return 'gb';
-        }
-        if (locationLower.includes('canada')) return 'ca';
-        if (locationLower.includes('australia')) return 'au';
-        if (locationLower.includes('india')) return 'in';
-        return 'us';
-      };
-
-      const countryCode = getCountryCode(locationQuery);
-
-      const params = new URLSearchParams();
-      params.append('query', effectiveQuery);
-      params.append('country', countryCode);
-      params.append('page', pageNum.toString());
-      params.append('results_per_page', '50');
-
-      if (!shouldReplace && nextPageToken) {
-        params.append('page_token', nextPageToken);
-      }
-
-      if (locationQuery) params.append('location', locationQuery);
-      if (typeFilter) params.append('contract_type', typeFilter);
-
-      const url = `${API_BASE_URL}/api/jobs/search?${params.toString()}`;
-
-      const response = await fetch(url, { signal: controller.signal });
-
-      if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      if (data.success) {
-        if (shouldReplace) {
-          const uniqueResults = data.results.filter((job: any, index: number, self: any[]) =>
-            index === self.findIndex((t) => (
-              t.company?.toLowerCase().trim() === job.company?.toLowerCase().trim() &&
-              t.title?.toLowerCase().trim() === job.title?.toLowerCase().trim()
-            ))
-          );
-          setFilteredJobs(uniqueResults);
-          setDisplayedQuery(effectiveQuery);
-        } else {
-          setFilteredJobs(prev => {
-            const seen = new Set(prev.map(j => `${j.company?.toLowerCase().trim()}-${j.title?.toLowerCase().trim()}`));
-            const uniqueNew = data.results.filter((job: any) => {
-              const key = `${job.company?.toLowerCase().trim()}-${job.title?.toLowerCase().trim()}`;
-              if (seen.has(key)) return false;
-              seen.add(key);
-              return true;
-            });
-            return [...prev, ...uniqueNew];
-          });
-        }
-
-        if (data.next_page_token) {
-          setNextPageToken(data.next_page_token);
-        } else {
-          setNextPageToken(null);
-        }
-
-        if (data.count) {
-          const rawCount = data.count;
-          const cleanCount = typeof rawCount === 'string'
-            ? parseInt(rawCount.replace(/[^0-9]/g, ''), 10)
-            : (typeof rawCount === 'number' ? rawCount : 0);
-          setTotalJobs(cleanCount);
-        }
-      } else {
-        throw new Error(data.message || 'API error');
-      }
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
-        console.log('🟡 Fetch aborted');
-      } else {
-        console.error("Error connecting to server:", error);
-        if (shouldReplace) {
-          setFilteredJobs([]);
-          setTotalJobs(0);
-        }
-      }
-    } finally {
-      if (abortControllerRef.current === controller && !controller.signal.aborted) {
-        setLoading(false);
-        setLoadingMore(false);
-      }
-    }
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setHasSearched(true);
-    setActiveView('jobs');
-    setPage(1);
-    fetchJobs(1, true);
-    scrollToJobs();
-  };
-
-  const handlePopularSearch = (tag: string) => {
-    setSearchQuery(tag);
-    setHasSearched(true);
-    setActiveView('jobs');
-    setPage(1);
-    // Trigger search with the tag
-    setTimeout(() => {
-      fetchJobs(1, true);
-    }, 0);
-    scrollToJobs();
-  };
-
-  const handleLoadMore = () => {
-    const nextPage = page + 1;
-    setPage(nextPage);
-    fetchJobs(nextPage, false);
-  };
-
-  const toggleBookmark = (jobId: string) => {
-    setBookmarkedIds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(jobId)) {
-        newSet.delete(jobId);
-      } else {
-        newSet.add(jobId);
-      }
-      return newSet;
-    });
-  };
-
-  const toggleDescription = (jobId: string) => {
-    setExpandedDescriptions((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(jobId)) {
-        newSet.delete(jobId);
-      } else {
-        newSet.add(jobId);
-      }
-      return newSet;
-    });
-  };
-
-  const formatSalary = (job: Job) => {
-    return `$${(job.salary.min / 1000).toFixed(0)}k - $${(job.salary.max / 1000).toFixed(0)}k`;
-  };
-
-  const getTimeSince = (date: Date | string) => {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    const days = Math.floor((Date.now() - dateObj.getTime()) / (1000 * 60 * 60 * 24));
-    if (days === 0) return 'Today';
-    if (days === 1) return 'Yesterday';
-    return `${days} days ago`;
+    navigate(query.toString() ? `/jobs?${query.toString()}` : '/jobs');
   };
 
   return (
-    <div className="landing-page">
+    <div className="landing-pro">
       <Header />
+      <main className="landing-main">
+        <div className="landing-aurora landing-aurora-a" aria-hidden="true" />
+        <div className="landing-aurora landing-aurora-b" aria-hidden="true" />
+        <div className="landing-grid" aria-hidden="true" />
 
-
-
-      {/* Hero Section - Only show when no search has been performed */}
-      {activeView === 'home' && (
-        <section className="hero" id="jobs">
-          <div className="network-bg">
-            <svg className="network-svg" viewBox="0 0 1200 600">
-              <g className="network-lines">
-                <line x1="100" y1="100" x2="300" y2="150" stroke="#00d4aa" strokeWidth="1" opacity="0.3" />
-                <line x1="300" y1="150" x2="500" y2="100" stroke="#00d4aa" strokeWidth="1" opacity="0.3" />
-                <line x1="500" y1="100" x2="700" y2="200" stroke="#00d4aa" strokeWidth="1" opacity="0.3" />
-                <line x1="200" y1="300" x2="400" y2="350" stroke="#00d4aa" strokeWidth="1" opacity="0.3" />
-                <line x1="400" y1="350" x2="600" y2="300" stroke="#00d4aa" strokeWidth="1" opacity="0.3" />
-                <line x1="600" y1="300" x2="800" y2="400" stroke="#00d4aa" strokeWidth="1" opacity="0.3" />
-                <line x1="100" y1="500" x2="300" y2="450" stroke="#00d4aa" strokeWidth="1" opacity="0.3" />
-                <line x1="300" y1="450" x2="500" y2="500" stroke="#00d4aa" strokeWidth="1" opacity="0.3" />
-                <line x1="100" y1="100" x2="200" y2="300" stroke="#00d4aa" strokeWidth="1" opacity="0.2" />
-                <line x1="300" y1="150" x2="400" y2="350" stroke="#00d4aa" strokeWidth="1" opacity="0.2" />
-              </g>
-              <g className="network-nodes">
-                <circle cx="100" cy="100" r="4" fill="#00d4aa" opacity="0.5" />
-                <circle cx="300" cy="150" r="4" fill="#00d4aa" opacity="0.5" />
-                <circle cx="500" cy="100" r="4" fill="#00d4aa" opacity="0.5" />
-                <circle cx="700" cy="200" r="4" fill="#00d4aa" opacity="0.5" />
-                <circle cx="200" cy="300" r="4" fill="#00d4aa" opacity="0.5" />
-                <circle cx="400" cy="350" r="4" fill="#00d4aa" opacity="0.5" />
-                <circle cx="600" cy="300" r="4" fill="#00d4aa" opacity="0.5" />
-                <circle cx="800" cy="400" r="4" fill="#00d4aa" opacity="0.5" />
-                <circle cx="100" cy="500" r="4" fill="#00d4aa" opacity="0.5" />
-                <circle cx="300" cy="450" r="4" fill="#00d4aa" opacity="0.5" />
-                <circle cx="500" cy="500" r="4" fill="#00d4aa" opacity="0.5" />
-              </g>
-            </svg>
+        <section className="hero-shell">
+          <div className="hero-network" aria-hidden="true">
+            {networkLines.map((line, index) => (
+              <span
+                key={`line-${index}`}
+                className="hero-network-line"
+                style={{
+                  top: line.top,
+                  left: line.left,
+                  width: line.width,
+                  transform: `rotate(${line.rotate})`,
+                }}
+              />
+            ))}
+            {networkNodes.map((node, index) => (
+              <span
+                key={`node-${index}`}
+                className="hero-network-node"
+                style={{ top: node.top, left: node.left }}
+              />
+            ))}
           </div>
 
-          <div className="container hero-content">
-
-
-            <h1 className="hero-headline">
-              Find the job that <span className="highlight-text">matches your DNA.</span>
+          <div className="hero-content">
+            <div className="hero-kicker">
+              <Sparkles size={16} />
+              <span>AI Career Match Engine</span>
+            </div>
+            <h1 className="hero-title">
+              Find the role that <span>fits your DNA.</span>
             </h1>
-
             <p className="hero-subtitle">
-              CareerPilot uses advanced AI to analyze your skills and preferences, matching you with opportunities where you'll truly thrive.
+              CareerPilot uses advanced AI to analyze your skills and preferences, matching you
+              with opportunities where you can truly thrive.
             </p>
 
-            {/* Search Form */}
-            <form onSubmit={handleSearch} className="search-form">
-              <div className="search-box">
-                <div className="search-input-group">
-                  <Search className="input-icon" size={20} />
-                  <input
-                    type="text"
-                    placeholder="Job title, skills, or keywords"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="search-input"
-                  />
-                </div>
-
-                <div className="search-divider"></div>
-
-                <div className="search-input-group">
-                  <MapPin className="input-icon" size={20} />
-                  <input
-                    type="text"
-                    placeholder="City, state, or remote"
-                    value={locationQuery}
-                    onChange={(e) => setLocationQuery(e.target.value)}
-                    className="search-input"
-                  />
-                </div>
-
-                <button type="submit" className="search-btn">
-                  Search
-                </button>
-              </div>
+            <form className="hero-search" onSubmit={handleSearch}>
+              <label className="hero-search-field">
+                <Search size={22} strokeWidth={2} />
+                <input
+                  type="text"
+                  value={jobTitle}
+                  onChange={(event) => setJobTitle(event.target.value)}
+                  placeholder="Job title, skills, or keywords"
+                  aria-label="Job title, skills, or keywords"
+                />
+              </label>
+              <label className="hero-search-field hero-search-location">
+                <MapPin size={22} strokeWidth={2} />
+                <input
+                  type="text"
+                  value={location}
+                  onChange={(event) => setLocation(event.target.value)}
+                  placeholder="City, state, or remote"
+                  aria-label="City, state, or remote"
+                />
+              </label>
+              <button type="submit" className="hero-search-button">
+                Search
+              </button>
             </form>
 
-            {/* Popular Tags */}
-            <div className="popular-tags">
-              <span className="popular-label">Popular:</span>
-              {popularSearches.map((tag) => (
-                <button
-                  key={tag}
-                  className="tag-pill"
-                  onClick={() => handlePopularSearch(tag)}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-
-            {/* Filter Toggle - Only show after search */}
-
-          </div>
-        </section>
-      )}
-
-      {/* Profile Section */}
-      {activeView === 'profile' && (
-        <div style={{ paddingTop: '24px' }}>
-          <Profile />
-        </div>
-      )}
-
-
-      {/* Job Results Section */}
-      {activeView === 'jobs' && (
-        <section className="jobs-section" ref={jobsSectionRef}>
-
-          <div className="container" style={{ marginBottom: '24px' }}>
-            <form onSubmit={handleSearch} className="search-form" style={{ marginBottom: 0 }}>
-              <div className="search-box-results">
-                <div className="search-input-group">
-                  <Search className="input-icon" size={18} />
-                  <input
-                    type="text"
-                    placeholder="Job title, skills, or keywords"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="search-input"
-                  />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery('')}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: '4px' }}
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
-
-                <div className="search-divider"></div>
-
-                <div className="search-input-group">
-                  <MapPin className="input-icon" size={18} />
-                  <input
-                    type="text"
-                    placeholder="City, state, or remote"
-                    value={locationQuery}
-                    onChange={(e) => setLocationQuery(e.target.value)}
-                    className="search-input"
-                  />
-                  {locationQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setLocationQuery('')}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: '4px' }}
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
-
-                <button type="submit" className="search-btn-results">
-                  Search
-                </button>
-              </div>
-            </form>
-          </div>
-
-          <div className="container jobs-layout">
-            {/* Left Sidebar Filters */}
-            <aside className="filters-sidebar">
-              <div className="sidebar-header">
-                <h3>Filters</h3>
-                <button
-                  className="clear-btn"
-                  onClick={() => {
-                    setSearchQuery('');
-                    setLocationQuery('');
-                    setTypeFilter('');
-                  }}
-                >
-                  Clear All
-                </button>
-              </div>
-
-              <div className="filter-group">
-                <h4>Job Type</h4>
-                <div className="checkbox-group">
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={typeFilter === 'full-time'}
-                      onChange={() => setTypeFilter(typeFilter === 'full-time' ? '' : 'full-time')}
-                    />
-                    <span>Full Time</span>
-                  </label>
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={typeFilter === 'part-time'}
-                      onChange={() => setTypeFilter(typeFilter === 'part-time' ? '' : 'part-time')}
-                    />
-                    <span>Part Time</span>
-                  </label>
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={typeFilter === 'contract'}
-                      onChange={() => setTypeFilter(typeFilter === 'contract' ? '' : 'contract')}
-                    />
-                    <span>Contract</span>
-                  </label>
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={typeFilter === 'remote'}
-                      onChange={() => setTypeFilter(typeFilter === 'remote' ? '' : 'remote')}
-                    />
-                    <span>Remote</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="filter-group">
-                <h4>Experience Level</h4>
-                <div className="checkbox-group">
-                  <label className="checkbox-label">
-                    <input type="checkbox" />
-                    <span>Entry Level</span>
-                  </label>
-                  <label className="checkbox-label">
-                    <input type="checkbox" />
-                    <span>Intermediate</span>
-                  </label>
-                  <label className="checkbox-label">
-                    <input type="checkbox" />
-                    <span>Expert</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="filter-group">
-                <h4>Price / Salary</h4>
-                <div className="checkbox-group">
-                  <label className="checkbox-label">
-                    <input type="checkbox" />
-                    <span>Hourly</span>
-                  </label>
-                  <label className="checkbox-label">
-                    <input type="checkbox" />
-                    <span>Fixed Price</span>
-                  </label>
-                </div>
-              </div>
-            </aside>
-
-            {/* Main Feed */}
-            <div className="jobs-feed">
-              <div className="feed-header">
-                {displayedQuery && (
-                  <h2 className="results-count-heading">
-                    {totalJobs.toLocaleString()} jobs found for <span className="highlight-keyword">"{displayedQuery}"</span>
-                  </h2>
-                )}
-                <div className="sort-box">
-                  <span>Sort:</span>
-                  <select className="sort-select">
-                    <option>Best Match</option>
-                    <option>Newest</option>
-                  </select>
-                </div>
-              </div>
-
-              {loading ? (
-                <div className="jobs-list">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="job-card-skeleton">
-                      <div className="skeleton-header"></div>
-                      <div className="skeleton-content"></div>
-                      <div className="skeleton-footer"></div>
-                    </div>
-                  ))}
-                </div>
-              ) : filteredJobs.length === 0 ? (
-                <div className="empty-state">
-                  <Briefcase size={64} className="empty-icon" />
-                  <h3>No jobs found</h3>
-                  <p>Try adjusting your search or filters</p>
+            <div className="hero-popular">
+              <span className="hero-popular-label">Popular:</span>
+              <div className="hero-popular-chips">
+                {popularRoles.map((role) => (
                   <button
-                    className="btn-primary-modern"
-                    onClick={() => {
-                      setSearchQuery('');
-                      setLocationQuery('');
-                      setTypeFilter('');
-                    }}
+                    key={role}
+                    type="button"
+                    className="hero-popular-chip"
+                    onClick={() => setJobTitle(role)}
                   >
-                    Reset Search
+                    {role}
                   </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="hero-insights">
+              <article className="insight-card">
+                <div className="insight-icon">
+                  <Briefcase size={18} />
                 </div>
-              ) : (
-                <>
-                  <div className="jobs-list-upwork">
-                    {filteredJobs.map((job) => (
-                      <div key={job.id} className="upwork-job-card">
-                        <div className="card-top-row">
-                          <div className="job-info-main">
-                            <span className="posted-time">Posted {getTimeSince(job.postedDate)}</span>
-                            <h3
-                              className="job-title-upwork"
-                              onClick={() => navigate(`/jobs/${job.id}`, { state: { returnTo: '/', returnLabel: 'Back to Home' } })}
-                            >
-                              {job.title}
-                            </h3>
-                          </div>
-                          <div className="card-actions">
-                            <JobLogo company={job.company} />
-
-                            <button
-                              className={`circle-btn dislike`}
-                              title="Not interested"
-                            >
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M10 14h4v7h-4z" />
-                                <path d="M7 14h10l1-9h-12z" />
-                              </svg>
-                            </button>
-                            <button
-                              className={`circle-btn heart ${bookmarkedIds.has(job.id) ? 'active' : ''}`}
-                              onClick={() => toggleBookmark(job.id)}
-                              title="Save job"
-                            >
-                              {bookmarkedIds.has(job.id) ? (
-                                <Bookmark size={18} fill="currentColor" />
-                              ) : (
-                                <BookmarkPlus size={18} />
-                              )}
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="job-meta-row">
-                          <div className="meta-item">
-                            <span className="meta-label">Fixed-price/Hourly</span>
-                          </div>
-                          <div className="meta-item">
-                            <span className="meta-label">Est. Budget: {formatSalary(job)}</span>
-                          </div>
-                          <div className="meta-item">
-                            <Briefcase size={14} className="meta-icon" />
-                            <span className="capitalize">{job.type.replace('-', ' ')}</span>
-                          </div>
-                        </div>
-
-                        <div className="job-description-upwork">
-                          {expandedDescriptions.has(job.id) || job.description.length <= 250
-                            ? job.description
-                            : `${job.description.substring(0, 250)}...`}
-                          {job.description.length > 250 && (
-                            <span
-                              className="more-link"
-                              onClick={() => toggleDescription(job.id)}
-                            >
-                              {expandedDescriptions.has(job.id) ? ' less' : ' more'}
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="job-skills-upwork">
-                          {job.skills.slice(0, 6).map((skill) => (
-                            <span key={skill} className="upwork-skill-tag">
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-
-                        <div className="company-verification-row">
-                          <CheckCircle size={14} className="verified-icon" />
-                          <span className="verified-text">Payment verified</span>
-                          <span className="separator">•</span>
-                          <div className="stars">
-                            ★★★★★ <span className="rating-num">5.0</span>
-                          </div>
-                          <span className="separator">•</span>
-                          <span className="company-spend">$10k+ spent</span>
-                          <span className="separator">•</span>
-                          <div className="location-meta">
-                            <MapPin size={14} />
-                            <span>{job.location}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {nextPageToken && (
-                    <div
-                      ref={observerTarget}
-                      className="load-more-trigger"
-                    >
-                      {loadingMore && (
-                        <p className="loading-text">Loading more jobs...</p>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
+                <div>
+                  <p className="insight-value">50k+</p>
+                  <p className="insight-label">roles indexed daily</p>
+                </div>
+              </article>
+              <article className="insight-card">
+                <div className="insight-icon">
+                  <TrendingUp size={18} />
+                </div>
+                <div>
+                  <p className="insight-value">91%</p>
+                  <p className="insight-label">higher relevance match</p>
+                </div>
+              </article>
             </div>
           </div>
-        </section>
-      )}
 
-      {/* Chat Button */}
-      <button className="chat-btn" onClick={() => navigate('/ai-copilot')}>
-        <div className="chat-icon">
-          <User size={24} />
-        </div>
-        <span className="chat-text">Chat with AI</span>
-      </button>
+          <button
+            type="button"
+            className="ai-chat-pill"
+            onClick={() => navigate('/ai-copilot')}
+            aria-label="Open AI Copilot"
+          >
+            <span>Chat with AI</span>
+            <div className="ai-chat-icon-wrap">
+              <Bot size={24} />
+            </div>
+          </button>
+        </section>
+      </main>
 
       <style>{`
-                * {
-                    margin: 0;
-                    padding: 0;
-                    box-sizing: border-box;
-                }
-
-                .landing-page {
-                    min-height: 100vh;
-                    font-family: 'Neue Montreal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-                    background: #fff;
-                    position: relative;
-                }
-
-                .container {
-                    max-width: 1200px;
-                    margin: 0 auto;
-                    padding: 0 24px;
-                }
-
-                /* Header */
-                .top-header {
-                    background: white;
-                    border-bottom: 1px solid #e5e7eb;
-                    padding: 16px 0;
-                    position: sticky;
-                    top: 0;
-                    z-index: 100;
-                }
-
-                .header-content {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                }
-
-                .logo {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    font-size: 20px;
-                    font-weight: 700;
-                    color: #111827;
-                    cursor: pointer;
-                }
-
-                .logo-icon {
-                    width: 32px;
-                    height: 32px;
-                    background: linear-gradient(135deg, #00d4aa 0%, #00a389 100%);
-                    border-radius: 8px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    color: white;
-                }
-
-                .logo-text {
-                    font-size: 18px;
-                }
-
-                .main-nav {
-                    display: flex;
-                    align-items: center;
-                    gap: 32px;
-                }
-
-                .nav-link {
-                    color: #6b7280;
-                    text-decoration: none;
-                    font-size: 14px;
-                    font-weight: 500;
-                    transition: color 0.2s;
-                }
-
-                .nav-link:hover {
-                    color: #111827;
-                }
-
-                /* Compact Search in Header */
-                .compact-search-form {
-                    flex: 1;
-                    max-width: 500px;
-                    margin: 0 24px;
-                }
-
-                .compact-search-box {
-                    display: flex;
-                    align-items: center;
-                    background: white;
-                    border: 1px solid #e5e7eb;
-                    border-radius: 20px;
-                    padding: 6px 16px;
-                    transition: all 0.2s;
-                }
-
-                .compact-search-box:focus-within {
-                    border-color: #00d4aa;
-                    box-shadow: 0 0 0 4px rgba(0, 212, 170, 0.1);
-                }
-
-                .compact-icon {
-                    color: #9ca3af;
-                    margin-right: 8px;
-                }
-
-                .compact-search-input {
-                    border: none;
-                    outline: none;
-                    font-size: 14px;
-                    width: 100%;
-                    color: #111827;
-                }
-
-                .compact-divider {
-                    width: 1px;
-                    height: 20px;
-                    background: #e5e7eb;
-                    margin: 0 12px;
-                }
-
-                .compact-search-btn {
-                    display: none; /* Hidden visually, enables enter key */
-                }
-
-                .header-actions {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                }
-
-                .icon-btn {
-                    display: flex;
-                    align-items: center;
-                    background: none;
-                    border: none;
-                    color: #6b7280;
-                    cursor: pointer;
-                    padding: 8px;
-                    border-radius: 6px;
-                }
-
-                .btn-signin {
-                    background: #111827;
-                    color: white;
-                    border: none;
-                    padding: 8px 16px;
-                    border-radius: 6px;
-                    font-size: 14px;
-                    font-weight: 600;
-                    cursor: pointer;
-                }
-
-                /* Job Ticker */
-                .job-ticker {
-                    background: #1f2937;
-                    color: white;
-                    padding: 12px 0;
-                    overflow: hidden;
-                    position: relative;
-                }
-
-                .ticker-content {
-                    display: flex;
-                    gap: 48px;
-                    animation: scroll 40s linear infinite;
-                    white-space: nowrap;
-                }
-
-                @keyframes scroll {
-                    0% {
-                        transform: translateX(0);
-                    }
-                    100% {
-                        transform: translateX(-50%);
-                    }
-                }
-
-                .ticker-item {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    font-size: 14px;
-                }
-
-                .ticker-badge {
-                    background: rgba(239, 68, 68, 0.2);
-                    color: #fca5a5;
-                    padding: 2px 8px;
-                    border-radius: 4px;
-                    font-size: 12px;
-                    font-weight: 600;
-                }
-
-                .ticker-company {
-                    color: #9ca3af;
-                }
-
-                .ticker-location {
-                    color: #6b7280;
-                    font-size: 13px;
-                }
-
-                /* Hero Section */
-                .hero {
-                    position: relative;
-                    padding: 80px 0 60px;
-                    min-height: 600px;
-                    display: flex;
-                    align-items: center;
-                    overflow: hidden;
-                }
-
-                .network-bg {
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    overflow: hidden;
-                    pointer-events: none;
-                }
-
-                .network-svg {
-                    width: 100%;
-                    height: 100%;
-                    opacity: 0.4;
-                }
-
-                .hero-content {
-                    position: relative;
-                    z-index: 10;
-                    text-align: center;
-                    max-width: 900px;
-                    margin: 0 auto;
-                }
-
-                .whatsapp-btn {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 8px;
-                    background: #25D366;
-                    color: white;
-                    border: none;
-                    padding: 10px 20px;
-                    border-radius: 24px;
-                    font-size: 14px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    margin-bottom: 32px;
-                    transition: transform 0.2s;
-                }
-
-                .whatsapp-btn:hover {
-                    transform: scale(1.05);
-                }
-
-                .whatsapp-icon {
-                    font-size: 18px;
-                }
-
-                .hero-headline {
-                    font-size: 56px;
-                    font-weight: 800;
-                    line-height: 1.1;
-                    color: #111827;
-                    margin-bottom: 24px;
-                }
-
-                .highlight-text {
-                    color: #00d4aa;
-                    position: relative;
-                }
-
-                .hero-subtitle {
-                    font-size: 18px;
-                    color: #6b7280;
-                    margin-bottom: 48px;
-                    line-height: 1.6;
-                    max-width: 700px;
-                    margin-left: auto;
-                    margin-right: auto;
-                }
-
-                /* Search Form - Hero */
-                .search-form {
-                    margin-bottom: 32px;
-                }
-
-                .search-box {
-                    display: flex;
-                    align-items: center;
-                    background: white;
-                    border: 2px solid #00d4aa;
-                    border-radius: 50px;
-                    padding: 8px 8px 8px 24px;
-                    box-shadow: 0 10px 40px rgba(0, 212, 170, 0.15);
-                    max-width: 800px;
-                    margin: 0 auto;
-                }
-
-                /* Compact Search Box for Results */
-                .search-box-results {
-                    display: flex;
-                    align-items: center;
-                    background: white;
-                    border: 1px solid #d1d5db; /* Lighter border */
-                    border-radius: 50px;
-                    padding: 4px 4px 4px 20px;
-                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-                    max-width: 740px; /* Decreased width */
-                    margin: 0;        /* Left align */
-                    transition: border-color 0.2s;
-                }
-                .search-box-results:focus-within {
-                    border-color: #00d4aa;
-                    box-shadow: 0 4px 12px rgba(0, 212, 170, 0.1);
-                }
-
-                .search-btn-results {
-                    background: #00d4aa;
-                    color: white;
-                    border: none;
-                    padding: 8px 24px;
-                    border-radius: 40px;
-                    font-size: 14px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: background 0.2s;
-                    flex-shrink: 0;
-                }
-                .search-btn-results:hover {
-                    background: #00bd98;
-                }
-
-                .search-input-group {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    flex: 1;
-                }
-
-                .input-icon {
-                    color: #9ca3af;
-                    flex-shrink: 0;
-                }
-
-                .search-input {
-                    border: none;
-                    outline: none;
-                    font-size: 15px;
-                    width: 100%;
-                    color: #111827;
-                }
-                
-                .search-box-results .search-input {
-                    font-size: 14px; /* Smaller font for results search */
-                }
-
-                .search-input::placeholder {
-                    color: #9ca3af;
-                }
-
-                .search-divider {
-                    width: 1px;
-                    height: 32px;
-                    background: #e5e7eb;
-                    margin: 0 16px;
-                }
-                
-                .search-box-results .search-divider {
-                    height: 24px;
-                    margin: 0 12px;
-                }
-
-                .search-btn {
-                    background: #00d4aa;
-                    color: white;
-                    border: none;
-                    padding: 14px 40px;
-                    border-radius: 40px;
-                    font-size: 15px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: background 0.2s;
-                    flex-shrink: 0;
-                }
-
-                .search-btn:hover {
-                    background: #00bd98;
-                }
-
-                /* Popular Tags */
-                .popular-tags {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 12px;
-                    flex-wrap: wrap;
-                    margin-bottom: 24px;
-                }
-
-                .popular-label {
-                    color: #6b7280;
-                    font-size: 14px;
-                    font-weight: 500;
-                }
-
-                .tag-pill {
-                    background: white;
-                    border: 1px solid #e5e7eb;
-                    color: #374151;
-                    padding: 8px 20px;
-                    border-radius: 20px;
-                    font-size: 14px;
-                    font-weight: 500;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                }
-
-                .tag-pill:hover {
-                    border-color: #00d4aa;
-                    color: #00d4aa;
-                    background: #f0fdf9;
-                }
-
-                /* Jobs Section */
-                .jobs-section {
-                    padding: 60px 0;
-                    background: #f8fffe;
-                }
-
-                /* Layout */
-                .jobs-layout {
-                    display: grid;
-                    grid-template-columns: 260px 1fr;
-                    gap: 40px;
-                    padding-top: 32px;
-                    align-items: start;
-                }
-
-                /* Sidebar Filters */
-                .filters-sidebar {
-                    position: sticky;
-                    top: 100px;
-                    background: white;
-                    padding: 24px;
-                    border-radius: 12px;
-                    border: 1px solid #e5e7eb;
-                }
-
-                .sidebar-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 24px;
-                }
-
-                .sidebar-header h3 {
-                    font-size: 18px;
-                    font-weight: 700;
-                    margin: 0;
-                    color: #111827;
-                }
-
-                .clear-btn {
-                    background: none;
-                    border: none;
-                    color: #00d4aa;
-                    font-size: 13px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: color 0.2s;
-                }
-                .clear-btn:hover {
-                    color: #00bd98;
-                }
-
-                .filter-group {
-                    margin-bottom: 24px;
-                    border-bottom: 1px solid #f3f4f6;
-                    padding-bottom: 20px;
-                }
-
-                .filter-group:last-child {
-                    border-bottom: none;
-                    padding-bottom: 0;
-                }
-
-                .filter-group h4 {
-                    font-size: 15px;
-                    font-weight: 600;
-                    margin-bottom: 16px;
-                    color: #374151;
-                }
-
-                .checkbox-group {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 12px;
-                }
-
-                .checkbox-label {
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                    font-size: 14px;
-                    color: #4b5563;
-                    cursor: pointer;
-                }
-
-                .checkbox-label input[type="checkbox"] {
-                    accent-color: #00d4aa;
-                    width: 16px;
-                    height: 16px;
-                    flex-shrink: 0;
-                }
-
-                .checkbox-label span {
-                    margin-top: 1px;
-                }
-
-                /* Main Feed */
-                .jobs-feed {
-                    min-width: 0; /* Allow content to shrink */
-                }
-
-                .feed-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 24px;
-                    flex-wrap: wrap;
-                    gap: 16px;
-                }
-
-                .results-count-heading {
-                    font-size: 22px;
-                    font-weight: 500;
-                    color: #111827;
-                    margin: 0;
-                }
-
-                .highlight-keyword {
-                    font-weight: 700;
-                    color: #00d4aa;
-                }
-
-                .sort-box {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    font-size: 14px;
-                    color: #6b7280;
-                }
-
-                .sort-select {
-                    border: none;
-                    background: none;
-                    font-weight: 600;
-                    color: #111827;
-                    cursor: pointer;
-                    outline: none;
-                    padding: 4px 8px;
-                    border-radius: 6px;
-                    transition: background 0.2s;
-                }
-                .sort-select:hover {
-                    background: #f3f4f6;
-                }
-
-                /* Upwork-style Job Cards */
-                .jobs-list-upwork {
-                    display: flex;
-                    flex-direction: column;
-                }
-
-                .upwork-job-card {
-                    padding: 24px 0;
-                    border-bottom: 1px solid #e5e7eb;
-                    transition: background 0.2s;
-                    position: relative;
-                }
-
-                .upwork-job-card:hover {
-                    background: #fdfdfd;
-                }
-
-                .upwork-job-card:hover .job-title-upwork {
-                    color: #00d4aa;
-                    text-decoration: underline;
-                }
-
-                .card-top-row {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-start;
-                    margin-bottom: 8px;
-                }
-
-                .posted-time {
-                    font-size: 12px;
-                    color: #6b7280;
-                    margin-bottom: 6px;
-                    display: block;
-                }
-
-                .job-title-upwork {
-                    font-size: 18px;
-                    font-weight: 600;
-                    color: #111827;
-                    margin: 0;
-                    cursor: pointer;
-                    line-height: 1.4;
-                }
-
-                .card-actions {
-                    display: flex;
-                    gap: 8px;
-                    flex-shrink: 0;
-                    align-items: center;
-                }
-                
-                /* Job Logo Styles */
-                .job-company-logo {
-                    width: 40px;
-                    height: 40px;
-                    border-radius: 50%;
-                    background: #f3f4f6;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-weight: 600;
-                    color: #6b7280;
-                    overflow: hidden;
-                    margin-right: 8px;
-                    border: 1px solid #e5e7eb;
-                }
-                
-                .job-company-logo-img {
-                    width: 100%;
-                    height: 100%;
-                    object-fit: contain;
-                    padding: 2px;
-                }
-                
-                .job-company-logo.fallback {
-                    background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
-                    color: #4b5563;
-                }
-
-                .circle-btn {
-                    width: 36px;
-                    height: 36px;
-                    border-radius: 50%;
-                    border: 1px solid #e5e7eb;
-                    background: white;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
-                    color: #6b7280;
-                    transition: all 0.2s;
-                }
-
-                .circle-btn:hover {
-                    border-color: #00d4aa;
-                    color: #00d4aa;
-                    background: #f0fdf9;
-                }
-
-                .circle-btn.heart.active {
-                    background: #00d4aa;
-                    border-color: #00d4aa;
-                    color: white;
-                }
-
-                .job-meta-row {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 4px;
-                    font-size: 13px;
-                    color: #6b7280;
-                    margin-bottom: 12px;
-                }
-
-                .meta-item {
-                    display: flex;
-                    align-items: center;
-                }
-
-                .meta-item:not(:last-child)::after {
-                    content: "–";
-                    margin: 0 8px;
-                    color: #9ca3af;
-                }
-
-                .meta-icon {
-                    margin-right: 4px;
-                }
-
-                .capitalize {
-                    text-transform: capitalize;
-                }
-
-                .job-description-upwork {
-                    font-size: 14px;
-                    color: #374151;
-                    line-height: 1.5;
-                    margin-bottom: 16px;
-                    max-width: 90%;
-                }
-
-                .more-link {
-                    color: #00d4aa;
-                    font-weight: 500;
-                    cursor: pointer;
-                }
-
-                .more-link:hover {
-                    text-decoration: underline;
-                }
-
-                .job-skills-upwork {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 8px;
-                    margin-bottom: 16px;
-                }
-
-                .upwork-skill-tag {
-                    background: #f3f4f6;
-                    color: #4b5563;
-                    padding: 4px 12px;
-                    border-radius: 20px;
-                    font-size: 12px;
-                    font-weight: 500;
-                    transition: all 0.2s;
-                    cursor: pointer;
-                }
-
-                .upwork-skill-tag:hover {
-                    background: #e5e7eb;
-                }
-
-                .company-verification-row {
-                    display: flex;
-                    flex-wrap: wrap;
-                    align-items: center;
-                    gap: 8px;
-                    font-size: 12px;
-                    color: #6b7280;
-                }
-
-                .verified-icon {
-                    color: #3b82f6; /* Blue for verified like screenshot */
-                }
-
-                .verified-text {
-                    color: #6b7280;
-                    font-weight: 500;
-                }
-
-                .stars {
-                    color: #f59e0b; /* Amber for stars */
-                    font-weight: 700;
-                }
-
-                .rating-num {
-                    color: #6b7280;
-                    font-weight: 400;
-                }
-
-                .location-meta {
-                    display: flex;
-                    align-items: center;
-                    gap: 4px;
-                    font-weight: 500;
-                }
-
-                .separator {
-                    color: #d1d5db;
-                }
-
-                /* Skeletons */
-                .job-card-skeleton {
-                    background: white;
-                    border: 1px solid #e5e7eb;
-                    border-radius: 8px;
-                    padding: 24px;
-                    margin-bottom: 16px;
-                }
-
-                .skeleton-header,
-                .skeleton-content,
-                .skeleton-footer {
-                    background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
-                    background-size: 200% 100%;
-                    animation: skeleton-loading 1.5s ease-in-out infinite;
-                    border-radius: 8px;
-                }
-
-                .skeleton-header {
-                    height: 24px;
-                    width: 60%;
-                    margin-bottom: 16px;
-                }
-
-                .skeleton-content {
-                    height: 60px;
-                    width: 100%;
-                    margin-bottom: 16px;
-                }
-
-                .skeleton-footer {
-                    height: 20px;
-                    width: 40%;
-                }
-
-                @keyframes skeleton-loading {
-                    0% {
-                        background-position: 200% 0;
-                    }
-                    100% {
-                        background-position: -200% 0;
-                    }
-                }
-
-                /* Empty State */
-                .empty-state {
-                    text-align: center;
-                    padding: 60px 24px;
-                    background: white;
-                    border-radius: 12px;
-                    border: 1px solid #e5e7eb;
-                    margin-top: 24px;
-                }
-
-                .empty-icon {
-                    color: #9ca3af;
-                    margin-bottom: 16px;
-                }
-
-                .empty-state h3 {
-                    font-size: 24px;
-                    color: #374151;
-                    margin-bottom: 8px;
-                }
-
-                .empty-state p {
-                    color: #6b7280;
-                    margin-bottom: 24px;
-                }
-
-                .btn-primary-modern {
-                    background: #00d4aa;
-                    color: white;
-                    border: none;
-                    padding: 12px 32px;
-                    border-radius: 12px;
-                    font-size: 15px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: background 0.2s;
-                }
-
-                .btn-primary-modern:hover {
-                    background: #00bd98;
-                }
-
-                /* Load More */
-                .load-more-trigger {
-                    min-height: 40px;
-                    display: flex;
-                    justify-content: center;
-                    padding: 24px 0;
-                }
-
-                .loading-text {
-                    color: #6b7280;
-                    font-size: 14px;
-                }
-
-                /* Chat Button */
-                .chat-btn {
-                    position: fixed;
-                    right: 24px;
-                    top: 50%;
-                    transform: translateY(-50%) rotate(-90deg);
-                    transform-origin: right center;
-                    background: #00d4aa;
-                    color: white;
-                    border: none;
-                    padding: 12px 24px;
-                    border-radius: 24px 24px 0 0;
-                    font-size: 14px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    z-index: 50;
-                    box-shadow: 0 -4px 12px rgba(0, 212, 170, 0.3);
-                    transition: all 0.3s;
-                }
-
-                .chat-btn:hover {
-                    background: #00bd98;
-                    box-shadow: 0 -6px 16px rgba(0, 212, 170, 0.4);
-                }
-
-                .chat-icon {
-                    background: white;
-                    color: #00d4aa;
-                    width: 32px;
-                    height: 32px;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-
-                /* =========================================
-                   MOBILE RESPONSIVE STYLES
-                   ========================================= */
-
-                /* Tablet & Small Desktop - 1024px */
-                @media (max-width: 1024px) {
-                    .container {
-                        padding: 0 16px;
-                    }
-                    .hero-headline {
-                        font-size: 48px;
-                    }
-                }
-
-                /* Tablets - 900px */
-                @media (max-width: 900px) {
-                    .jobs-layout {
-                        grid-template-columns: 1fr;
-                        gap: 24px;
-                    }
-                    .filters-sidebar {
-                        position: static;
-                        top: auto;
-                        margin-bottom: 24px;
-                    }
-                    .hero-headline {
-                        font-size: 40px;
-                    }
-                    .search-box {
-                        flex-direction: column;
-                        padding: 16px;
-                        border-radius: 16px;
-                    }
-                    .search-box-results {
-                        flex-direction: column;
-                        padding: 12px;
-                        border-radius: 12px;
-                    }
-                    .search-divider {
-                        width: 100%;
-                        height: 1px;
-                        margin: 12px 0;
-                    }
-                    .search-btn {
-                        width: 100%;
-                        border-radius: 12px;
-                    }
-                    .search-btn-results {
-                        width: 100%;
-                    }
-                    .chat-btn {
-                        right: 16px;
-                        font-size: 12px;
-                        padding: 10px 16px;
-                    }
-                    .ticker-item {
-                        font-size: 12px;
-                    }
-                    .feed-header {
-                        flex-direction: column;
-                        align-items: flex-start;
-                    }
-                    .results-count-heading {
-                        font-size: 20px;
-                    }
-                    .upwork-job-card {
-                        padding: 20px 0;
-                    }
-                    .card-top-row {
-                        flex-direction: column;
-                        align-items: flex-start;
-                        gap: 12px;
-                    }
-                    .card-actions {
-                        width: 100%;
-                        justify-content: flex-start;
-                    }
-                    .job-meta-row {
-                        flex-wrap: wrap;
-                        gap: 8px 12px;
-                    }
-                    .company-verification-row {
-                        flex-wrap: wrap;
-                        gap: 8px 12px;
-                    }
-                }
-
-                /* Mobile - 768px */
-                @media (max-width: 768px) {
-                    .main-nav {
-                        display: none;
-                    }
-                    .compact-search-form {
-                        display: none;
-                    }
-                    .hero {
-                        padding: 60px 0 40px;
-                        min-height: 500px;
-                    }
-                    .hero-headline {
-                        font-size: 32px;
-                    }
-                    .hero-subtitle {
-                        font-size: 16px;
-                        margin-bottom: 32px;
-                    }
-                    .jobs-section {
-                        padding: 40px 0;
-                    }
-                    .popular-tags {
-                        flex-wrap: wrap;
-                        justify-content: flex-start;
-                    }
-                }
-
-                /* Mobile - 640px */
-                @media (max-width: 640px) {
-                    .container {
-                        padding: 0 12px;
-                    }
-                    .hero {
-                        padding: 40px 0 30px;
-                        min-height: auto;
-                    }
-                    .hero-headline {
-                        font-size: 28px;
-                        margin-bottom: 16px;
-                    }
-                    .hero-subtitle {
-                        font-size: 15px;
-                        margin-bottom: 24px;
-                    }
-                    .search-box {
-                        padding: 12px;
-                    }
-                    .search-box-results {
-                        padding: 10px;
-                    }
-                    .popular-label {
-                        width: 100%;
-                        text-align: left;
-                        margin-bottom: 4px;
-                    }
-                    .job-title-upwork {
-                        font-size: 16px;
-                    }
-                    .job-description-upwork {
-                        font-size: 13px;
-                        max-width: 100%;
-                    }
-                    .upwork-skill-tag {
-                        font-size: 11px;
-                        padding: 3px 10px;
-                    }
-                    .empty-state {
-                        padding: 40px 16px;
-                    }
-                    .meta-item:not(:last-child)::after {
-                        display: none;
-                    }
-                    .company-verification-row .separator {
-                        display: none;
-                    }
-                }
-
-                /* Small Mobile - 480px */
-                @media (max-width: 480px) {
-                    .hero-headline {
-                        font-size: 24px;
-                        line-height: 1.2;
-                    }
-                    .hero-subtitle {
-                        font-size: 14px;
-                    }
-                    .search-btn {
-                        padding: 12px 24px;
-                        font-size: 14px;
-                    }
-                    .search-btn-results {
-                        padding: 10px 20px;
-                        font-size: 13px;
-                    }
-                    .tag-pill {
-                        font-size: 13px;
-                        padding: 6px 14px;
-                    }
-                    .circle-btn {
-                        width: 32px;
-                        height: 32px;
-                    }
-                    .btn-primary-modern {
-                        padding: 10px 24px;
-                        font-size: 14px;
-                    }
-                    .job-company-logo {
-                        width: 32px;
-                        height: 32px;
-                    }
-                    .results-count-heading {
-                        font-size: 16px;
-                    }
-                    .upwork-job-card {
-                        padding: 16px 0;
-                    }
-                }
-            `}</style>
+        .landing-pro {
+          min-height: 100vh;
+          background: #f5fbfb;
+        }
+
+        .landing-main {
+          position: relative;
+          overflow: hidden;
+          height: calc(100vh - 72px);
+          min-height: 620px;
+          isolation: isolate;
+        }
+
+        .landing-aurora {
+          position: absolute;
+          border-radius: 999px;
+          pointer-events: none;
+          filter: blur(32px);
+          z-index: 0;
+        }
+
+        .landing-aurora-a {
+          width: 420px;
+          height: 420px;
+          top: 80px;
+          left: -110px;
+          background: radial-gradient(circle at center, rgba(19, 197, 169, 0.22), rgba(19, 197, 169, 0));
+        }
+
+        .landing-aurora-b {
+          width: 420px;
+          height: 420px;
+          bottom: -120px;
+          right: -80px;
+          background: radial-gradient(circle at center, rgba(27, 157, 255, 0.15), rgba(27, 157, 255, 0));
+        }
+
+        .landing-grid {
+          position: absolute;
+          inset: 0;
+          background-image: linear-gradient(rgba(10, 33, 61, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(10, 33, 61, 0.03) 1px, transparent 1px);
+          background-size: 54px 54px;
+          z-index: 0;
+          mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.35), transparent 75%);
+        }
+
+        .hero-shell {
+          max-width: 1200px;
+          margin: 0 auto;
+          height: 100%;
+          padding: 24px 24px 18px;
+          position: relative;
+          z-index: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .hero-network {
+          position: absolute;
+          inset: 30px 12px 0;
+          pointer-events: none;
+          opacity: 0.8;
+          animation: networkFadeIn 900ms ease-out;
+        }
+
+        .hero-network-line {
+          position: absolute;
+          height: 1px;
+          background: #c7eeea;
+          transform-origin: left center;
+        }
+
+        .hero-network-node {
+          position: absolute;
+          width: 11px;
+          height: 11px;
+          margin-left: -5px;
+          margin-top: -5px;
+          border-radius: 50%;
+          background: #c7eeea;
+          box-shadow: 0 0 0 6px rgba(199, 238, 234, 0.25);
+        }
+
+        .hero-content {
+          position: relative;
+          z-index: 2;
+          max-width: 900px;
+          margin: 0 auto;
+          text-align: center;
+          animation: heroRise 720ms cubic-bezier(0.2, 1, 0.3, 1);
+        }
+
+        .hero-kicker {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          color: #0d4f73;
+          border: 1px solid #bfe6df;
+          background: rgba(255, 255, 255, 0.72);
+          border-radius: 999px;
+          padding: 6px 14px;
+          font-size: 0.84rem;
+          font-weight: 700;
+          letter-spacing: 0.02em;
+          margin-bottom: 10px;
+          animation: fadeSlide 550ms ease-out both;
+          animation-delay: 40ms;
+        }
+
+        .hero-title {
+          margin: 0;
+          font-size: clamp(2rem, 4.8vw, 4.2rem);
+          line-height: 1.06;
+          letter-spacing: -0.03em;
+          font-weight: 800;
+          color: #0d1532;
+          animation: fadeSlide 620ms ease-out both;
+          animation-delay: 130ms;
+        }
+
+        .hero-title span {
+          color: #0fc3a4;
+          background-image: linear-gradient(120deg, #0fc3a4 0%, #0aa7c9 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+        }
+
+        .hero-subtitle {
+          max-width: 650px;
+          margin: 14px auto 0;
+          color: #53627a;
+          font-size: clamp(1rem, 1.55vw, 1.25rem);
+          line-height: 1.42;
+          padding-left: 10px;
+          border-left: 2px solid #d6e4f2;
+          text-align: left;
+          animation: fadeSlide 680ms ease-out both;
+          animation-delay: 220ms;
+        }
+
+        .hero-search {
+          margin: 20px auto 0;
+          width: min(100%, 960px);
+          border: 1px solid #b4dfd8;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.92);
+          backdrop-filter: blur(8px);
+          display: grid;
+          grid-template-columns: 1.2fr 1fr auto;
+          align-items: center;
+          gap: 8px;
+          padding: 7px;
+          box-shadow: 0 14px 42px rgba(11, 77, 102, 0.12);
+          animation: fadeSlide 780ms ease-out both;
+          animation-delay: 300ms;
+        }
+
+        .hero-search-field {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          min-height: 50px;
+          padding: 0 10px;
+          color: #9ca7bb;
+        }
+
+        .hero-search-location {
+          border-left: 1px solid #e6ecf1;
+        }
+
+        .hero-search-field input {
+          width: 100%;
+          border: none;
+          outline: none;
+          font-size: 0.95rem;
+          color: #2f3b52;
+          background: transparent;
+        }
+
+        .hero-search-field input::placeholder {
+          color: #9ca7bb;
+        }
+
+        .hero-search-button {
+          border: none;
+          border-radius: 999px;
+          background: linear-gradient(135deg, #0fc3a4 0%, #0c9ec7 100%);
+          color: #ffffff;
+          min-width: 140px;
+          height: 50px;
+          font-size: 0.95rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+
+        .hero-search-button:hover {
+          background: linear-gradient(135deg, #0db999 0%, #0a8db3 100%);
+          transform: translateY(-1px);
+          box-shadow: 0 10px 24px rgba(10, 141, 179, 0.32);
+        }
+
+        .hero-popular {
+          margin-top: 16px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: 10px;
+          animation: fadeSlide 850ms ease-out both;
+          animation-delay: 380ms;
+        }
+
+        .hero-popular-label {
+          font-size: 0.9rem;
+          color: #6f7d94;
+          font-weight: 700;
+        }
+
+        .hero-popular-chips {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+
+        .hero-popular-chip {
+          border: 1px solid #d5dde6;
+          background: rgba(255, 255, 255, 0.72);
+          color: #223049;
+          border-radius: 999px;
+          padding: 8px 14px;
+          font-size: 0.86rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+        }
+
+        .hero-popular-chip:hover {
+          background: #ffffff;
+          border-color: #b8c8d9;
+          transform: translateY(-1px);
+        }
+
+        .hero-insights {
+          margin-top: 14px;
+          display: flex;
+          justify-content: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          animation: fadeSlide 900ms ease-out both;
+          animation-delay: 470ms;
+        }
+
+        .insight-card {
+          margin: 0;
+          min-width: 180px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 9px 11px;
+          border-radius: 14px;
+          background: rgba(255, 255, 255, 0.76);
+          border: 1px solid #dce8ee;
+          box-shadow: 0 8px 20px rgba(31, 60, 77, 0.08);
+          text-align: left;
+        }
+
+        .insight-icon {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          background: linear-gradient(135deg, #0fc3a4 0%, #0b9ebd 100%);
+          color: #fff;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .insight-value {
+          margin: 0;
+          color: #11203f;
+          font-size: 0.9rem;
+          font-weight: 800;
+          line-height: 1.2;
+        }
+
+        .insight-label {
+          margin: 2px 0 0;
+          color: #6a7892;
+          font-size: 0.74rem;
+          font-weight: 600;
+        }
+
+        .ai-chat-pill {
+          position: fixed;
+          right: 0;
+          top: 50%;
+          transform: translateY(-50%);
+          background: linear-gradient(160deg, #0fc3a4 0%, #0c9ec7 100%);
+          color: #ffffff;
+          border: none;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          writing-mode: vertical-rl;
+          text-orientation: mixed;
+          border-radius: 12px 0 0 12px;
+          padding: 12px 9px;
+          font-size: 0.82rem;
+          font-weight: 700;
+          cursor: pointer;
+          box-shadow: 0 12px 34px rgba(12, 158, 199, 0.34);
+          z-index: 60;
+        }
+
+        .ai-chat-icon-wrap {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(255, 255, 255, 0.95);
+          color: #11c4a6;
+          writing-mode: horizontal-tb;
+        }
+
+        @keyframes fadeSlide {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes heroRise {
+          from {
+            opacity: 0;
+            transform: translateY(16px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes networkFadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 0.8;
+          }
+        }
+
+        @media (max-width: 1024px) {
+          .landing-main {
+            height: auto;
+            min-height: calc(100vh - 72px);
+          }
+
+          .hero-shell {
+            height: auto;
+            padding-top: 20px;
+            padding-bottom: 24px;
+          }
+
+          .hero-content {
+            margin-top: 0;
+          }
+
+          .hero-subtitle {
+            text-align: center;
+            border-left: none;
+            padding-left: 0;
+          }
+
+          .hero-search {
+            grid-template-columns: 1fr;
+            border-radius: 26px;
+            gap: 0;
+            padding: 8px;
+          }
+
+          .hero-search-location {
+            border-left: none;
+            border-top: 1px solid #e6ecf1;
+          }
+
+          .hero-search-button {
+            width: 100%;
+            min-width: 0;
+            border-radius: 18px;
+            margin-top: 8px;
+          }
+
+          .hero-insights {
+            margin-top: 14px;
+          }
+
+          .ai-chat-pill {
+            top: auto;
+            bottom: 18px;
+            transform: none;
+            writing-mode: horizontal-tb;
+            border-radius: 14px;
+            right: 18px;
+            padding: 12px 16px;
+            font-size: 0.86rem;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .landing-main {
+            min-height: auto;
+            height: auto;
+          }
+
+          .hero-shell {
+            display: block;
+            padding-left: 14px;
+            padding-right: 14px;
+            padding-top: 14px;
+            padding-bottom: 92px;
+          }
+
+          .hero-network {
+            display: none;
+          }
+
+          .landing-grid {
+            background-size: 34px 34px;
+          }
+
+          .hero-content {
+            text-align: left;
+            max-width: 100%;
+          }
+
+          .hero-kicker {
+            font-size: 0.74rem;
+            padding: 5px 10px;
+            margin-bottom: 12px;
+          }
+
+          .hero-title {
+            font-size: clamp(1.95rem, 9vw, 2.4rem);
+            line-height: 1.08;
+          }
+
+          .hero-subtitle {
+            max-width: 100%;
+            font-size: 0.92rem;
+            text-align: left;
+            border-left: none;
+            padding-left: 0;
+            margin-top: 12px;
+          }
+
+          .hero-search-field {
+            min-height: 48px;
+            padding: 0 8px;
+          }
+
+          .hero-search {
+            margin-top: 16px;
+            border-radius: 20px;
+            padding: 8px;
+          }
+
+          .hero-search-location {
+            border-top: 1px solid #e2e8ef;
+          }
+
+          .hero-search-button {
+            height: 46px;
+            border-radius: 12px;
+          }
+
+          .hero-popular {
+            margin-top: 14px;
+            display: block;
+          }
+
+          .hero-popular-label {
+            display: block;
+            font-size: 0.8rem;
+            margin-bottom: 8px;
+            text-align: left;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+          }
+
+          .hero-popular-chips {
+            justify-content: flex-start;
+            overflow-x: auto;
+            flex-wrap: nowrap;
+            padding-bottom: 2px;
+            scrollbar-width: none;
+          }
+
+          .hero-popular-chips::-webkit-scrollbar {
+            display: none;
+          }
+
+          .hero-popular-chip {
+            font-size: 0.82rem;
+            padding: 8px 12px;
+            white-space: nowrap;
+          }
+
+          .hero-insights {
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+          }
+
+          .insight-card {
+            min-width: 0;
+            width: 100%;
+            gap: 8px;
+            padding: 8px;
+            border-radius: 12px;
+          }
+
+          .insight-icon {
+            width: 28px;
+            height: 28px;
+          }
+
+          .ai-chat-pill {
+            right: 12px;
+            bottom: 12px;
+            padding: 10px 12px;
+            border-radius: 999px;
+            box-shadow: 0 8px 24px rgba(12, 158, 199, 0.3);
+          }
+
+          .ai-chat-icon-wrap {
+            width: 28px;
+            height: 28px;
+          }
+        }
+
+        @media (max-width: 420px) {
+          .hero-title {
+            font-size: 1.8rem;
+          }
+
+          .hero-subtitle {
+            font-size: 0.88rem;
+            line-height: 1.38;
+          }
+
+          .hero-insights {
+            grid-template-columns: 1fr;
+          }
+
+          .ai-chat-pill span {
+            display: none;
+          }
+
+          .ai-chat-pill {
+            padding: 8px;
+          }
+        }
+      `}</style>
     </div>
   );
 };

@@ -147,7 +147,14 @@ function App() {
 
         {/* App Routes with Flat Layout (No Sidebar) */}
         <Route element={<Layout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route
+            path="/dashboard"
+            element={
+              <RoleGuard allowedRoles={['user']} redirectTo="/select-role">
+                <Dashboard />
+              </RoleGuard>
+            }
+          />
           <Route path="/jobs" element={<Jobs />} />
           <Route path="/jobs/:id" element={<JobDetails />} />
           <Route path="/resume" element={<Resume />} />
