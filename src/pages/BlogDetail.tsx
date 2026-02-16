@@ -205,10 +205,15 @@ const styles: Record<string, React.CSSProperties> = {
         borderRadius: '8px',
         overflow: 'hidden',
         marginBottom: '40px',
+        backgroundColor: '#f3f4f6',
+        display: 'flex',
+        justifyContent: 'center',
     },
     featuredImage: {
         width: '100%',
         height: 'auto',
+        maxHeight: '70vh',
+        objectFit: 'contain',
         display: 'block',
     },
     content: {

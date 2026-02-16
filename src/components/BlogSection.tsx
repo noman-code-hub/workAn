@@ -214,7 +214,7 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
                             {/* Card Media */}
                             {post.imageURL && (
                                 <div style={styles.modernImageWrapper}>
-                                    <img src={post.imageURL} alt="" style={styles.modernImage} />
+                                    <img src={post.imageURL} alt={post.title || 'Blog image'} style={styles.modernImage} loading="lazy" />
                                 </div>
                             )}
 
@@ -328,13 +328,16 @@ const styles: Record<string, React.CSSProperties> = {
     },
     modernImageWrapper: {
         width: '100%',
-        height: '240px',
+        aspectRatio: '16 / 9',
         overflow: 'hidden',
+        backgroundColor: '#f3f4f6',
     },
     modernImage: {
         width: '100%',
         height: '100%',
         objectFit: 'cover',
+        objectPosition: 'center',
+        display: 'block',
     },
     modernContent: {
         padding: '28px',
