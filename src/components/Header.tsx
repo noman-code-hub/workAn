@@ -45,7 +45,7 @@ export const Header = () => {
             <div className="logo-icon">
               <Zap size={18} fill="currentColor" />
             </div>
-            <span className="logo-text">CareerPilot</span>
+            <span className="logo-text">workIn</span>
           </div>
         </div>
 

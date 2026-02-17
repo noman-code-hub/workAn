@@ -146,6 +146,17 @@ body {
   height: 100%;
 }
 
+/* Prevent caret appearing on regular text when caret-browsing is enabled */
+:where(*):not(input):not(textarea):not([contenteditable="true"]) {
+  caret-color: transparent;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  caret-color: auto;
+}
+
 #root {
   min-height: 100%;
   height: 100%;

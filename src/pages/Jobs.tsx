@@ -1527,9 +1527,275 @@ export const Jobs = () => {
         }
 
         @media (max-width: 640px) {
-          .hero-info-row { display: none; }
-          .jobs-container { padding: 16px; }
-          .chat-assistant { right: 14px; bottom: 14px; }
+          .jobs-page-modern {
+            background:
+              radial-gradient(circle at 8% 75%, rgba(45, 212, 191, 0.2), transparent 42%),
+              linear-gradient(180deg, #f7fbff 0%, #eef4fb 100%);
+          }
+
+          .jobs-glow {
+            display: none;
+          }
+
+          .search-hero {
+            padding: 16px 12px 14px;
+            background: #f8fbff;
+            border-bottom: 1px solid #e4edf7;
+          }
+
+          .search-hero-content {
+            padding: 0;
+          }
+
+          .search-hero h1 {
+            font-size: 1.7rem;
+            line-height: 1.14;
+            margin-bottom: 8px;
+            text-align: center;
+          }
+
+          .subtitle {
+            font-size: 0.9rem;
+            margin-bottom: 14px;
+            text-align: center;
+            color: #667085;
+          }
+
+          .modern-search-box {
+            padding: 10px;
+            border-radius: 14px;
+            margin-bottom: 10px;
+            border: 1px solid #bde5dc;
+            box-shadow: 0 10px 24px -20px rgba(15, 23, 42, 0.55);
+          }
+
+          .search-input-group {
+            width: 100%;
+            min-width: 0;
+            background: #f1f5f9;
+            border-radius: 10px;
+            padding: 8px 10px;
+          }
+
+          .search-input {
+            min-width: 0;
+            font-size: 0.9rem;
+          }
+
+          .search-divider {
+            display: none;
+          }
+
+          .search-btn-modern {
+            width: 100%;
+            min-height: 44px;
+            border-radius: 12px;
+          }
+
+          .hero-info-row {
+            display: none;
+          }
+
+          .filter-toggle-row {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+          }
+
+          .filter-toggle-btn {
+            width: 100%;
+            justify-content: center;
+            border-radius: 999px;
+            min-height: 52px;
+            border: 1px solid #d1dae5;
+            background: #ffffff;
+            font-size: 1rem;
+          }
+
+          .results-count {
+            display: none;
+          }
+
+          .filters-panel-modern {
+            padding: 12px;
+            gap: 10px;
+          }
+
+          .clear-filters-btn {
+            width: 100%;
+            justify-content: center;
+          }
+
+          .jobs-container {
+            padding: 12px;
+          }
+
+          .jobs-toolbar {
+            padding: 10px 12px;
+            gap: 10px;
+            margin-bottom: 10px;
+            border-radius: 16px;
+            background: #f8fbff;
+          }
+
+          .jobs-toolbar-copy h2 {
+            font-size: 0.92rem;
+          }
+
+          .jobs-toolbar-copy p {
+            font-size: 0.78rem;
+          }
+
+          .jobs-toolbar-filters {
+            width: 100%;
+          }
+
+          .active-filter-pill {
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .modern-job-card {
+            padding: 14px;
+            border-radius: 14px;
+          }
+
+          .job-card-header-modern {
+            gap: 10px;
+            align-items: flex-start;
+            margin-bottom: 12px;
+          }
+
+          .job-title-modern {
+            font-size: 1rem;
+          }
+
+          .company-name-modern {
+            font-size: 0.84rem;
+            word-break: break-word;
+          }
+
+          .bookmark-modern {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            flex-shrink: 0;
+          }
+
+          .match-badge {
+            margin-bottom: 12px;
+          }
+
+          .job-details-modern {
+            padding: 10px;
+            gap: 8px;
+          }
+
+          .job-detail-item {
+            font-size: 0.78rem;
+          }
+
+          .job-description-modern {
+            font-size: 0.85rem;
+            line-height: 1.45;
+          }
+
+          .job-skills-modern {
+            margin-bottom: 14px;
+            gap: 6px;
+          }
+
+          .skill-tag {
+            padding: 5px 10px;
+            font-size: 0.72rem;
+          }
+
+          .job-actions-modern {
+            flex-direction: column;
+            gap: 8px;
+          }
+
+          .btn-apply-modern,
+          .btn-details-modern {
+            width: 100%;
+            justify-content: center;
+            min-height: 42px;
+            padding: 10px 12px;
+            font-size: 0.85rem;
+          }
+
+          .empty-state-modern {
+            padding: 64px 16px 36px;
+          }
+
+          .empty-state-modern .empty-icon {
+            width: 72px;
+            height: 72px;
+            margin-bottom: 20px;
+            color: #9aa5b8;
+          }
+
+          .empty-state-modern h3 {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            color: #334155;
+          }
+
+          .empty-state-modern p {
+            font-size: 0.95rem;
+            color: #64748b;
+            margin-bottom: 18px;
+          }
+
+          .btn-primary-modern {
+            min-width: 190px;
+            min-height: 56px;
+            border-radius: 16px;
+            font-size: 1.05rem;
+            font-weight: 700;
+          }
+
+          .chat-assistant {
+            right: 10px;
+            bottom: 10px;
+            padding: 8px;
+            width: 56px;
+            height: 56px;
+            border-radius: 999px;
+            justify-content: center;
+          }
+
+          .chat-assistant span {
+            display: none;
+          }
+        }
+
+        @media (max-width: 420px) {
+          .search-hero h1 {
+            font-size: 1.5rem;
+          }
+
+          .subtitle {
+            font-size: 0.84rem;
+          }
+
+          .jobs-container {
+            padding: 10px;
+          }
+
+          .modern-job-card {
+            padding: 12px;
+          }
+
+          .job-title-modern {
+            font-size: 0.94rem;
+          }
+
+          .empty-state-modern h3 {
+            font-size: 1.85rem;
+          }
         }
 
         @media (prefers-reduced-motion: reduce) {

@@ -586,20 +586,23 @@ export const LandingPage = () => {
 
         @media (max-width: 640px) {
           .landing-main {
-            min-height: auto;
+            min-height: calc(100vh - 72px);
             height: auto;
           }
 
           .hero-shell {
-            display: block;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             padding-left: 14px;
             padding-right: 14px;
-            padding-top: 14px;
-            padding-bottom: 92px;
+            padding-top: 16px;
+            padding-bottom: 90px;
           }
 
           .hero-network {
-            display: none;
+            inset: 20px 0 0;
+            opacity: 0.6;
           }
 
           .landing-grid {
@@ -607,7 +610,7 @@ export const LandingPage = () => {
           }
 
           .hero-content {
-            text-align: left;
+            text-align: center;
             max-width: 100%;
           }
 
@@ -618,16 +621,16 @@ export const LandingPage = () => {
           }
 
           .hero-title {
-            font-size: clamp(1.95rem, 9vw, 2.4rem);
-            line-height: 1.08;
+            font-size: clamp(2rem, 9.2vw, 2.7rem);
+            line-height: 1.06;
           }
 
           .hero-subtitle {
             max-width: 100%;
-            font-size: 0.92rem;
+            font-size: 0.95rem;
             text-align: left;
-            border-left: none;
-            padding-left: 0;
+            border-left: 2px solid #d6e4f2;
+            padding-left: 9px;
             margin-top: 12px;
           }
 
@@ -640,33 +643,42 @@ export const LandingPage = () => {
             margin-top: 16px;
             border-radius: 20px;
             padding: 8px;
+            grid-template-columns: 1fr;
+            gap: 0;
           }
 
           .hero-search-location {
+            border-left: none;
             border-top: 1px solid #e2e8ef;
           }
 
           .hero-search-button {
+            width: 100%;
+            min-width: 0;
             height: 46px;
             border-radius: 12px;
+            margin-top: 8px;
           }
 
           .hero-popular {
             margin-top: 14px;
-            display: block;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
           }
 
           .hero-popular-label {
-            display: block;
-            font-size: 0.8rem;
-            margin-bottom: 8px;
-            text-align: left;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+            font-size: 0.86rem;
+            margin: 0;
+            text-align: center;
+            text-transform: none;
+            letter-spacing: 0;
           }
 
           .hero-popular-chips {
-            justify-content: flex-start;
+            justify-content: center;
             overflow-x: auto;
             flex-wrap: nowrap;
             padding-bottom: 2px;
@@ -685,14 +697,15 @@ export const LandingPage = () => {
 
           .hero-insights {
             margin-top: 12px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
             gap: 8px;
           }
 
           .insight-card {
-            min-width: 0;
-            width: 100%;
+            min-width: 150px;
+            width: auto;
             gap: 8px;
             padding: 8px;
             border-radius: 12px;
@@ -727,9 +740,7 @@ export const LandingPage = () => {
             line-height: 1.38;
           }
 
-          .hero-insights {
-            grid-template-columns: 1fr;
-          }
+          .hero-insights { gap: 6px; }
 
           .ai-chat-pill span {
             display: none;
