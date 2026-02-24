@@ -1,9 +1,13 @@
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
 const envBaseUrl = (import.meta.env.VITE_API_BASE || '').trim();
+const envSupabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+const derivedSupabaseApiBase = envSupabaseUrl
+  ? `${trimTrailingSlash(envSupabaseUrl)}/functions/v1/api`
+  : '';
 const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : '';
 const isLocalRuntime = runtimeHost === 'localhost' || runtimeHost === '127.0.0.1';
-const fallbackBase = isLocalRuntime ? 'http://localhost:5000' : '';
+const fallbackBase = isLocalRuntime ? 'http://localhost:5000' : derivedSupabaseApiBase;
 
 export const API_BASE = envBaseUrl ? trimTrailingSlash(envBaseUrl) : fallbackBase;
 
@@ -21,6 +25,11 @@ export const parseApiJson = async <T>(response: Response): Promise<T> => {
       parsed = JSON.parse(text);
     } catch {
       console.error('Invalid JSON:', text);
+      const trimmed = text.trim().toLowerCase();
+      const looksLikeHtml = trimmed.startsWith('<!doctype html') || trimmed.startsWith('<html');
+      if (looksLikeHtml) {
+        throw new Error('Received HTML instead of JSON. Verify VITE_API_BASE points to your backend API endpoint.');
+      }
       throw new Error('Invalid JSON response from API. Verify VITE_API_BASE and backend CORS.');
     }
   }

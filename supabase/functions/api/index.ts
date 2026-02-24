@@ -203,12 +203,21 @@ Deno.serve(async (req: Request) => {
       const serpData = await serpRes.json();
 
       if (serpData?.error) {
+        const serpMessage = String(serpData.error);
+        const lowerMessage = serpMessage.toLowerCase();
+        const isInvalidKey =
+          lowerMessage.includes("invalid api key") ||
+          lowerMessage.includes("api key should be here");
+
         return json(
           {
             success: false,
-            message: String(serpData.error),
+            error: isInvalidKey ? "SERPAPI_INVALID_KEY" : "SERPAPI_UPSTREAM_ERROR",
+            message: isInvalidKey
+              ? "Invalid SerpAPI key configured on backend. Update SERPAPI_KEY in Supabase Edge Function secrets."
+              : serpMessage,
           },
-          500,
+          isInvalidKey ? 502 : 500,
           origin,
         );
       }

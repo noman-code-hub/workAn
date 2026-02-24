@@ -164,9 +164,18 @@ app.get(["/api/jobs/search", "/jobs/search"], async (req, res) => {
     });
 
     if (response.data.error) {
-      return res.status(500).json({
+      const serpMessage = String(response.data.error);
+      const lowerMessage = serpMessage.toLowerCase();
+      const isInvalidKey =
+        lowerMessage.includes("invalid api key") ||
+        lowerMessage.includes("api key should be here");
+
+      return res.status(isInvalidKey ? 502 : 500).json({
         success: false,
-        message: response.data.error,
+        error: isInvalidKey ? "SERPAPI_INVALID_KEY" : "SERPAPI_UPSTREAM_ERROR",
+        message: isInvalidKey ?
+          "Invalid SerpAPI key configured on backend. Update SERPAPI_KEY in function secrets." :
+          serpMessage,
       });
     }
 

@@ -41,6 +41,7 @@ export const Jobs = () => {
   const [typeFilter, setTypeFilter] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
+  const [errorMessage, setErrorMessage] = useState('');
 
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -108,6 +109,7 @@ export const Jobs = () => {
     }
 
     try {
+      setErrorMessage('');
       const effectiveQuery = searchQuery.trim() || (user?.profession ? user.profession : 'jobs');
 
       const getCountryCode = (location: string) => {
@@ -202,6 +204,8 @@ export const Jobs = () => {
         console.log('🟡 Fetch aborted due to component unmount or new search.');
       } else {
         console.error("Error connecting to server:", error);
+        const message = error instanceof Error ? error.message : 'Unable to load jobs right now.';
+        setErrorMessage(message);
         if (shouldReplace) {
           setFilteredJobs([]);
           setTotalJobs(0);
@@ -437,7 +441,7 @@ export const Jobs = () => {
           <div className="empty-state-modern">
             <Briefcase size={64} className="empty-icon" />
             <h3>No jobs found</h3>
-            <p>Try adjusting your search or filters</p>
+            <p>{errorMessage || 'Try adjusting your search or filters'}</p>
             <button
               className="btn-primary-modern"
               onClick={() => {
