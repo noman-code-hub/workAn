@@ -31,12 +31,25 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
     const [loading, setLoading] = useState(true);
     const [showAll, setShowAll] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [isTabletOrBelow, setIsTabletOrBelow] = useState(false);
+    const [isPhone, setIsPhone] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         loadPosts();
     }, [user?.id]);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsTabletOrBelow(window.innerWidth <= 768);
+            setIsPhone(window.innerWidth <= 640);
+        };
+
+        handleResize();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const loadPosts = async () => {
         setLoading(true);
@@ -87,6 +100,11 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
 
     const displayedPosts = (limit && !showAll) ? posts.slice(0, limit) : posts;
     const isFeedMode = viewMode === 'list';
+    const gridFeedStyle: React.CSSProperties = {
+        ...styles.gridFeed,
+        ...(isTabletOrBelow ? { gridTemplateColumns: '1fr' } : {}),
+        ...(isPhone ? { gap: '16px' } : {}),
+    };
 
     return (
         <div style={isFeedMode ? styles.listContainer : styles.gridContainer}>
@@ -208,7 +226,7 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
             ) : posts.length === 0 ? (
                 <div style={styles.emptyBox}>No posts yet. Start sharing!</div>
             ) : (
-                <div style={viewMode === 'grid' ? styles.gridFeed : styles.listFeed}>
+                <div style={viewMode === 'grid' ? gridFeedStyle : styles.listFeed}>
                     {displayedPosts.map(post => (
                         <div key={post.id} style={styles.modernCard}>
                             {/* Card Media */}
@@ -305,12 +323,6 @@ const styles: Record<string, React.CSSProperties> = {
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
         gap: '24px',
-        '@media (max-width: 768px)': {
-            gridTemplateColumns: '1fr'
-        },
-        '@media (max-width: 640px)': {
-            gap: '16px'
-        }
     },
 
     // --- MODERN CARD STYLE (The one in the image) ---
@@ -420,15 +432,15 @@ const styles: Record<string, React.CSSProperties> = {
     gridCreateBtn: { background: 'none', border: '1px solid #0a66c2', color: '#0a66c2', borderRadius: '16px', padding: '6px 16px', fontWeight: 600, cursor: 'pointer' },
 
     // Modal (LinkedIn style stays)
-    modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 2000, display: 'flex', justifyContent: 'center', paddingTop: '80px' },
-    modalContent: { backgroundColor: 'white', width: '90%', maxWidth: '552px', maxHeight: '90vh', borderRadius: '8px', display: 'flex', flexDirection: 'column' },
+    modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 5000, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '80px 12px max(12px, env(safe-area-inset-bottom))', overflowY: 'auto' },
+    modalContent: { backgroundColor: 'white', width: '100%', maxWidth: '552px', maxHeight: '90vh', borderRadius: '8px', display: 'flex', flexDirection: 'column' },
     modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #f3f2f0' },
     closeBtn: { background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' },
     modalBody: { padding: '16px 24px', overflowY: 'auto' },
     modalUserRow: { display: 'flex', gap: '12px', marginBottom: '16px' },
     modalTitleInput: { width: '100%', padding: '12px 0', border: 'none', fontSize: '18px', fontWeight: 600, outline: 'none' },
     modalTextarea: { width: '100%', border: 'none', fontSize: '16px', outline: 'none', resize: 'none', fontFamily: 'inherit' },
-    modalFooter: { padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f3f2f0' },
+    modalFooter: { padding: '12px 16px max(12px, env(safe-area-inset-bottom))', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f3f2f0', backgroundColor: 'white', position: 'sticky', bottom: 0 },
     footerIconBtn: { padding: '12px', borderRadius: '50%', background: 'none', border: 'none', cursor: 'pointer', color: '#666' },
     publishBtn: { backgroundColor: '#0a66c2', color: 'white', border: 'none', borderRadius: '24px', padding: '8px 16px', fontWeight: 600, cursor: 'pointer' },
     modalImagePreview: { position: 'relative', marginTop: '12px' },

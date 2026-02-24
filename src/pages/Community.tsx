@@ -212,7 +212,7 @@ export const Community = () => {
 
             {/* Global Messaging Widget Placeholder */}
             {user && (
-                <div style={styles.messagingButton}>
+                <div className="messaging-widget" style={styles.messagingButton}>
                     <div style={styles.msgAvatar}>
                         {user.photoURL ? <img src={user.photoURL} alt="" style={styles.msgAvatarImg} /> : 'U'}
                     </div>
@@ -324,6 +324,10 @@ export const Community = () => {
                         overflow: visible;
                         width: 100%;
                         display: block;
+                    }
+
+                    .messaging-widget {
+                        display: none !important;
                     }
                 }
             `}</style>

@@ -1,4 +1,5 @@
-import { FormEvent, useState } from 'react';
+import { useState } from 'react';
+import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bot, Briefcase, MapPin, Search, Sparkles, TrendingUp } from 'lucide-react';
 import { Header } from '@/components/Header';

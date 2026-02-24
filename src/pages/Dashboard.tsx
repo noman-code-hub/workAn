@@ -21,8 +21,7 @@ import { useAuth } from '../contexts/AuthContext';
 import type { Job } from '../types';
 import { JobLogo } from '../components/JobLogo';
 import { getApplyLink } from '../utils/jobUtils';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+import { apiUrl, parseApiJson } from '../config/api';
 
 const getCompanyUrl = (company: string) => {
   const clean = company.toLowerCase()
@@ -80,9 +79,8 @@ export const Dashboard = () => {
           country: countryCode,
         });
         if (user?.country && !user.country.toLowerCase().includes('remote')) params.append('location', user.country);
-        const response = await fetch(`${API_BASE_URL}/api/jobs/search?${params.toString()}`, { signal: controller.signal });
-        if (!response.ok) throw new Error(`Server returned ${response.status}`);
-        const data = await response.json();
+        const response = await fetch(apiUrl(`/jobs/search?${params.toString()}`), { signal: controller.signal });
+        const data = await parseApiJson<any>(response);
         setRecommendedJobs(data.success ? (data.results || []) : []);
       } catch (error: any) {
         if (error.name !== 'AbortError') setRecommendedJobs([]);

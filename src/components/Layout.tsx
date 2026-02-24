@@ -74,6 +74,12 @@ export const Layout = () => {
             padding: 16px;
           }
 
+          .page-content-full {
+            height: auto;
+            min-height: calc(100vh - 72px);
+            overflow: visible;
+          }
+
           .page-content-profile {
             padding: 0;
           }

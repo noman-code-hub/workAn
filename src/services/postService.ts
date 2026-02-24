@@ -1,5 +1,6 @@
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { auth } from '../config/firebase';
 import { uploadImage } from './supabaseStorage';
 import type { User, BlogPost } from '../types';
 
@@ -71,6 +72,10 @@ export const getUserPosts = async (userId: string, type?: 'blog' | 'community'):
 };
 
 export const getAllPosts = async (type?: 'blog' | 'community'): Promise<BlogPost[]> => {
+    if (!auth.currentUser) {
+        return [];
+    }
+
     try {
         const q = type
             ? query(collection(db, POSTS_COLLECTION), where('type', '==', type))
@@ -92,6 +97,10 @@ export const getAllPosts = async (type?: 'blog' | 'community'): Promise<BlogPost
 
         return posts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     } catch (error) {
+        const code = (error as { code?: string })?.code;
+        if (code === 'permission-denied') {
+            return [];
+        }
         console.error("Error fetching all posts:", error);
         return [];
     }

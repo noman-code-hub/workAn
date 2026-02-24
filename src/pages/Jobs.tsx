@@ -19,6 +19,7 @@ import type { Job } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { JobLogo } from '../components/JobLogo';
 import { getApplyLink } from '../utils/jobUtils';
+import { apiUrl, parseApiJson } from '../config/api';
 
 const getCompanyUrl = (company: string) => {
   const clean = company.toLowerCase()
@@ -28,8 +29,6 @@ const getCompanyUrl = (company: string) => {
     .replace(/\s+/g, '');
   return `https://www.${clean}.com`;
 };
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 export const Jobs = () => {
   const { user } = useAuth();
@@ -141,16 +140,11 @@ export const Jobs = () => {
       if (locationFilter) params.append('location', locationFilter);
       if (typeFilter) params.append('contract_type', typeFilter);
 
-      const url = `${API_BASE_URL}/api/jobs/search?${params.toString()}`;
+      const url = apiUrl(`/jobs/search?${params.toString()}`);
       console.log('Fetching jobs from:', url);
 
       const response = await fetch(url, { signal: controller.signal });
-
-      if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await parseApiJson<any>(response);
 
       if (data.success) {
         if (shouldReplace) {

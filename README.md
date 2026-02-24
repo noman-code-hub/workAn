@@ -323,5 +323,74 @@ This project is licensed under the MIT License.
 ---
 
 Built with ❤️ using React + TypeScript
-#   w o r k A n  
- 
+
+## Firebase Hosting + External API (Supabase)
+
+This project now deploys only the frontend to Firebase Hosting. Firebase Functions are not used.
+
+### Environment
+
+Set your API base URL in `.env` (or your production env file):
+
+```bash
+VITE_API_BASE=https://YOUR-PROJECT.supabase.co/functions/v1/api
+```
+
+Use a function-path base URL where `api` is your function name. If your function name differs, replace `/api` accordingly.
+
+### Firebase Hosting Config
+
+Use only SPA hosting rewrite in `firebase.json`:
+
+```json
+{
+  "hosting": {
+    "public": "dist",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [{ "source": "**", "destination": "/index.html" }]
+  }
+}
+```
+
+### Deploy
+
+```bash
+npm run build
+firebase deploy --only "hosting"
+```
+
+Deploy the Supabase Edge Function named `api` (required for `VITE_API_BASE=.../api`):
+
+```bash
+# one-time: install and login
+npm i -g supabase
+supabase login
+
+# from project root
+supabase link --project-ref bwrircyazzakdstjapxq
+supabase secrets set SERPAPI_KEY=your_serpapi_key
+supabase functions deploy api --no-verify-jwt
+```
+
+### Supabase CORS (Edge Functions / Backend)
+
+Make sure your backend returns CORS headers:
+
+```ts
+const origin = req.headers.get("origin") ?? "";
+const allow =
+  origin === "https://workan-fb4ef.web.app" ||
+  origin === "https://workan-fb4ef.firebaseapp.com" ||
+  /^https:\/\/workan-fb4ef--[a-z0-9-]+\.web\.app$/i.test(origin);
+
+if (allow) headers.set("Access-Control-Allow-Origin", origin);
+headers.set("Vary", "Origin");
+headers.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+```
+
+### Verify
+
+1. Open browser DevTools > Network.
+2. Confirm requests go to your `VITE_API_BASE` domain (not your Firebase Hosting domain).
+3. Confirm API responses are valid JSON and no request returns `index.html`.

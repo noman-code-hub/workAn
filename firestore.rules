@@ -44,7 +44,26 @@ service cloud.firestore {
     }
     
     // Blog posts and Community posts collection rules
+    // Keep both paths to support legacy data ('posts') and current app data ('blogs').
     match /posts/{postId} {
+      // Anyone authenticated can read posts
+      allow read: if isAuthenticated();
+      
+      // Authenticated users can create posts
+      allow create: if isAuthenticated() && (
+        (request.resource.data.userId == request.auth.uid) || 
+        (request.resource.data.authorId == request.auth.uid)
+      );
+      
+      // Users can update/delete their own posts, admins can update/delete any post
+      allow update, delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || 
+        resource.data.authorId == request.auth.uid || 
+        isAdmin()
+      );
+    }
+
+    match /blogs/{postId} {
       // Anyone authenticated can read posts
       allow read: if isAuthenticated();
       

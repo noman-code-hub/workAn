@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { uploadFile } from '@/services/userService';
 import axios from 'axios';
+import { apiUrl } from '@/config/api';
 
 import { AboutSection } from '@/components/AboutSection';
 import { BlogSection } from '@/components/BlogSection';
@@ -71,8 +72,7 @@ export const Profile = () => {
                 try {
                     const formData = new FormData();
                     formData.append('resume', file);
-                    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-                    const analysisRes = await axios.post(`${baseUrl}/api/upload-resume`, formData);
+                    const analysisRes = await axios.post(apiUrl('/upload-resume'), formData);
 
                     if (analysisRes.data && analysisRes.data.score !== undefined) {
                         const newScore = analysisRes.data.score;
@@ -142,8 +142,7 @@ export const Profile = () => {
 
         setIsSyncingScore(true);
         try {
-            const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-            const response = await axios.post(`${baseUrl}/api/upload-resume`, {
+            const response = await axios.post(apiUrl('/upload-resume'), {
                 resumeUrl: user.resumeURL
             });
 

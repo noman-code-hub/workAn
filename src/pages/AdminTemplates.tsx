@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Upload, FileText, Code, Image as ImageIcon, Loader, Edit3, Save, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { apiUrl, parseApiJson } from '../config/api';
 
 export const AdminTemplates = () => {
     const [templates, setTemplates] = useState<any[]>([]);
@@ -31,22 +32,8 @@ export const AdminTemplates = () => {
 
         // 1. DB Templates (from backend API)
         try {
-            const envUrl = import.meta.env.VITE_API_BASE_URL;
-            const baseUrl = (envUrl && envUrl.trim() !== '') ? envUrl : 'http://localhost:5000';
-
-            const res = await fetch(`${baseUrl}/api/templates`);
-            if (!res.ok) {
-                let details = '';
-                try {
-                    const err = await res.json();
-                    details = err?.details || err?.error || '';
-                } catch {
-                    // ignore json parse errors
-                }
-                throw new Error(`HTTP error! status: ${res.status}${details ? ` - ${details}` : ''}`);
-            }
-
-            const data = await res.json();
+            const res = await fetch(apiUrl('/templates'));
+            const data = await parseApiJson<any>(res);
             if (Array.isArray(data)) {
                 data.forEach(t => {
                     if (!seenIds.has(t.id)) {
@@ -250,26 +237,12 @@ export const AdminTemplates = () => {
         formData.append('thumbnail', thumbnailFile);
 
         try {
-            const envUrl = import.meta.env.VITE_API_BASE_URL;
-            const baseUrl = (envUrl && envUrl.trim() !== '') ? envUrl : 'http://localhost:5000';
-
-            const res = await fetch(`${baseUrl}/api/templates/upload`, {
+            const res = await fetch(apiUrl('/templates/upload'), {
                 method: 'POST',
                 body: formData,
             });
 
-            if (!res.ok) {
-                let details = '';
-                try {
-                    const err = await res.json();
-                    details = err?.details || err?.error || '';
-                } catch {
-                    // ignore json parse errors
-                }
-                throw new Error(`Upload failed${details ? `: ${details}` : ''}`);
-            }
-
-            await res.json(); // Consume response but ignore data (unused)
+            await parseApiJson<any>(res);
             setMessage("Success: Template uploaded!");
 
             // Reset form

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Download, AlertCircle, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import html2pdf from 'html2pdf.js';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
 import { normalizeFieldKey, renderTemplateWithSchema } from '../services/resumeTemplateRenderer';
 
@@ -848,6 +847,7 @@ export const Resume = () => {
     };
 
     try {
+      const { default: html2pdf } = await import('html2pdf.js');
       await html2pdf()
         .set(opt)
         .from(contentWrapper)

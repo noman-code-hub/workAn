@@ -39,9 +39,6 @@ export const SelectRole = () => {
             // Navigation will be handled by the effect above on next render
             // or explicit navigation here for faster feedback
             switch (role) {
-                case 'admin':
-                    navigate('/admin-dashboard', { replace: true });
-                    break;
                 case 'recruiter':
                     navigate('/recruiter', { replace: true });
                     break;
