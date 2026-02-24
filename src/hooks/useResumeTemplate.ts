@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import type { User } from '../types';
 import {
   buildBaseHref,
@@ -29,6 +29,7 @@ export const useResumeTemplate = (user?: User | null) => {
   const [templatePreviewLoading, setTemplatePreviewLoading] = useState(false);
   const [templateLoading, setTemplateLoading] = useState(false);
   const [templateError, setTemplateError] = useState<string | null>(null);
+  const supabaseClient = isSupabaseConfigured ? supabase : null;
 
   const getDefaultValueForField = useCallback((field: string) => {
     const normalized = normalizeFieldKey(field);
@@ -61,11 +62,19 @@ export const useResumeTemplate = (user?: User | null) => {
   }, [getDefaultValueForField]);
 
   const loadTemplateHtml = useCallback(async (templateName: string) => {
+    if (!supabaseClient) {
+      setTemplateError('Template storage is unavailable. Configure Supabase environment variables.');
+      setTemplatePreviewHtml(null);
+      setTemplateSourceHtml(null);
+      setTemplateFields([]);
+      return;
+    }
+
     setTemplatePreviewLoading(true);
     setTemplateError(null);
     setTemplatePreviewHtml(null);
 
-    const { data } = supabase.storage.from('resume_templates').getPublicUrl(templateName);
+    const { data } = supabaseClient.storage.from('resume_templates').getPublicUrl(templateName);
     if (!data?.publicUrl) {
       console.error('Error getting template URL');
       setTemplateError('Failed to load selected template. Please try again.');
@@ -94,7 +103,7 @@ export const useResumeTemplate = (user?: User | null) => {
     } finally {
       setTemplatePreviewLoading(false);
     }
-  }, [populateTemplateFields]);
+  }, [populateTemplateFields, supabaseClient]);
 
   const selectTemplate = useCallback((templateName: string) => {
     setSelectedTemplate(templateName);
@@ -105,14 +114,26 @@ export const useResumeTemplate = (user?: User | null) => {
   }, [loadTemplateHtml]);
 
   const fetchTemplates = useCallback(async () => {
+    if (!supabaseClient) {
+      setTemplateLoading(false);
+      setTemplateError('Templates are unavailable until Supabase is configured.');
+      setTemplates([]);
+      setSelectedTemplate('');
+      setTemplatePreviewHtml(null);
+      setTemplateSourceHtml(null);
+      setTemplateFields([]);
+      setTemplateFieldValues({});
+      return;
+    }
+
     setTemplateLoading(true);
     setTemplateError(null);
 
     try {
       const [rootList, templatesList, thumbsList] = await Promise.all([
-        supabase.storage.from('resume_templates').list('', { limit: 100 }),
-        supabase.storage.from('resume_templates').list('templates', { limit: 100 }),
-        supabase.storage.from('resume_templates').list('thumbnails', { limit: 100 }),
+        supabaseClient.storage.from('resume_templates').list('', { limit: 100 }),
+        supabaseClient.storage.from('resume_templates').list('templates', { limit: 100 }),
+        supabaseClient.storage.from('resume_templates').list('thumbnails', { limit: 100 }),
       ]);
 
       const { data: rootFiles, error: rootError } = rootList;
@@ -177,7 +198,7 @@ export const useResumeTemplate = (user?: User | null) => {
           ];
           const match = candidates.find((c) => thumbnailSet.has(c));
           if (!match) return undefined;
-          return supabase.storage.from('resume_templates').getPublicUrl(match).data.publicUrl;
+          return supabaseClient.storage.from('resume_templates').getPublicUrl(match).data.publicUrl;
         })(),
       }));
 
@@ -206,7 +227,7 @@ export const useResumeTemplate = (user?: User | null) => {
     } finally {
       setTemplateLoading(false);
     }
-  }, [selectTemplate]);
+  }, [selectTemplate, supabaseClient]);
 
   useEffect(() => {
     void fetchTemplates();

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Upload, FileText, Code, Image as ImageIcon, Loader, Edit3, Save, X } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { apiUrl, parseApiJson } from '../config/api';
 
 export const AdminTemplates = () => {
+    const supabaseClient = isSupabaseConfigured ? supabase : null;
+
     const [templates, setTemplates] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
@@ -35,7 +37,7 @@ export const AdminTemplates = () => {
             const res = await fetch(apiUrl('/templates'));
             const data = await parseApiJson<any>(res);
             if (Array.isArray(data)) {
-                data.forEach(t => {
+                data.forEach((t) => {
                     if (!seenIds.has(t.id)) {
                         merged.push(t);
                         seenIds.add(t.id);
@@ -48,45 +50,49 @@ export const AdminTemplates = () => {
 
         // 2. Storage Templates (from Supabase - Root and 'templates' folder)
         try {
-            const paths = ['', 'templates'];
+            if (!supabaseClient) {
+                console.warn('Supabase storage is not configured. Skipping storage template fetch.');
+            } else {
+                const paths = ['', 'templates'];
 
-            for (const path of paths) {
-                const { data: storageData, error } = await supabase.storage.from('resume_templates').list(path);
+                for (const path of paths) {
+                    const { data: storageData, error } = await supabaseClient.storage.from('resume_templates').list(path);
 
-                if (error) {
-                    console.error(`Storage List Error (${path || 'root'}):`, error);
-                    continue;
-                }
+                    if (error) {
+                        console.error(`Storage List Error (${path || 'root'}):`, error);
+                        continue;
+                    }
 
-                if (storageData) {
-                    const storageTemplates = storageData
-                        .filter(f => f.name.toLowerCase().endsWith('.html'))
-                        .map(f => {
-                            const fullName = path ? `${path}/${f.name}` : f.name;
-                            const publicUrl = supabase.storage.from('resume_templates').getPublicUrl(fullName).data.publicUrl;
+                    if (storageData) {
+                        const storageTemplates = storageData
+                            .filter((f) => f.name.toLowerCase().endsWith('.html'))
+                            .map((f) => {
+                                const fullName = path ? `${path}/${f.name}` : f.name;
+                                const publicUrl = supabaseClient.storage.from('resume_templates').getPublicUrl(fullName).data.publicUrl;
 
-                            // Check if we already have this URL from DB templates
-                            const isDuplicate = merged.some(t => t.html_url === publicUrl);
-                            if (isDuplicate) return null;
+                                // Check if we already have this URL from DB templates
+                                const isDuplicate = merged.some((t) => t.html_url === publicUrl);
+                                if (isDuplicate) return null;
 
-                            // Simple ID based on filename
-                            const id = f.name;
-                            if (seenIds.has(id)) return null;
+                                // Simple ID based on filename
+                                const id = f.name;
+                                if (seenIds.has(id)) return null;
 
-                            return {
-                                id: id,
-                                name: f.name.replace(/\.html$/i, '').replace(/_/g, ' ').toUpperCase() + (path ? ' (Storage)' : ' (Storage)'),
-                                html_url: publicUrl,
-                                thumbnail_url: null,
-                                created_at: f.created_at || new Date().toISOString()
-                            };
-                        })
-                        .filter(t => t !== null);
+                                return {
+                                    id,
+                                    name: f.name.replace(/\.html$/i, '').replace(/_/g, ' ').toUpperCase() + (path ? ' (Storage)' : ' (Storage)'),
+                                    html_url: publicUrl,
+                                    thumbnail_url: null,
+                                    created_at: f.created_at || new Date().toISOString(),
+                                };
+                            })
+                            .filter((t) => t !== null);
 
-                    storageTemplates.forEach((t: any) => {
-                        merged.push(t);
-                        seenIds.add(t.id);
-                    });
+                        storageTemplates.forEach((t: any) => {
+                            merged.push(t);
+                            seenIds.add(t.id);
+                        });
+                    }
                 }
             }
         } catch (e) {
@@ -149,6 +155,11 @@ export const AdminTemplates = () => {
 
     const handleSaveTemplate = async () => {
         if (!editingTemplate) return;
+        if (!supabaseClient) {
+            setEditorMessage('Error: Supabase storage is not configured for this deployment.');
+            return;
+        }
+
         setEditorSaving(true);
         setEditorMessage(null);
 
@@ -158,7 +169,7 @@ export const AdminTemplates = () => {
             if (!htmlPath) throw new Error('Cannot resolve HTML file path for this template.');
 
             uploads.push(
-                supabase.storage.from('resume_templates').upload(
+                supabaseClient.storage.from('resume_templates').upload(
                     htmlPath,
                     new Blob([htmlCode], { type: 'text/html' }),
                     { contentType: 'text/html', upsert: true }
@@ -169,7 +180,7 @@ export const AdminTemplates = () => {
                 const cssPath = getStoragePath(editingTemplate.css_url);
                 if (!cssPath) throw new Error('Cannot resolve CSS file path for this template.');
                 uploads.push(
-                    supabase.storage.from('resume_templates').upload(
+                    supabaseClient.storage.from('resume_templates').upload(
                         cssPath,
                         new Blob([cssCode], { type: 'text/css' }),
                         { contentType: 'text/css', upsert: true }
@@ -181,7 +192,7 @@ export const AdminTemplates = () => {
                 const jsPath = getStoragePath(editingTemplate.js_url);
                 if (!jsPath) throw new Error('Cannot resolve JS file path for this template.');
                 uploads.push(
-                    supabase.storage.from('resume_templates').upload(
+                    supabaseClient.storage.from('resume_templates').upload(
                         jsPath,
                         new Blob([jsCode], { type: 'application/javascript' }),
                         { contentType: 'application/javascript', upsert: true }
@@ -251,7 +262,6 @@ export const AdminTemplates = () => {
             setCssFile(null);
             setJsFile(null);
             setThumbnailFile(null);
-            // Ideally trigger file input reset here but state clear is decent enough for now
 
             // Refresh list
             fetchTemplates();

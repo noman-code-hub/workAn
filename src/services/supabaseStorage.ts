@@ -1,26 +1,10 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
-const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
-const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
-const isSupabaseConfigured = Boolean(
-    supabaseUrl &&
-    supabaseAnonKey &&
-    supabaseAnonKey !== 'your_supabase_anon_key_here'
-);
-
-if (!isSupabaseConfigured) {
-    console.warn('Supabase storage is disabled: missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY.');
-}
-
-export const supabase = createClient(
-    supabaseUrl || 'https://placeholder.supabase.co',
-    supabaseAnonKey || 'placeholder'
-);
-
-const requireSupabaseConfig = () => {
-    if (!isSupabaseConfigured) {
+const getSupabaseClient = () => {
+    if (!isSupabaseConfigured || !supabase) {
         throw new Error('Supabase storage is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
     }
+    return supabase;
 };
 
 /**
@@ -31,12 +15,12 @@ export const uploadImage = async (
     file: File,
     bucket: 'avatars' | 'banners' | 'post'
 ): Promise<{ publicUrl: string }> => {
-    requireSupabaseConfig();
+    const supabaseClient = getSupabaseClient();
 
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
 
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabaseClient.storage
         .from(bucket)
         .upload(fileName, file, {
             cacheControl: '3600',
@@ -47,7 +31,7 @@ export const uploadImage = async (
         throw uploadError;
     }
 
-    const { data } = supabase.storage
+    const { data } = supabaseClient.storage
         .from(bucket)
         .getPublicUrl(fileName);
 
@@ -58,12 +42,12 @@ export const uploadImage = async (
  * Uploads a resume to Supabase Storage.
  */
 export const uploadResume = async (userId: string, file: File): Promise<{ publicUrl: string }> => {
-    requireSupabaseConfig();
+    const supabaseClient = getSupabaseClient();
 
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/${Date.now()}_resume.${fileExt}`;
 
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabaseClient.storage
         .from('resumes')
         .upload(fileName, file);
 
@@ -71,7 +55,7 @@ export const uploadResume = async (userId: string, file: File): Promise<{ public
         throw uploadError;
     }
 
-    const { data } = supabase.storage
+    const { data } = supabaseClient.storage
         .from('resumes')
         .getPublicUrl(fileName);
 

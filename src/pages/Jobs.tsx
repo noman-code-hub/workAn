@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Search,
   MapPin,
@@ -32,12 +32,16 @@ const getCompanyUrl = (company: string) => {
 
 export const Jobs = () => {
   const { user } = useAuth();
+  const routeLocation = useLocation();
   const navigate = useNavigate();
+  const initialSearchParams = new URLSearchParams(routeLocation.search);
+  const initialQueryFromUrl = (initialSearchParams.get('q') || '').trim();
+  const initialLocationFromUrl = (initialSearchParams.get('location') || '').trim();
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
   const [totalJobs, setTotalJobs] = useState<number>(0);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [locationFilter, setLocationFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialQueryFromUrl);
+  const [locationFilter, setLocationFilter] = useState(initialLocationFromUrl);
   const [typeFilter, setTypeFilter] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
