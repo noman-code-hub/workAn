@@ -6,6 +6,7 @@
 type JsonRecord = Record<string, unknown>;
 
 const FIREBASE_PROJECT_ID = "workan-fb4ef";
+const VERCEL_PROJECT_SLUG = "workan";
 
 const DEFAULT_ALLOWED_ORIGINS = new Set<string>([
   "http://localhost:5173",
@@ -18,10 +19,15 @@ const DEFAULT_ALLOWED_ORIGINS = new Set<string>([
   "http://127.0.0.1:5176",
   `https://${FIREBASE_PROJECT_ID}.web.app`,
   `https://${FIREBASE_PROJECT_ID}.firebaseapp.com`,
+  `https://${VERCEL_PROJECT_SLUG}.vercel.app`,
 ]);
 
 const firebasePreviewRegex = new RegExp(
   `^https://${FIREBASE_PROJECT_ID}--[a-z0-9-]+\\.web\\.app$`,
+  "i",
+);
+const vercelPreviewRegex = new RegExp(
+  `^https://${VERCEL_PROJECT_SLUG}-[a-z0-9-]+\\.vercel\\.app$`,
   "i",
 );
 
@@ -35,7 +41,11 @@ for (const origin of extraAllowedOrigins) {
 }
 
 const isAllowedOrigin = (origin: string): boolean => {
-  return DEFAULT_ALLOWED_ORIGINS.has(origin) || firebasePreviewRegex.test(origin);
+  return (
+    DEFAULT_ALLOWED_ORIGINS.has(origin) ||
+    firebasePreviewRegex.test(origin) ||
+    vercelPreviewRegex.test(origin)
+  );
 };
 
 const corsHeaders = (origin: string | null): Headers => {
