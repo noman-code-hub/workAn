@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { Header } from './Header';
+import { AdSenseSlot } from './AdSenseSlot';
 
 import { useAuth } from '../contexts/AuthContext';
 import { useRoleBasedRedirect } from '../hooks/useRoleBasedRedirect';
@@ -10,6 +11,7 @@ export const Layout = () => {
   const isCommunity = location.pathname === '/community';
   const isProfile = location.pathname === '/profile';
   const isJobs = location.pathname === '/jobs';
+  const adSlotMain = (import.meta.env.VITE_ADSENSE_SLOT_MAIN || '').trim();
 
   // Handle role-based redirects (e.g. users with no role -> /select-role)
   useRoleBasedRedirect(user, loading);
@@ -24,6 +26,11 @@ export const Layout = () => {
         {/* Page Content */}
         <main className={`page-content ${isCommunity ? 'page-content-full' : ''} ${isProfile ? 'page-content-profile' : ''} ${isJobs ? 'page-content-jobs' : ''}`}>
           <Outlet />
+          {!isCommunity && (
+            <section className="adsense-wrap" aria-label="Advertisement">
+              <AdSenseSlot slot={adSlotMain} />
+            </section>
+          )}
         </main>
       </div>
 
@@ -69,6 +76,12 @@ export const Layout = () => {
           min-height: calc(100vh - 72px);
         }
 
+        .adsense-wrap {
+          margin-top: 24px;
+          border-top: 1px solid #e5e7eb;
+          padding-top: 16px;
+        }
+
         @media (max-width: 768px) {
           .page-content {
             padding: 16px;
@@ -86,6 +99,11 @@ export const Layout = () => {
 
           .page-content-jobs {
             padding: 0;
+          }
+
+          .adsense-wrap {
+            margin-top: 16px;
+            padding-top: 12px;
           }
         }
       `}</style>
