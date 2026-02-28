@@ -36,18 +36,47 @@ export const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [recommendedJobs, setRecommendedJobs] = useState<Job[]>([]);
+  const [databaseJobs, setDatabaseJobs] = useState<Job[]>([]);
+  const [hasMoreDatabaseJobs, setHasMoreDatabaseJobs] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [dbLoading, setDbLoading] = useState(true);
+  const [dbError, setDbError] = useState('');
   const [applyingId, setApplyingId] = useState<string | null>(null);
 
-  const firstName = user?.name?.trim()?.split(/\s+/)[0] || 'there';
+  const isAuthenticated = Boolean(user);
+  const firstName = user?.name?.trim()?.split(/\s+/)[0] || '';
   const score = Math.max(0, Math.min(user?.interviewReadinessScore || 0, 100));
-  const scoreState = score >= 80 ? 'Strong' : score >= 60 ? 'Improving' : 'Needs attention';
+  const scoreState = !isAuthenticated
+    ? 'Guest mode'
+    : score >= 80
+      ? 'Strong'
+      : score >= 60
+        ? 'Improving'
+        : 'Needs attention';
+  const heroTitle = isAuthenticated ? `Welcome back, ${firstName}` : 'Welcome to workIn';
+  const heroSubtitle = isAuthenticated
+    ? 'A focused workspace to track progress, discover jobs, and improve readiness.'
+    : 'Explore jobs and tools. Sign in to personalize your dashboard.';
+  const professionLabel = isAuthenticated ? (user?.profession || 'Professional') : 'Guest mode';
+  const countryLabel = isAuthenticated ? (user?.country || 'Location not set') : 'Global';
   const ringStyle = { ['--score' as string]: `${score}%` } as CSSProperties;
   const today = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric' }).format(new Date());
   const staggerStyle = (index: number, delay = 0): CSSProperties => ({
     ['--i' as string]: index,
     ['--delay' as string]: `${delay}ms`,
   });
+  const getCountryCode = (countryText?: string) => {
+    const country = (countryText || '').toLowerCase();
+    return country.includes('uk') || country.includes('britain')
+      ? 'gb'
+      : country.includes('canada')
+        ? 'ca'
+        : country.includes('australia')
+          ? 'au'
+          : country.includes('india')
+            ? 'in'
+            : 'us';
+  };
 
   const handleApply = async (job: Job) => {
     setApplyingId(job.id);
@@ -66,31 +95,81 @@ export const Dashboard = () => {
     const run = async () => {
       setLoading(true);
       try {
-        const country = (user?.country || '').toLowerCase();
-        const countryCode =
-          country.includes('uk') || country.includes('britain') ? 'gb'
-            : country.includes('canada') ? 'ca'
-              : country.includes('australia') ? 'au'
-                : country.includes('india') ? 'in'
-                  : 'us';
+        const profession = (user?.profession || '').trim();
+        if (!profession) {
+          setRecommendedJobs([]);
+          return;
+        }
+
+        const countryCode = getCountryCode(user?.country);
         const params = new URLSearchParams({
-          query: user?.profession || 'Software Developer',
-          results_per_page: '3',
           country: countryCode,
+          limit: '3',
+          q: profession,
+          role: profession,
         });
-        if (user?.country && !user.country.toLowerCase().includes('remote')) params.append('location', user.country);
-        const response = await fetch(apiUrl(`/jobs/search?${params.toString()}`), { signal: controller.signal });
+        if (user?.country && !user.country.toLowerCase().includes('remote')) {
+          params.append('q', `${profession} ${user.country}`);
+        }
+        const response = await fetch(apiUrl(`/jobs/market?${params.toString()}`), { signal: controller.signal });
         const data = await parseApiJson<any>(response);
-        setRecommendedJobs(data.success ? (data.results || []) : []);
+        const incomingJobs: Job[] = data.success ? (data.results || []) : [];
+        if (incomingJobs.length > 0) {
+          setRecommendedJobs(incomingJobs.slice(0, 3));
+        } else {
+          const fallbackParams = new URLSearchParams({
+            country: countryCode,
+            limit: '3',
+            q: profession,
+          });
+          const fallbackResponse = await fetch(apiUrl(`/jobs/market?${fallbackParams.toString()}`), { signal: controller.signal });
+          const fallbackData = await parseApiJson<any>(fallbackResponse);
+          setRecommendedJobs(fallbackData.success ? (fallbackData.results || []).slice(0, 3) : []);
+        }
       } catch (error: any) {
-        if (error.name !== 'AbortError') setRecommendedJobs([]);
+        if (error.name !== 'AbortError') {
+          setRecommendedJobs([]);
+        }
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
     };
     run();
     return () => controller.abort();
-  }, [user]);
+  }, [user?.country, user?.profession]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const run = async () => {
+      setDbLoading(true);
+      setDbError('');
+      try {
+        const countryCode = getCountryCode(user?.country);
+        const params = new URLSearchParams({
+          country: countryCode,
+          limit: '6',
+        });
+
+        const response = await fetch(apiUrl(`/jobs/market?${params.toString()}`), { signal: controller.signal });
+        const data = await parseApiJson<any>(response);
+        const incomingJobs: Job[] = data.success ? (data.results || []) : [];
+        const totalCount = typeof data.count === 'number' ? data.count : incomingJobs.length;
+        setHasMoreDatabaseJobs(totalCount > 5 || incomingJobs.length > 5);
+        setDatabaseJobs(incomingJobs.slice(0, 5));
+      } catch (error: any) {
+        if (error.name !== 'AbortError') {
+          const message = error instanceof Error ? error.message : 'Unable to load jobs right now.';
+          setDbError(message);
+          setDatabaseJobs([]);
+          setHasMoreDatabaseJobs(false);
+        }
+      } finally {
+        if (!controller.signal.aborted) setDbLoading(false);
+      }
+    };
+    run();
+    return () => controller.abort();
+  }, [user?.country]);
 
   const formatSalary = (job: Job) => {
     if (!job.salary?.min || !job.salary?.max) return 'Salary not listed';
@@ -105,9 +184,24 @@ export const Dashboard = () => {
   };
 
   const stats = [
-    { label: 'Jobs Applied', value: '12', text: '+3 this week', icon: Briefcase },
-    { label: 'Resume Score', value: score ? `${score}%` : 'N/A', text: score ? `${scoreState} readiness` : 'Upload resume', icon: FileText },
-    { label: 'Interview Ready', value: score ? scoreState : 'Low', text: score >= 80 ? 'Market-ready' : 'Use roadmap', icon: Sparkles },
+    {
+      label: 'Jobs Applied',
+      value: isAuthenticated ? '12' : '--',
+      text: isAuthenticated ? '+3 this week' : 'Sign in to track',
+      icon: Briefcase,
+    },
+    {
+      label: 'Resume Score',
+      value: isAuthenticated && score ? `${score}%` : 'N/A',
+      text: isAuthenticated ? (score ? `${scoreState} readiness` : 'Upload resume') : 'Sign in to analyze',
+      icon: FileText,
+    },
+    {
+      label: 'Interview Ready',
+      value: isAuthenticated ? (score ? scoreState : 'Low') : 'N/A',
+      text: isAuthenticated ? (score >= 80 ? 'Market-ready' : 'Use roadmap') : 'Sign in for insights',
+      icon: Sparkles,
+    },
     { label: 'Career Growth', value: '+25%', text: 'Next 3 years', icon: LineChart },
   ];
 
@@ -117,20 +211,23 @@ export const Dashboard = () => {
     { title: 'Review market trends', action: 'Open Career Trends', path: '/trends', done: false, icon: TrendingUp },
   ];
 
+  const hasProfession = Boolean((user?.profession || '').trim());
+  const showRecommendedJobsSection = hasProfession && (loading || recommendedJobs.length > 0);
+
   return (
     <div className="ov">
       <section className="ov-hero ov-card ov-fade ov-delay-0">
         <div>
           <p className="ov-kicker">Overview</p>
-          <h1>Welcome back, {firstName}</h1>
-          <p className="ov-sub">A focused workspace to track progress, discover jobs, and improve readiness.</p>
+          <h1 className={!isAuthenticated ? 'ov-guest-title' : ''}>{heroTitle}</h1>
+          <p className="ov-sub">{heroSubtitle}</p>
           <div className="ov-actions">
             <button className="btn btn-primary" onClick={() => navigate('/jobs')}>Explore Jobs <ArrowRight size={16} /></button>
             <button className="btn btn-secondary" onClick={() => navigate('/resume')}>Improve Resume</button>
           </div>
           <div className="ov-meta">
-            <span><Compass size={14} /> {user?.profession || 'Software Developer'}</span>
-            <span><MapPin size={14} /> {user?.country || 'United States'}</span>
+            <span><Compass size={14} /> {professionLabel}</span>
+            <span><MapPin size={14} /> {countryLabel}</span>
             <span><Clock size={14} /> {today}</span>
           </div>
         </div>
@@ -156,48 +253,108 @@ export const Dashboard = () => {
       </section>
 
       <section className="ov-grid">
-        <div className="ov-card ov-jobs ov-fade ov-delay-2">
-          <div className="ov-head"><h2>Recommended Jobs</h2><button className="btn btn-ghost btn-sm" onClick={() => navigate('/jobs')}>View All <ArrowRight size={15} /></button></div>
-          {loading ? (
-            <div className="ov-skeleton-wrap">{[1, 2, 3].map((i) => <div key={i} className="ov-skeleton" />)}</div>
-          ) : recommendedJobs.length === 0 ? (
-            <div className="ov-empty"><Target size={20} /><p>No recommendations yet. Complete your profile for better matching.</p></div>
-          ) : (
-            <div className="ov-list">
-              {recommendedJobs.map((job, index) => (
-                <article
-                  key={job.id}
-                  className="ov-job ov-fade ov-delay-2"
-                  style={staggerStyle(index + 1, 120)}
-                  onClick={() => navigate(`/jobs/${job.id}`, { state: { returnTo: '/dashboard', returnLabel: 'Back to Overview' } })}
-                >
-                  <div className="ov-job-top">
-                    <div className="ov-logo" onClick={(e) => { e.stopPropagation(); window.open(getCompanyUrl(job.company), '_blank'); }}><JobLogo company={job.company} /></div>
-                    <div className="ov-job-text">
-                      <h3>{job.title}</h3>
-                      <button className="ov-company" onClick={(e) => { e.stopPropagation(); window.open(getCompanyUrl(job.company), '_blank'); }}>{job.company}</button>
-                    </div>
-                    <div className="ov-match"><b>{job.matchScore || '--'}%</b><small>Match</small></div>
-                  </div>
-                  <div className="ov-line"><span><MapPin size={14} /> {job.location}</span><span><DollarSign size={14} /> {formatSalary(job)}</span><span><Clock size={14} /> {getTimeSince(job.postedDate)}</span></div>
-                  <div className="ov-tags">{(job.tags || []).slice(0, 3).map((tag) => <span key={tag}>{tag}</span>)}</div>
-                  <div className="ov-job-actions">
-                    <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); handleApply(job); }} disabled={applyingId === job.id}>{applyingId === job.id ? 'Applying...' : 'Apply Now'}</button>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/jobs/${job.id}`, { state: { returnTo: '/dashboard', returnLabel: 'Back to Overview' } });
-                      }}
+        <div className="ov-main">
+          {showRecommendedJobsSection && (
+            <div className="ov-card ov-jobs ov-fade ov-delay-2">
+              <div className="ov-head"><h2>Recommended Jobs</h2><button className="btn btn-ghost btn-sm" onClick={() => navigate('/market-jobs')}>View All <ArrowRight size={15} /></button></div>
+              {loading ? (
+                <div className="ov-skeleton-wrap">{[1, 2, 3].map((i) => <div key={i} className="ov-skeleton" />)}</div>
+              ) : (
+                <div className="ov-list">
+                  {recommendedJobs.map((job, index) => (
+                    <article
+                      key={job.id}
+                      className="ov-job ov-fade ov-delay-2"
+                      style={staggerStyle(index + 1, 120)}
+                      onClick={() => navigate('/market-jobs')}
                     >
-                      Details
-                    </button>
-                    <button className="btn btn-ghost btn-sm ov-save" onClick={(e) => e.stopPropagation()}><BookmarkPlus size={15} /></button>
-                  </div>
-                </article>
-              ))}
+                      <div className="ov-job-top">
+                        <div className="ov-logo" onClick={(e) => { e.stopPropagation(); window.open(getCompanyUrl(job.company), '_blank'); }}><JobLogo company={job.company} /></div>
+                        <div className="ov-job-text">
+                          <h3>{job.title}</h3>
+                          <button className="ov-company" onClick={(e) => { e.stopPropagation(); window.open(getCompanyUrl(job.company), '_blank'); }}>{job.company}</button>
+                        </div>
+                        <div className="ov-match"><b>{job.matchScore || '--'}%</b><small>Match</small></div>
+                      </div>
+                      <div className="ov-line"><span><MapPin size={14} /> {job.location}</span><span><DollarSign size={14} /> {formatSalary(job)}</span><span><Clock size={14} /> {getTimeSince(job.postedDate)}</span></div>
+                      <div className="ov-tags">{(job.tags || []).slice(0, 3).map((tag) => <span key={tag}>{tag}</span>)}</div>
+                      <div className="ov-job-actions">
+                        <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); handleApply(job); }} disabled={applyingId === job.id}>{applyingId === job.id ? 'Applying...' : 'Apply Now'}</button>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate('/market-jobs');
+                          }}
+                        >
+                          Details
+                        </button>
+                        <button className="btn btn-ghost btn-sm ov-save" onClick={(e) => e.stopPropagation()}><BookmarkPlus size={15} /></button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
             </div>
           )}
+
+          <div className="ov-card ov-jobs ov-db-jobs ov-fade ov-delay-2">
+            <div className="ov-head">
+              <h2>All Live Jobs</h2>
+              <button className="btn btn-ghost btn-sm" onClick={() => navigate('/market-jobs')}>
+                Open Market Jobs <ArrowRight size={15} />
+              </button>
+            </div>
+
+            {dbLoading ? (
+              <div className="ov-skeleton-wrap">{[1, 2, 3].map((i) => <div key={`db-${i}`} className="ov-skeleton" />)}</div>
+            ) : dbError ? (
+              <div className="ov-empty"><Target size={20} /><p>{dbError}</p></div>
+            ) : databaseJobs.length === 0 ? (
+              <div className="ov-empty"><Target size={20} /><p>No jobs found yet.</p></div>
+            ) : (
+              <>
+                <div className="ov-list">
+                  {databaseJobs.map((job, index) => (
+                    <article
+                      key={job.id}
+                      className="ov-job ov-fade ov-delay-2"
+                      style={staggerStyle(index + 1, 140)}
+                      onClick={() => navigate('/market-jobs')}
+                    >
+                      <div className="ov-job-top">
+                        <div className="ov-logo" onClick={(e) => { e.stopPropagation(); window.open(getCompanyUrl(job.company), '_blank'); }}><JobLogo company={job.company} /></div>
+                        <div className="ov-job-text">
+                          <h3>{job.title}</h3>
+                          <button className="ov-company" onClick={(e) => { e.stopPropagation(); window.open(getCompanyUrl(job.company), '_blank'); }}>{job.company}</button>
+                        </div>
+                      </div>
+                      <div className="ov-line"><span><MapPin size={14} /> {job.location}</span><span><DollarSign size={14} /> {formatSalary(job)}</span><span><Clock size={14} /> {getTimeSince(job.postedDate)}</span></div>
+                      <div className="ov-tags">{(job.skills || []).slice(0, 3).map((skill) => <span key={skill}>{skill}</span>)}</div>
+                      <div className="ov-job-actions">
+                        <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); handleApply(job); }} disabled={applyingId === job.id}>{applyingId === job.id ? 'Applying...' : 'Apply Now'}</button>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate('/market-jobs');
+                          }}
+                        >
+                          View More
+                        </button>
+                        <button className="btn btn-ghost btn-sm ov-save" onClick={(e) => e.stopPropagation()}><BookmarkPlus size={15} /></button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+                {hasMoreDatabaseJobs && (
+                  <button className="btn btn-secondary btn-sm ov-more-btn" onClick={() => navigate('/market-jobs')}>
+                    View More Jobs <ArrowRight size={15} />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         <aside className="ov-side">
@@ -315,6 +472,11 @@ export const Dashboard = () => {
           font-weight: 800;
           color: var(--color-text-primary);
           text-wrap: balance;
+        }
+
+        .ov h1.ov-guest-title {
+          font-size: clamp(1.9rem, 3.6vw, 2.9rem);
+          line-height: 1.08;
         }
 
         .ov-sub {
@@ -474,6 +636,11 @@ export const Dashboard = () => {
         .ov-grid {
           display: grid;
           grid-template-columns: 1fr 330px;
+          gap: 16px;
+        }
+
+        .ov-main {
+          display: grid;
           gap: 16px;
         }
 
@@ -667,6 +834,15 @@ export const Dashboard = () => {
         .ov-save {
           flex: 0 0 40px;
           padding: 0;
+        }
+
+        .ov-more-btn {
+          width: 100%;
+          margin-top: 8px;
+          display: inline-flex;
+          justify-content: center;
+          align-items: center;
+          gap: 6px;
         }
 
         .ov-side {

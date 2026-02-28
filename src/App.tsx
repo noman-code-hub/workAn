@@ -15,6 +15,7 @@ const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then((m) => (
 const AdminTemplates = lazy(() => import('./pages/AdminTemplates').then((m) => ({ default: m.AdminTemplates })));
 const RecruiterDashboard = lazy(() => import('./pages/RecruiterDashboard').then((m) => ({ default: m.RecruiterDashboard })));
 const Jobs = lazy(() => import('./pages/Jobs').then((m) => ({ default: m.Jobs })));
+const MarketJobs = lazy(() => import('./pages/MarketJobs').then((m) => ({ default: m.MarketJobs })));
 const JobDetails = lazy(() => import('./pages/JobDetails').then((m) => ({ default: m.JobDetails })));
 const Resume = lazy(() => import('./pages/Resume').then((m) => ({ default: m.Resume })));
 const CareerTrends = lazy(() => import('./pages/CareerTrends').then((m) => ({ default: m.CareerTrends })));
@@ -26,7 +27,7 @@ const BlogDetail = lazy(() => import('./pages/BlogDetail').then((m) => ({ defaul
 const JobApplicants = lazy(() => import('./pages/JobApplicants').then((m) => ({ default: m.JobApplicants })));
 
 function App() {
-  const { loading } = useAuth();
+  const { user, loading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [routeLoading, setRouteLoading] = useState(false);
@@ -136,27 +137,32 @@ function App() {
     return <AppLoader variant="full" message="Loading" />;
   }
 
+  const homeRoute = !user
+    ? '/dashboard'
+    : !user.role
+      ? '/select-role'
+      : user.role === 'admin'
+        ? '/admin-dashboard'
+        : user.role === 'recruiter'
+          ? '/recruiter'
+          : '/dashboard';
+
   return (
     <>
       {(bootLoading || routeLoading) && <AppLoader variant="overlay" message="Loading" />}
       <Suspense fallback={<AppLoader variant="overlay" message="Loading" />}>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<Navigate to={homeRoute} replace />} />
+          <Route path="/landing" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/select-role" element={<SelectRole />} />
 
           {/* App Routes with Flat Layout (No Sidebar) */}
           <Route element={<Layout />}>
-            <Route
-              path="/dashboard"
-              element={
-                <RoleGuard allowedRoles={['user']} redirectTo="/select-role">
-                  <Dashboard />
-                </RoleGuard>
-              }
-            />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/jobs" element={<Jobs />} />
+            <Route path="/market-jobs" element={<MarketJobs />} />
             <Route path="/jobs/:id" element={<JobDetails />} />
             <Route path="/resume" element={<Resume />} />
             <Route path="/trends" element={<CareerTrends />} />

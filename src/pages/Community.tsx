@@ -1,5 +1,8 @@
+import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { BlogSection } from '../components/BlogSection';
+import type { Job } from '../types';
+import { apiUrl, parseApiJson } from '../config/api';
 import {
     TrendingUp,
     Target,
@@ -12,6 +15,77 @@ import {
 
 export const Community = () => {
     const { user } = useAuth();
+    const [trendingJobs, setTrendingJobs] = useState<Job[]>([]);
+    const [jobsLoading, setJobsLoading] = useState(true);
+
+    const getCountryCode = (countryText?: string) => {
+        const country = (countryText || '').toLowerCase();
+        return country.includes('uk') || country.includes('britain')
+            ? 'gb'
+            : country.includes('canada')
+                ? 'ca'
+                : country.includes('australia')
+                    ? 'au'
+                    : country.includes('india')
+                        ? 'in'
+                        : 'us';
+    };
+
+    const formatSalary = (job: Job) => {
+        if (!job.salary?.min || !job.salary?.max) return 'Salary not listed';
+        return `$${(job.salary.min / 1000).toFixed(0)}k - $${(job.salary.max / 1000).toFixed(0)}k`;
+    };
+
+    useEffect(() => {
+        const controller = new AbortController();
+        const run = async () => {
+            setJobsLoading(true);
+            try {
+                const profession = (user?.profession || '').trim();
+                if (!profession) {
+                    setTrendingJobs([]);
+                    return;
+                }
+
+                const countryCode = getCountryCode(user?.country);
+                const params = new URLSearchParams({
+                    country: countryCode,
+                    limit: '2',
+                    q: profession,
+                    role: profession,
+                });
+                if (user?.country && !user.country.toLowerCase().includes('remote')) {
+                    params.append('q', `${profession} ${user.country}`);
+                }
+
+                const response = await fetch(apiUrl(`/jobs/market?${params.toString()}`), { signal: controller.signal });
+                const data = await parseApiJson<any>(response);
+                const incomingJobs: Job[] = data.success ? (data.results || []) : [];
+
+                if (incomingJobs.length > 0) {
+                    setTrendingJobs(incomingJobs.slice(0, 2));
+                } else {
+                    const fallbackParams = new URLSearchParams({
+                        country: countryCode,
+                        limit: '2',
+                        q: profession,
+                    });
+                    const fallbackResponse = await fetch(apiUrl(`/jobs/market?${fallbackParams.toString()}`), { signal: controller.signal });
+                    const fallbackData = await parseApiJson<any>(fallbackResponse);
+                    setTrendingJobs(fallbackData.success ? (fallbackData.results || []).slice(0, 2) : []);
+                }
+            } catch (error: any) {
+                if (error.name !== 'AbortError') {
+                    setTrendingJobs([]);
+                }
+            } finally {
+                if (!controller.signal.aborted) setJobsLoading(false);
+            }
+        };
+
+        run();
+        return () => controller.abort();
+    }, [user?.country, user?.profession]);
 
 
 
@@ -122,30 +196,30 @@ export const Community = () => {
                     <div style={styles.card}>
                         <div style={{ padding: '12px' }}>
                             <h3 style={styles.cardTitle}>🚀 Trending Jobs</h3>
-                            <div style={styles.jobItem}>
-                                <div style={styles.jobInfo}>
-                                    <p style={styles.jobTitle}>Senior React Developer</p>
-                                    <p style={styles.jobCompany}>Tech Corp • Remote</p>
-                                    <p style={styles.jobSalary}>$80k - $120k</p>
-                                </div>
-                            </div>
-                            <div style={styles.jobItem}>
-                                <div style={styles.jobInfo}>
-                                    <p style={styles.jobTitle}>Full Stack Engineer</p>
-                                    <p style={styles.jobCompany}>StartupXYZ • Hybrid</p>
-                                    <p style={styles.jobSalary}>$70k - $100k</p>
-                                </div>
-                            </div>
-                            <div style={styles.jobItem}>
-                                <div style={styles.jobInfo}>
-                                    <p style={styles.jobTitle}>Product Manager</p>
-                                    <p style={styles.jobCompany}>Global Inc • On-site</p>
-                                    <p style={styles.jobSalary}>$90k - $130k</p>
-                                </div>
-                            </div>
+                            {jobsLoading ? (
+                                <p style={styles.jobEmptyText}>Loading recommendations...</p>
+                            ) : trendingJobs.length === 0 ? (
+                                <p style={styles.jobEmptyText}>
+                                    {user?.profession ? 'No matching jobs right now.' : 'Add your profession in profile to get recommendations.'}
+                                </p>
+                            ) : (
+                                trendingJobs.map((job) => (
+                                    <div
+                                        key={job.id}
+                                        style={styles.jobItem}
+                                        onClick={() => { window.location.href = '/market-jobs'; }}
+                                    >
+                                        <div style={styles.jobInfo}>
+                                            <p style={styles.jobTitle}>{job.title}</p>
+                                            <p style={styles.jobCompany}>{job.company} • {job.location}</p>
+                                            <p style={styles.jobSalary}>{formatSalary(job)}</p>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
                             <button
                                 style={styles.showMoreBtn}
-                                onClick={() => window.location.href = '/jobs'}
+                                onClick={() => window.location.href = '/market-jobs'}
                             >
                                 View all jobs <ChevronDown size={16} />
                             </button>
@@ -261,8 +335,15 @@ export const Community = () => {
                     position: sticky;
                     top: 0;
                     height: calc(100vh - 32px);
-                    overflow: hidden;
+                    overflow-y: auto;
+                    overflow-x: hidden;
+                    scrollbar-width: none; /* Firefox */
+                    -ms-overflow-style: none; /* IE and Edge */
                     align-self: start;
+                }
+
+                .community-sidebar::-webkit-scrollbar {
+                    display: none; /* Chrome, Safari, Opera */
                 }
 
                 .community-main {
@@ -505,6 +586,12 @@ const styles: Record<string, React.CSSProperties> = {
         fontWeight: 600,
         color: '#00d4aa',
         margin: 0,
+    },
+    jobEmptyText: {
+        margin: '0 0 12px 0',
+        fontSize: '12px',
+        color: '#666',
+        lineHeight: '1.4',
     },
     showMoreBtn: {
         width: '100%',

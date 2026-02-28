@@ -32,8 +32,8 @@ export const RoleGuard = ({ children, allowedRoles, redirectTo = '/' }: RoleGuar
     }
 
     if (!user) {
-        // If user is not logged in, redirect to login page
-        return <Navigate to="/login" replace />;
+        // If user is not logged in, redirect to landing page
+        return <Navigate to="/" replace />;
     }
 
     if (!user.role || !allowedRoles.includes(user.role)) {

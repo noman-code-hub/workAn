@@ -11,6 +11,8 @@ import {
   ExternalLink,
   Filter,
   Briefcase,
+  Sparkles,
+  TrendingUp,
   X,
   User,
 } from 'lucide-react';
@@ -30,22 +32,50 @@ const getCompanyUrl = (company: string) => {
   return `https://www.${clean}.com`;
 };
 
+const popularRoles = ['Remote Engineer', 'Product Manager', 'Data Scientist'];
+
+const networkNodes = [
+  { top: '12%', left: '11%' },
+  { top: '21%', left: '31%' },
+  { top: '12%', left: '47%' },
+  { top: '31%', left: '63%' },
+  { top: '57%', left: '31%' },
+  { top: '68%', left: '47%' },
+  { top: '45%', left: '20%' },
+  { top: '45%', left: '58%' },
+];
+
+const networkLines = [
+  { top: '14%', left: '12%', width: '18%', rotate: '15deg' },
+  { top: '22%', left: '31%', width: '15%', rotate: '-13deg' },
+  { top: '14%', left: '47%', width: '17%', rotate: '20deg' },
+  { top: '24%', left: '31%', width: '18%', rotate: '63deg' },
+  { top: '34%', left: '21%', width: '27%', rotate: '15deg' },
+  { top: '45%', left: '20%', width: '10%', rotate: '-74deg' },
+  { top: '58%', left: '31%', width: '16%', rotate: '17deg' },
+  { top: '58%', left: '31%', width: '28%', rotate: '-14deg' },
+];
+
 export const Jobs = () => {
   const { user } = useAuth();
   const routeLocation = useLocation();
   const navigate = useNavigate();
+  const isResultsPage = routeLocation.pathname === '/jobs/results';
   const initialSearchParams = new URLSearchParams(routeLocation.search);
   const initialQueryFromUrl = (initialSearchParams.get('q') || '').trim();
   const initialLocationFromUrl = (initialSearchParams.get('location') || '').trim();
+  const initialTypeFromUrl = (initialSearchParams.get('contract_type') || '').trim();
+  const hasInitialSearchParams = Boolean(initialQueryFromUrl || initialLocationFromUrl || initialTypeFromUrl);
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
   const [totalJobs, setTotalJobs] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState(initialQueryFromUrl);
   const [locationFilter, setLocationFilter] = useState(initialLocationFromUrl);
-  const [typeFilter, setTypeFilter] = useState<string>('');
+  const [typeFilter, setTypeFilter] = useState<string>(initialTypeFromUrl);
   const [showFilters, setShowFilters] = useState(false);
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [errorMessage, setErrorMessage] = useState('');
+  const [hasSearched, setHasSearched] = useState(isResultsPage && hasInitialSearchParams);
 
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -66,25 +96,34 @@ export const Jobs = () => {
     }
   };
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setPage(1);
-      fetchJobs(1, true);
-    }, 800);
-
-    return () => clearTimeout(timer);
-  }, [locationFilter, typeFilter]);
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      setPage(1);
-      fetchJobs(1, true);
+      e.preventDefault();
+      handleSearch();
     }
   };
 
   const handleSearch = () => {
-    setPage(1);
-    fetchJobs(1, true);
+    const queryValue = searchQuery.trim();
+    const locationValue = locationFilter.trim();
+    const params = new URLSearchParams();
+    if (queryValue) params.set('q', queryValue);
+    if (locationValue) params.set('location', locationValue);
+    if (typeFilter) params.set('contract_type', typeFilter);
+    const targetSearch = params.toString() ? `?${params.toString()}` : '';
+
+    if (isResultsPage && routeLocation.search === targetSearch) {
+      setHasSearched(Boolean(queryValue || locationValue || typeFilter));
+      setPage(1);
+      fetchJobs(1, true, {
+        query: queryValue,
+        location: locationValue,
+        contractType: typeFilter,
+      });
+      return;
+    }
+
+    navigate(`/jobs/results${targetSearch}`);
   };
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -97,7 +136,15 @@ export const Jobs = () => {
     };
   }, []);
 
-  const fetchJobs = async (pageNum = 1, shouldReplace = false) => {
+  const fetchJobs = async (
+    pageNum = 1,
+    shouldReplace = false,
+    overrides?: {
+      query?: string;
+      location?: string;
+      contractType?: string;
+    }
+  ) => {
     if (shouldReplace && abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -114,7 +161,10 @@ export const Jobs = () => {
 
     try {
       setErrorMessage('');
-      const effectiveQuery = searchQuery.trim() || (user?.profession ? user.profession : 'jobs');
+      const resolvedQuery = (overrides?.query ?? searchQuery).trim();
+      const resolvedLocation = overrides?.location ?? locationFilter;
+      const resolvedContractType = overrides?.contractType ?? typeFilter;
+      const effectiveQuery = resolvedQuery || (user?.profession ? user.profession : 'jobs');
 
       const getCountryCode = (location: string) => {
         if (!location) return 'us';
@@ -131,7 +181,7 @@ export const Jobs = () => {
         return 'us';
       };
 
-      const countryCode = getCountryCode(locationFilter);
+      const countryCode = getCountryCode(resolvedLocation);
 
       const params = new URLSearchParams();
       params.append('query', effectiveQuery);
@@ -143,8 +193,8 @@ export const Jobs = () => {
         params.append('page_token', nextPageToken);
       }
 
-      if (locationFilter) params.append('location', locationFilter);
-      if (typeFilter) params.append('contract_type', typeFilter);
+      if (resolvedLocation) params.append('location', resolvedLocation);
+      if (resolvedContractType) params.append('contract_type', resolvedContractType);
 
       const url = apiUrl(`/jobs/search?${params.toString()}`);
       console.log('Fetching jobs from:', url);
@@ -222,6 +272,41 @@ export const Jobs = () => {
       }
     }
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(routeLocation.search);
+    const q = (params.get('q') || '').trim();
+    const loc = (params.get('location') || '').trim();
+    const contractType = (params.get('contract_type') || '').trim();
+    const shouldSearch = isResultsPage && Boolean(q || loc || contractType);
+
+    setSearchQuery(q);
+    setLocationFilter(loc);
+    setTypeFilter(contractType);
+    setHasSearched(shouldSearch);
+    setPage(1);
+
+    if (!isResultsPage && (q || loc || contractType)) {
+      navigate(`/jobs/results?${params.toString()}`, { replace: true });
+      return;
+    }
+
+    if (!shouldSearch) {
+      setFilteredJobs([]);
+      setDisplayedQuery('');
+      setTotalJobs(0);
+      setNextPageToken(null);
+      setLoading(false);
+      setLoadingMore(false);
+      return;
+    }
+
+    fetchJobs(1, true, {
+      query: q,
+      location: loc,
+      contractType,
+    });
+  }, [isResultsPage, routeLocation.search]);
 
   const handleLoadMore = () => {
     const nextPage = page + 1;
@@ -303,19 +388,50 @@ export const Jobs = () => {
     if (key === 'location') setLocationFilter('');
     if (key === 'type') setTypeFilter('');
   };
+  const showResultsSection = isResultsPage && hasSearched;
 
   return (
-    <div className="jobs-page-modern">
+    <div className={`jobs-page-modern ${!showResultsSection ? 'jobs-hero-only' : ''}`}>
       <div className="jobs-glow jobs-glow-top" />
       <div className="jobs-glow jobs-glow-bottom" />
 
       {/* Hero Search Section */}
-      <section className="search-hero panel fade-in delay-0">
-        <div className="search-hero-content">
-          <h1>Find Your <span className="highlight">Dream Job</span></h1>
-          <p className="subtitle">AI-powered job recommendations matched to your skills and preferences</p>
+      <section className="search-hero fade-in delay-0">
+        <div className="hero-network" aria-hidden="true">
+          {networkLines.map((line, index) => (
+            <span
+              key={`line-${index}`}
+              className="hero-network-line"
+              style={{
+                top: line.top,
+                left: line.left,
+                width: line.width,
+                transform: `rotate(${line.rotate})`,
+              }}
+            />
+          ))}
+          {networkNodes.map((node, index) => (
+            <span
+              key={`node-${index}`}
+              className="hero-network-node"
+              style={{ top: node.top, left: node.left }}
+            />
+          ))}
+        </div>
 
-          {/* Modern Search Bar */}
+        <div className="search-hero-content">
+          <div className="hero-kicker">
+            <Sparkles size={16} />
+            <span>AI Career Match Engine</span>
+          </div>
+          <h1 className="hero-title">
+            Find the role that <span>fits your DNA.</span>
+          </h1>
+          <p className="hero-subtitle">
+            workIn uses AI to analyze your skills and preferences, matching you
+            with opportunities where you can truly thrive.
+          </p>
+
           <div className="modern-search-box">
             <div className="search-input-group">
               <Search className="input-icon" size={20} />
@@ -347,65 +463,95 @@ export const Jobs = () => {
             </button>
           </div>
 
-          <div className="hero-info-row">
-            <span className="hero-chip">Live listings: {totalJobs.toLocaleString()}</span>
-            <span className="hero-chip">Active filters: {activeFiltersCount}</span>
-            <span className="hero-chip">Auto-scroll load enabled</span>
-          </div>
-
-          {/* Filter Toggle */}
-          <div className="filter-toggle-row">
-            <button
-              className={`filter-toggle-btn ${showFilters ? 'active' : ''}`}
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <Filter size={18} />
-              {showFilters ? 'Hide Filters' : 'Show Filters'}
-            </button>
-
-            {displayedQuery && (
-              <span className="results-count">
-                {totalJobs.toLocaleString()} jobs found for "{displayedQuery}"
-              </span>
-            )}
-          </div>
-
-          {/* Filters Panel */}
-          {showFilters && (
-            <div className="filters-panel-modern fade-in delay-1">
-              <div className="filter-item">
-                <label>Job Type</label>
-                <select
-                  className="filter-select"
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
+          <div className="hero-popular">
+            <span className="hero-popular-label">Popular:</span>
+            <div className="hero-popular-chips">
+              {popularRoles.map((role) => (
+                <button
+                  key={role}
+                  type="button"
+                  className="hero-popular-chip"
+                  onClick={() => setSearchQuery(role)}
                 >
-                  <option value="">All Types</option>
-                  <option value="full-time">Full Time</option>
-                  <option value="part-time">Part Time</option>
-                  <option value="contract">Contract</option>
-                  <option value="remote">Remote</option>
-                </select>
-              </div>
-
-              <button
-                className="clear-filters-btn"
-                onClick={() => {
-                  setSearchQuery('');
-                  setLocationFilter('');
-                  setTypeFilter('');
-                }}
-              >
-                <X size={16} />
-                Clear All
-              </button>
+                  {role}
+                </button>
+              ))}
             </div>
-          )}
+          </div>
+
+          <div className="hero-insights">
+            <article className="insight-card">
+              <div className="insight-icon">
+                <Briefcase size={18} />
+              </div>
+              <div>
+                <p className="insight-value">50k+</p>
+                <p className="insight-label">roles indexed daily</p>
+              </div>
+            </article>
+            <article className="insight-card">
+              <div className="insight-icon">
+                <TrendingUp size={18} />
+              </div>
+              <div>
+                <p className="insight-value">91%</p>
+                <p className="insight-label">higher relevance match</p>
+              </div>
+            </article>
+          </div>
         </div>
       </section>
 
       {/* Jobs List */}
+      {showResultsSection && (
       <div className="jobs-container">
+        <div className="filter-toggle-row">
+          <button
+            className={`filter-toggle-btn ${showFilters ? 'active' : ''}`}
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter size={18} />
+            {showFilters ? 'Hide Filters' : `Show Filters (${activeFiltersCount})`}
+          </button>
+
+          {displayedQuery && (
+            <span className="results-count">
+              {totalJobs.toLocaleString()} jobs found for "{displayedQuery}"
+            </span>
+          )}
+        </div>
+
+        {showFilters && (
+          <div className="filters-panel-modern fade-in delay-1">
+            <div className="filter-item">
+              <label>Job Type</label>
+              <select
+                className="filter-select"
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+              >
+                <option value="">All Types</option>
+                <option value="full-time">Full Time</option>
+                <option value="part-time">Part Time</option>
+                <option value="contract">Contract</option>
+                <option value="remote">Remote</option>
+              </select>
+            </div>
+
+            <button
+              className="clear-filters-btn"
+              onClick={() => {
+                setSearchQuery('');
+                setLocationFilter('');
+                setTypeFilter('');
+              }}
+            >
+              <X size={16} />
+              Clear All
+            </button>
+          </div>
+        )}
+
         <div className="jobs-toolbar fade-in delay-1">
           <div className="jobs-toolbar-copy">
             <h2>Matched Opportunities</h2>
@@ -582,6 +728,7 @@ export const Jobs = () => {
           </>
         )}
       </div>
+      )}
 
       {/* Chat Assistant Button */}
       <button className="chat-assistant" onClick={() => navigate('/ai-copilot')}>
@@ -703,6 +850,7 @@ export const Jobs = () => {
           justify-content: space-between;
           flex-wrap: wrap;
           gap: 16px;
+          margin: 16px 0 12px;
         }
 
         .filter-toggle-btn {
@@ -728,6 +876,7 @@ export const Jobs = () => {
         .results-count {
           color: #6b7280;
           font-size: 14px;
+          font-weight: 600;
         }
 
         /* Filters Panel */
@@ -1208,85 +1357,221 @@ export const Jobs = () => {
           max-width: none;
           width: 100%;
           margin: 0;
-          padding: 44px 24px 28px;
+          padding: 52px 24px 34px;
           border-radius: 0;
           border: none;
+          position: relative;
+          overflow: hidden;
           background:
             radial-gradient(circle at top right, rgba(45, 212, 191, 0.16), transparent 42%),
             linear-gradient(145deg, #ffffff, #f6fbff);
         }
 
+        .jobs-page-modern.jobs-hero-only .search-hero {
+          min-height: calc(100vh - 72px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
         .search-hero-content {
-          max-width: none;
-          width: 100%;
-          margin: 0;
+          max-width: 980px;
+          width: min(100%, 980px);
+          margin: 0 auto;
           padding: 0 8px;
+          text-align: center;
+          position: relative;
+          z-index: 2;
         }
 
-        .search-hero h1 {
+        .hero-network {
+          position: absolute;
+          inset: 24px 12px 0;
+          pointer-events: none;
+          opacity: 0.74;
+          z-index: 1;
+        }
+
+        .hero-network-line {
+          position: absolute;
+          height: 1px;
+          background: #c7eeea;
+          transform-origin: left center;
+        }
+
+        .hero-network-node {
+          position: absolute;
+          width: 11px;
+          height: 11px;
+          margin-left: -5px;
+          margin-top: -5px;
+          border-radius: 50%;
+          background: #c7eeea;
+          box-shadow: 0 0 0 6px rgba(199, 238, 234, 0.25);
+        }
+
+        .hero-kicker {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          color: #0d4f73;
+          border: 1px solid #bfe6df;
+          background: rgba(255, 255, 255, 0.72);
+          border-radius: 999px;
+          padding: 6px 14px;
+          font-size: 0.84rem;
+          font-weight: 700;
+          letter-spacing: 0.02em;
+          margin-bottom: 10px;
+        }
+
+        .hero-title {
+          margin: 0;
           font-family: 'Space Grotesk', var(--font-family);
+          font-size: clamp(2rem, 4.8vw, 4.1rem);
+          line-height: 1.06;
           letter-spacing: -0.03em;
-          font-size: clamp(2rem, 3.8vw, 3rem);
-          margin-bottom: 12px;
-          line-height: 1.05;
-          color: #0f172a;
+          font-weight: 800;
+          color: #0d1532;
         }
 
-        .highlight {
-          background: linear-gradient(135deg, #0ea5e9, #0f766e);
+        .hero-title span {
+          background-image: linear-gradient(120deg, #0fc3a4 0%, #0aa7c9 100%);
           -webkit-background-clip: text;
           background-clip: text;
           color: transparent;
         }
 
-        .subtitle { font-size: 1.02rem; margin-bottom: 24px; }
+        .hero-subtitle {
+          max-width: 650px;
+          margin: 14px auto 0;
+          color: #53627a;
+          font-size: clamp(1rem, 1.55vw, 1.25rem);
+          line-height: 1.42;
+          padding-left: 10px;
+          border-left: 2px solid #d6e4f2;
+          text-align: left;
+        }
 
         .modern-search-box {
-          border: 1px solid #c8f2e9;
-          border-radius: 18px;
-          box-shadow: 0 18px 34px -28px rgba(15, 23, 42, 0.54);
+          border: 1px solid #b4dfd8;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.92);
+          backdrop-filter: blur(8px);
+          box-shadow: 0 12px 30px rgba(21, 129, 132, 0.14);
           transition: border-color 220ms ease, box-shadow 220ms ease, transform 220ms var(--jobs-ease);
-          width: min(100%, 760px);
-          margin: 0 auto 14px;
-          padding: 6px 8px 6px 14px;
+          width: min(100%, 960px);
+          margin: 20px auto 0;
+          padding: 8px 8px 8px 24px;
         }
 
         .modern-search-box:focus-within {
-          border-color: #14b8a6;
-          box-shadow: 0 18px 36px -26px rgba(20, 184, 166, 0.42);
+          border-color: #0ea5a3;
+          box-shadow: 0 14px 34px rgba(16, 185, 129, 0.22);
           transform: translateY(-1px);
         }
 
         .search-btn-modern {
-          border-radius: 12px;
-          background: linear-gradient(135deg, #14b8a6, #0f766e);
-          box-shadow: 0 12px 22px -14px rgba(15, 118, 110, 0.74);
+          border-radius: 999px;
+          background: linear-gradient(135deg, #14b8a6, #0f9cc0);
+          box-shadow: 0 12px 20px -14px rgba(15, 118, 110, 0.74);
           transition: transform 220ms var(--jobs-ease), box-shadow 220ms var(--jobs-ease);
-          padding: 10px 18px;
-          min-width: 124px;
+          padding: 14px 36px;
+          min-width: 148px;
+          font-size: 1.05rem;
         }
 
         .search-btn-modern:hover {
           transform: translateY(-2px);
-          background: linear-gradient(135deg, #14b8a6, #0f766e);
+          background: linear-gradient(135deg, #14b8a6, #0f9cc0);
           box-shadow: 0 16px 26px -14px rgba(15, 118, 110, 0.8);
         }
 
-        .search-input-group { gap: 8px; }
-        .search-divider { margin: 0 10px; height: 28px; }
-        .search-input { font-size: 0.9rem; }
+        .search-input-group { gap: 10px; }
+        .search-divider { margin: 0 12px; height: 34px; background: #dbe7e7; }
+        .search-input { font-size: 1.02rem; }
 
-        .hero-info-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-        .hero-chip {
-          display: inline-flex;
+        .hero-popular {
+          margin-top: 18px;
+          display: flex;
           align-items: center;
-          padding: 6px 11px;
-          border-radius: 999px;
-          border: 1px solid #dbeafe;
-          background: #f8fafc;
+          justify-content: center;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .hero-popular-label {
+          color: #667085;
+          font-weight: 700;
+          font-size: 0.95rem;
+        }
+
+        .hero-popular-chips {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          justify-content: center;
+        }
+
+        .hero-popular-chip {
+          border: 1px solid #d8dee6;
+          background: rgba(255, 255, 255, 0.76);
           color: #334155;
-          font-size: 0.74rem;
+          border-radius: 999px;
+          padding: 8px 16px;
+          font-size: 0.9rem;
           font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .hero-popular-chip:hover {
+          border-color: #0fc3a4;
+          color: #0f766e;
+        }
+
+        .hero-insights {
+          margin-top: 16px;
+          display: flex;
+          justify-content: center;
+          gap: 14px;
+          flex-wrap: wrap;
+        }
+
+        .insight-card {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          min-width: 210px;
+          padding: 12px 16px;
+          border-radius: 14px;
+          border: 1px solid #d9e7ef;
+          background: rgba(255, 255, 255, 0.92);
+          box-shadow: 0 10px 20px -22px rgba(15, 23, 42, 0.55);
+        }
+
+        .insight-icon {
+          width: 40px;
+          height: 40px;
+          border-radius: 12px;
+          display: grid;
+          place-items: center;
+          background: linear-gradient(135deg, #14b8a6, #0f9cc0);
+          color: #fff;
+        }
+
+        .insight-value {
+          margin: 0;
+          font-weight: 800;
+          font-size: 1.6rem;
+          line-height: 1;
+          color: #0f172a;
+        }
+
+        .insight-label {
+          margin: 2px 0 0;
+          font-size: 0.9rem;
+          color: #5a6b85;
         }
 
         .filter-toggle-btn {
@@ -1521,6 +1806,7 @@ export const Jobs = () => {
         @media (max-width: 900px) {
           .search-hero { margin-top: 0; padding: 24px 16px 18px; border-radius: 0; }
           .modern-search-box { border-radius: 14px; }
+          .hero-subtitle { text-align: center; border-left: none; padding-left: 0; }
           .filters-panel-modern { grid-template-columns: 1fr; }
           .job-details-modern { grid-template-columns: 1fr; }
           .jobs-list { grid-template-columns: 1fr; }
@@ -1545,22 +1831,28 @@ export const Jobs = () => {
             border-bottom: 1px solid #e4edf7;
           }
 
+          .jobs-page-modern.jobs-hero-only .search-hero {
+            min-height: calc(100vh - 72px);
+          }
+
           .search-hero-content {
             padding: 0;
           }
 
-          .search-hero h1 {
+          .hero-title {
             font-size: 1.7rem;
             line-height: 1.14;
             margin-bottom: 8px;
             text-align: center;
           }
 
-          .subtitle {
+          .hero-subtitle {
             font-size: 0.9rem;
             margin-bottom: 14px;
             text-align: center;
             color: #667085;
+            border-left: none;
+            padding-left: 0;
           }
 
           .modern-search-box {
@@ -1594,7 +1886,7 @@ export const Jobs = () => {
             border-radius: 12px;
           }
 
-          .hero-info-row {
+          .hero-insights {
             display: none;
           }
 
@@ -1775,11 +2067,11 @@ export const Jobs = () => {
         }
 
         @media (max-width: 420px) {
-          .search-hero h1 {
+          .hero-title {
             font-size: 1.5rem;
           }
 
-          .subtitle {
+          .hero-subtitle {
             font-size: 0.84rem;
           }
 

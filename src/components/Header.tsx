@@ -64,6 +64,12 @@ export const Header = () => {
             Job Search
           </button>
           <button
+            onClick={() => handleNavClick('/market-jobs')}
+            className={`nav-link ${location.pathname === '/market-jobs' ? 'active' : ''}`}
+          >
+            Market Jobs
+          </button>
+          <button
             onClick={() => handleNavClick('/resume')}
             className={`nav-link ${location.pathname === '/resume' ? 'active' : ''}`}
           >
@@ -152,6 +158,12 @@ export const Header = () => {
               className={`mobile-nav-link ${location.pathname === '/jobs' ? 'active' : ''}`}
             >
               Job Search
+            </button>
+            <button
+              onClick={() => handleNavClick('/market-jobs')}
+              className={`mobile-nav-link ${location.pathname === '/market-jobs' ? 'active' : ''}`}
+            >
+              Market Jobs
             </button>
             <button
               onClick={() => handleNavClick('/resume')}
