@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Briefcase, Clock3, MapPin, RefreshCcw, Search, TriangleAlert } from 'lucide-react';
+import { Briefcase, Clock3, MapPin, Search, TriangleAlert } from 'lucide-react';
 import type { Job } from '../types';
 import { JobLogo } from '../components/JobLogo';
 import { apiUrl, parseApiJson } from '../config/api';
@@ -141,9 +141,13 @@ const formatSalary = (job: Job) => {
 };
 
 export const MarketJobs = () => {
+  const envSyncMs = Number(import.meta.env.VITE_MARKET_SYNC_MS || 5 * 60 * 1000);
+  const marketSyncIntervalMs = Number.isFinite(envSyncMs) && envSyncMs >= 30_000
+    ? envSyncMs
+    : 5 * 60 * 1000;
+
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
   const [syncWarning, setSyncWarning] = useState('');
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
@@ -153,11 +157,9 @@ export const MarketJobs = () => {
 
   const allRoles = useMemo(() => ROLE_GROUPS.flatMap((group) => group.roles), []);
 
-  const fetchJobs = async (options: { forceSync?: boolean; silent?: boolean } = {}) => {
-    const { forceSync = false, silent = false } = options;
-    if (forceSync) {
-      setSyncing(true);
-    } else if (!silent) {
+  const fetchJobs = async (options: { silent?: boolean } = {}) => {
+    const { silent = false } = options;
+    if (!silent) {
       setLoading(true);
     }
 
@@ -168,7 +170,6 @@ export const MarketJobs = () => {
         limit: '150',
       });
 
-      if (forceSync) params.set('force_sync', '1');
       if (selectedRole) params.set('role', selectedRole);
       if (search.trim()) params.set('q', search.trim());
 
@@ -187,7 +188,6 @@ export const MarketJobs = () => {
       setError(message);
     } finally {
       setLoading(false);
-      setSyncing(false);
     }
   };
 
@@ -202,6 +202,13 @@ export const MarketJobs = () => {
     fetchJobs();
   }, []);
 
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      fetchJobs({ silent: true });
+    }, marketSyncIntervalMs);
+    return () => window.clearInterval(interval);
+  }, [search, selectedRole, marketSyncIntervalMs]);
+
   const groupRoles = activeGroup === 'All'
     ? allRoles
     : (ROLE_GROUPS.find((group) => group.label === activeGroup)?.roles || []);
@@ -209,19 +216,10 @@ export const MarketJobs = () => {
   return (
     <div className="market-jobs-page">
       <section className="hero">
-        <div>
+        <div className="hero-copy">
           <h1>Weekly Market Jobs</h1>
           <p>Listings are refreshed every week. Old unavailable jobs are removed automatically.</p>
         </div>
-        <button
-          type="button"
-          className="sync-btn"
-          onClick={() => fetchJobs({ forceSync: true })}
-          disabled={syncing}
-        >
-          <RefreshCcw size={16} />
-          {syncing ? 'Syncing...' : 'Sync Now'}
-        </button>
       </section>
 
       <section className="filters">
@@ -311,59 +309,53 @@ export const MarketJobs = () => {
         .market-jobs-page {
           display: flex;
           flex-direction: column;
-          gap: 14px;
+          gap: 16px;
+          width: 100%;
+          padding: 18px 20px 24px;
+          background:
+            radial-gradient(circle at 85% 18%, rgba(125, 211, 252, 0.24), transparent 42%),
+            radial-gradient(circle at 8% 95%, rgba(165, 243, 252, 0.18), transparent 45%),
+            #f3f8ff;
+          border-radius: 18px;
         }
 
         .hero {
           display: flex;
           justify-content: space-between;
-          gap: 12px;
-          align-items: flex-start;
-          background: linear-gradient(145deg, #f8fbff, #eefbf7);
-          border: 1px solid #d9e9e2;
+          gap: 16px;
+          align-items: center;
+          background: linear-gradient(140deg, #f7fbff, #effcf7);
+          border: 1px solid #d5e6df;
           border-radius: 16px;
-          padding: 16px;
+          padding: 18px 20px;
         }
 
         .hero h1 {
           margin: 0;
-          font-size: 1.45rem;
+          font-size: clamp(1.45rem, 2.2vw, 2rem);
+          letter-spacing: -0.02em;
         }
 
         .hero p {
           margin: 6px 0 0;
           color: #475569;
-          font-size: 0.9rem;
+          font-size: 0.98rem;
         }
 
-        .sync-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          border: none;
-          border-radius: 10px;
-          background: #0f766e;
-          color: white;
-          padding: 10px 14px;
-          font-weight: 600;
-          cursor: pointer;
-        }
-
-        .sync-btn:disabled {
-          opacity: 0.75;
-          cursor: wait;
+        .hero-copy {
+          min-width: 0;
         }
 
         .filters {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) 220px 220px;
-          gap: 10px;
+          grid-template-columns: minmax(0, 1fr) 240px 240px;
+          gap: 12px;
         }
 
         .search-wrap {
           border: 1px solid #dbe5ef;
-          border-radius: 10px;
-          padding: 0 10px;
+          border-radius: 12px;
+          padding: 0 12px;
           display: flex;
           align-items: center;
           gap: 8px;
@@ -374,24 +366,29 @@ export const MarketJobs = () => {
         .filters select {
           border: 0;
           outline: none;
-          height: 42px;
+          height: 46px;
           width: 100%;
           background: transparent;
+          font-size: 0.97rem;
         }
 
         .filters select {
           border: 1px solid #dbe5ef;
-          border-radius: 10px;
-          padding: 0 10px;
+          border-radius: 12px;
+          padding: 0 12px;
           background: white;
         }
 
         .status {
           display: flex;
           flex-wrap: wrap;
-          gap: 16px;
+          gap: 14px;
           color: #334155;
-          font-size: 0.85rem;
+          font-size: 0.92rem;
+          border: 1px solid #dde6f0;
+          background: #ffffff;
+          border-radius: 12px;
+          padding: 10px 12px;
         }
 
         .status span {
@@ -403,9 +400,9 @@ export const MarketJobs = () => {
         .warning,
         .error,
         .placeholder {
-          border-radius: 10px;
-          padding: 12px;
-          font-size: 0.9rem;
+          border-radius: 12px;
+          padding: 12px 14px;
+          font-size: 0.92rem;
         }
 
         .warning {
@@ -435,17 +432,26 @@ export const MarketJobs = () => {
         .grid {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 12px;
+          gap: 14px;
         }
 
         .card {
-          border: 1px solid #dbe5ef;
-          border-radius: 14px;
-          padding: 14px;
+          border: 1px solid #d5e0eb;
+          border-radius: 16px;
+          padding: 16px;
           background: white;
           display: flex;
           flex-direction: column;
-          gap: 10px;
+          gap: 12px;
+          min-height: 260px;
+          box-shadow: 0 14px 30px -30px rgba(15, 23, 42, 0.7);
+          transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+        }
+
+        .card:hover {
+          transform: translateY(-2px);
+          border-color: #0f766e;
+          box-shadow: 0 20px 34px -28px rgba(15, 23, 42, 0.75);
         }
 
         .card-head {
@@ -456,14 +462,15 @@ export const MarketJobs = () => {
 
         .card-head h3 {
           margin: 0;
-          font-size: 1rem;
+          font-size: 1.28rem;
           color: #0f172a;
+          line-height: 1.25;
         }
 
         .card-head p {
           margin: 2px 0 0;
           color: #475569;
-          font-size: 0.85rem;
+          font-size: 0.92rem;
         }
 
         .meta {
@@ -471,7 +478,7 @@ export const MarketJobs = () => {
           flex-wrap: wrap;
           gap: 10px;
           color: #334155;
-          font-size: 0.8rem;
+          font-size: 0.84rem;
         }
 
         .meta span {
@@ -487,8 +494,12 @@ export const MarketJobs = () => {
         .desc {
           margin: 0;
           color: #334155;
-          font-size: 0.88rem;
+          font-size: 0.95rem;
           line-height: 1.45;
+          display: -webkit-box;
+          -webkit-line-clamp: 5;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
         }
 
         .skills {
@@ -501,7 +512,7 @@ export const MarketJobs = () => {
           background: #eff6ff;
           color: #1d4ed8;
           border: 1px solid #bfdbfe;
-          font-size: 0.72rem;
+          font-size: 0.76rem;
           border-radius: 999px;
           padding: 4px 8px;
         }
@@ -511,11 +522,11 @@ export const MarketJobs = () => {
           display: inline-flex;
           justify-content: center;
           align-items: center;
-          border-radius: 10px;
+          border-radius: 12px;
           border: 1px solid #0f766e;
           color: #0f766e;
           text-decoration: none;
-          padding: 9px 12px;
+          padding: 10px 14px;
           font-weight: 600;
         }
 
@@ -524,22 +535,87 @@ export const MarketJobs = () => {
           color: white;
         }
 
-        @media (max-width: 900px) {
-          .filters {
+        @media (max-width: 1180px) {
+          .grid {
             grid-template-columns: 1fr;
           }
+        }
 
-          .grid {
+        @media (max-width: 900px) {
+          .market-jobs-page {
+            padding: 12px;
+            border-radius: 0;
+          }
+
+          .filters {
             grid-template-columns: 1fr;
           }
 
           .hero {
             flex-direction: column;
+            align-items: flex-start;
+            padding: 14px;
           }
 
-          .sync-btn {
+          .status {
+            font-size: 0.85rem;
+            gap: 10px;
+            padding: 10px;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .market-jobs-page {
+            padding: 10px;
+          }
+
+          .hero h1 {
+            font-size: 1.3rem;
+          }
+
+          .hero p {
+            font-size: 0.9rem;
+          }
+
+          .search-wrap input,
+          .filters select {
+            height: 44px;
+            font-size: 0.92rem;
+          }
+
+          .card {
+            padding: 12px;
+            border-radius: 14px;
+            min-height: 0;
+          }
+
+          .card-head h3 {
+            font-size: 1.08rem;
+          }
+
+          .card-head p,
+          .desc {
+            font-size: 0.88rem;
+          }
+
+          .meta {
+            font-size: 0.75rem;
+            gap: 8px;
+          }
+
+          .apply-link {
             width: 100%;
-            justify-content: center;
+          }
+
+          .status {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .card {
+            transition: none;
           }
         }
       `}</style>

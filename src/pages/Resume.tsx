@@ -710,6 +710,44 @@ export const Resume = () => {
       .join('\n');
     const styleContainer = document.createElement('div');
     styleContainer.innerHTML = headAssets;
+    const pdfPaginationStyle = document.createElement('style');
+    pdfPaginationStyle.textContent = `
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+      p,
+      li,
+      blockquote,
+      pre,
+      table,
+      tr,
+      td,
+      th,
+      .section,
+      .experience-item,
+      .education-item,
+      .project-item {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6 {
+        break-after: avoid;
+        page-break-after: avoid;
+      }
+      p,
+      li {
+        orphans: 3;
+        widows: 3;
+        overflow-wrap: anywhere;
+      }
+    `;
+    styleContainer.appendChild(pdfPaginationStyle);
     const contentWrapper = document.createElement('div');
     contentWrapper.innerHTML = sourceDoc.body?.innerHTML || '';
     element.appendChild(styleContainer);
@@ -733,11 +771,10 @@ export const Resume = () => {
         resumeContainer.style.margin = '0';
         resumeContainer.style.borderRadius = '0';
         resumeContainer.style.boxShadow = 'none';
-        resumeContainer.style.minHeight = `${a4HeightPx}px`;
       }
       const grid = resumeContainer?.querySelector('.grid') as HTMLElement | null;
       if (grid) {
-        grid.style.minHeight = `${a4HeightPx}px`;
+        grid.style.minHeight = 'auto';
       }
       contentWrapper.style.margin = '0';
       contentWrapper.style.padding = '0';
@@ -760,7 +797,8 @@ export const Resume = () => {
         }
         const replacement = document.createElement(tag === 'textarea' ? 'div' : 'span');
         replacement.className = (field as HTMLElement).className;
-        replacement.style.whiteSpace = 'pre-wrap';
+        replacement.style.whiteSpace = tag === 'textarea' ? 'pre-line' : 'normal';
+        replacement.style.overflowWrap = 'anywhere';
         replacement.textContent = value;
         field.replaceWith(replacement);
       });
@@ -842,6 +880,10 @@ export const Resume = () => {
         windowWidth: a4WidthPx,
         windowHeight: safeHeight,
         letterRendering: true,
+      },
+      pagebreak: {
+        mode: ['css', 'legacy'],
+        avoid: ['p', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'table', 'tr', 'img'],
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
     };

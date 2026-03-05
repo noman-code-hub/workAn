@@ -224,11 +224,13 @@ export const Header = () => {
         .universal-header {
           background: white;
           border-bottom: 1px solid #e5e7eb;
-          height: 72px;
+          height: var(--header-height, 72px);
           display: flex;
           align-items: center;
-          position: sticky;
+          position: fixed;
           top: 0;
+          left: 0;
+          right: 0;
           z-index: 1000;
           width: 100%;
         }
@@ -363,7 +365,7 @@ export const Header = () => {
         /* Mobile Menu Styles */
         .mobile-menu {
           position: fixed;
-          top: 72px;
+          top: var(--header-height, 72px);
           left: 0;
           right: 0;
           bottom: 0;

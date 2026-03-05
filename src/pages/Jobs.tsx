@@ -1,13 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import type { CSSProperties } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Search,
   MapPin,
-  DollarSign,
-  Clock,
-  BookmarkPlus,
-  Bookmark,
+  Heart,
+  ThumbsDown,
+  FolderPlus,
   ExternalLink,
   Filter,
   Briefcase,
@@ -72,7 +71,7 @@ export const Jobs = () => {
   const [searchQuery, setSearchQuery] = useState(initialQueryFromUrl);
   const [locationFilter, setLocationFilter] = useState(initialLocationFromUrl);
   const [typeFilter, setTypeFilter] = useState<string>(initialTypeFromUrl);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [errorMessage, setErrorMessage] = useState('');
   const [hasSearched, setHasSearched] = useState(isResultsPage && hasInitialSearchParams);
@@ -83,6 +82,9 @@ export const Jobs = () => {
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy] = useState<'best' | 'latest' | 'salary-high' | 'salary-low'>('best');
+  const [budgetMin, setBudgetMin] = useState('');
+  const [budgetMax, setBudgetMax] = useState('');
 
   const handleApply = async (job: Job) => {
     setApplyingId(job.id);
@@ -388,14 +390,58 @@ export const Jobs = () => {
     if (key === 'location') setLocationFilter('');
     if (key === 'type') setTypeFilter('');
   };
-  const showResultsSection = isResultsPage && hasSearched;
+
+  const renderHighlighted = (text: string, query: string) => {
+    const cleanQuery = query.trim();
+    if (!cleanQuery) return text;
+    const escaped = cleanQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escaped})`, 'ig');
+    const parts = text.split(regex);
+    return parts.map((part, index) => (
+      part.toLowerCase() === cleanQuery.toLowerCase()
+        ? <mark key={`${part}-${index}`} className="result-highlight">{part}</mark>
+        : <span key={`${part}-${index}`}>{part}</span>
+    ));
+  };
+
+  const visibleJobs = useMemo(() => {
+    const min = budgetMin ? Number(budgetMin) : 0;
+    const max = budgetMax ? Number(budgetMax) : 0;
+
+    let next = filteredJobs.filter((job) => {
+      const low = Number(job.salary.min || 0);
+      const high = Number(job.salary.max || 0);
+      if (min > 0 && high < min) return false;
+      if (max > 0 && low > max) return false;
+      return true;
+    });
+
+    if (sortBy === 'latest') {
+      next = [...next].sort((a, b) => {
+        const ta = new Date(a.postedDate).getTime();
+        const tb = new Date(b.postedDate).getTime();
+        return tb - ta;
+      });
+    } else if (sortBy === 'salary-high') {
+      next = [...next].sort((a, b) => (b.salary.max || 0) - (a.salary.max || 0));
+    } else if (sortBy === 'salary-low') {
+      next = [...next].sort((a, b) => (a.salary.min || 0) - (b.salary.min || 0));
+    }
+
+    return next;
+  }, [filteredJobs, budgetMin, budgetMax, sortBy]);
+
+  const headlineQuery = displayedQuery || searchQuery;
+  const showSearchPage = !isResultsPage;
+  const showResultsSection = isResultsPage;
 
   return (
-    <div className={`jobs-page-modern ${!showResultsSection ? 'jobs-hero-only' : ''}`}>
+    <div className={`jobs-page-modern ${showSearchPage ? 'jobs-hero-only' : ''}`}>
       <div className="jobs-glow jobs-glow-top" />
       <div className="jobs-glow jobs-glow-bottom" />
 
       {/* Hero Search Section */}
+      {showSearchPage && (
       <section className="search-hero fade-in delay-0">
         <div className="hero-network" aria-hidden="true">
           {networkLines.map((line, index) => (
@@ -501,36 +547,39 @@ export const Jobs = () => {
           </div>
         </div>
       </section>
+      )}
 
       {/* Jobs List */}
       {showResultsSection && (
       <div className="jobs-container">
-        <div className="filter-toggle-row">
-          <button
-            className={`filter-toggle-btn ${showFilters ? 'active' : ''}`}
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <Filter size={18} />
-            {showFilters ? 'Hide Filters' : `Show Filters (${activeFiltersCount})`}
-          </button>
+        {!hasSearched ? (
+          <div className="empty-state-modern">
+            <Briefcase size={64} className="empty-icon" />
+            <h3>Start with a search</h3>
+            <p>Use the Jobs search page to enter your keyword and location first.</p>
+            <button className="btn-primary-modern" onClick={() => navigate('/jobs')}>
+              Go to Search
+            </button>
+          </div>
+        ) : (
+        <div className="jobs-market-layout">
+          <aside className={`jobs-market-sidebar ${showFilters ? 'open' : ''}`}>
+            <button
+              className={`filter-toggle-btn ${showFilters ? 'active' : ''}`}
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter size={18} />
+              {showFilters ? 'Hide Filters' : `Show Filters (${activeFiltersCount})`}
+            </button>
 
-          {displayedQuery && (
-            <span className="results-count">
-              {totalJobs.toLocaleString()} jobs found for "{displayedQuery}"
-            </span>
-          )}
-        </div>
-
-        {showFilters && (
-          <div className="filters-panel-modern fade-in delay-1">
-            <div className="filter-item">
-              <label>Job Type</label>
+            <div className="market-filter-block">
+              <div className="market-filter-title">Category</div>
               <select
-                className="filter-select"
+                className="market-select"
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
               >
-                <option value="">All Types</option>
+                <option value="">Select Categories</option>
                 <option value="full-time">Full Time</option>
                 <option value="part-time">Part Time</option>
                 <option value="contract">Contract</option>
@@ -538,194 +587,224 @@ export const Jobs = () => {
               </select>
             </div>
 
+            <div className="market-filter-block">
+              <div className="market-filter-title">Experience level</div>
+              <label className="market-check"><input type="checkbox" /> Entry level</label>
+              <label className="market-check"><input type="checkbox" /> Intermediate</label>
+              <label className="market-check"><input type="checkbox" /> Expert</label>
+            </div>
+
+            <div className="market-filter-block">
+              <div className="market-filter-title">Budget range</div>
+              <div className="market-budget-row">
+                <input
+                  type="number"
+                  className="market-budget-input"
+                  value={budgetMin}
+                  onChange={(e) => setBudgetMin(e.target.value)}
+                  placeholder="$ Min"
+                />
+                <input
+                  type="number"
+                  className="market-budget-input"
+                  value={budgetMax}
+                  onChange={(e) => setBudgetMax(e.target.value)}
+                  placeholder="$ Max"
+                />
+              </div>
+            </div>
+
+            {activeFilterPills.length > 0 && (
+              <div className="jobs-toolbar-filters">
+                {activeFilterPills.map((pill) => (
+                  <button
+                    key={pill.key}
+                    className="active-filter-pill"
+                    onClick={() => clearSingleFilter(pill.key)}
+                  >
+                    {pill.label}
+                    <X size={14} />
+                  </button>
+                ))}
+              </div>
+            )}
+
             <button
               className="clear-filters-btn"
               onClick={() => {
                 setSearchQuery('');
                 setLocationFilter('');
                 setTypeFilter('');
+                setBudgetMin('');
+                setBudgetMax('');
               }}
             >
               <X size={16} />
-              Clear All
-            </button>
-          </div>
-        )}
-
-        <div className="jobs-toolbar fade-in delay-1">
-          <div className="jobs-toolbar-copy">
-            <h2>Matched Opportunities</h2>
-            <p>
-              {displayedQuery
-                ? `${totalJobs.toLocaleString()} results for "${displayedQuery}"`
-                : 'Discover curated roles aligned with your profile'}
-            </p>
-          </div>
-          {activeFilterPills.length > 0 && (
-            <div className="jobs-toolbar-filters">
-              {activeFilterPills.map((pill) => (
-                <button
-                  key={pill.key}
-                  className="active-filter-pill"
-                  onClick={() => clearSingleFilter(pill.key)}
-                >
-                  {pill.label}
-                  <X size={14} />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {loading ? (
-          <div className="jobs-list">
-            {[1, 2, 3, 4, 5, 6].map((i, index) => (
-              <div key={i} className="job-card-skeleton fade-in delay-2" style={staggerStyle(index, 120)}>
-                <div className="skeleton-header"></div>
-                <div className="skeleton-content"></div>
-                <div className="skeleton-footer"></div>
-              </div>
-            ))}
-          </div>
-        ) : filteredJobs.length === 0 ? (
-          <div className="empty-state-modern">
-            <Briefcase size={64} className="empty-icon" />
-            <h3>No jobs found</h3>
-            <p>{errorMessage || 'Try adjusting your search or filters'}</p>
-            <button
-              className="btn-primary-modern"
-              onClick={() => {
-                setSearchQuery('');
-                setLocationFilter('');
-                setTypeFilter('');
-              }}
-            >
               Clear Filters
             </button>
-          </div>
-        ) : (
-          <>
-            <div className="jobs-list">
-              {filteredJobs.map((job, index) => (
-                <div key={job.id} className="modern-job-card fade-in delay-2" style={staggerStyle(index, 80)}>
-                  <div className="job-card-header-modern">
-                    <a href={getCompanyUrl(job.company)} target="_blank" rel="noopener noreferrer">
-                      <JobLogo company={job.company} />
-                    </a>
-                    <div className="job-header-info">
-                      <h3 className="job-title-modern">{job.title}</h3>
-                      <a
-                        href={getCompanyUrl(job.company)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="company-name-modern"
-                      >
-                        {job.company}
-                      </a>
-                    </div>
-                    <button
-                      className={`bookmark-modern ${bookmarkedIds.has(job.id) ? 'active' : ''}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleBookmark(job.id);
-                      }}
-                    >
-                      {bookmarkedIds.has(job.id) ? (
-                        <Bookmark size={20} fill="currentColor" />
-                      ) : (
-                        <BookmarkPlus size={20} />
-                      )}
-                    </button>
-                  </div>
+          </aside>
 
-                  {job.matchScore && (
-                    <div className="match-badge">
-                      {job.matchScore}% Match
-                    </div>
-                  )}
-
-                  <div className="job-details-modern">
-                    <div className="job-detail-item">
-                      <MapPin size={16} />
-                      <span>{job.location}</span>
-                    </div>
-                    <div className="job-detail-item">
-                      <DollarSign size={16} />
-                      <span>{formatSalary(job)}</span>
-                    </div>
-                    <div className="job-detail-item">
-                      <Clock size={16} />
-                      <span>{getTimeSince(job.postedDate)}</span>
-                    </div>
-                    <div className="job-detail-item">
-                      <Briefcase size={16} />
-                      <span className="capitalize">{job.type.replace('-', ' ')}</span>
-                    </div>
-                  </div>
-
-                  <p className="job-description-modern">
-                    {expandedDescriptions.has(job.id) || job.description.length <= 200
-                      ? job.description
-                      : `${job.description.substring(0, 200)}...`}
-                  </p>
-
-                  {job.description.length > 200 && (
-                    <button
-                      className="toggle-desc-btn"
-                      onClick={() => toggleDescription(job.id)}
-                    >
-                      {expandedDescriptions.has(job.id) ? 'Show Less' : 'Show More'}
-                    </button>
-                  )}
-
-                  <div className="job-skills-modern">
-                    {job.skills.slice(0, 5).map((skill) => (
-                      <span key={skill} className="skill-tag">
-                        {skill}
-                      </span>
-                    ))}
-                    {job.skills.length > 5 && (
-                      <span className="skill-tag more">+{job.skills.length - 5}</span>
-                    )}
-                  </div>
-
-                  <div className="job-actions-modern">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleApply(job);
-                      }}
-                      className="btn-apply-modern"
-                      disabled={applyingId === job.id}
-                    >
-                      {applyingId === job.id ? 'Checking...' : 'Apply Now'}
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/jobs/${job.id}`, { state: { returnTo: '/jobs', returnLabel: 'Back to Jobs' } });
-                      }}
-                      className="btn-details-modern"
-                    >
-                      <ExternalLink size={18} />
-                      View Details
-                    </button>
-                  </div>
-                </div>
-              ))}
+          <section className="jobs-market-results">
+            <div className="jobs-market-toolbar">
+              <div className="jobs-market-toolbar-left">
+                <button className="save-search-btn">
+                  <FolderPlus size={18} />
+                  Save search
+                </button>
+                <span className="results-count">
+                  {totalJobs.toLocaleString()} jobs found for "{displayedQuery || searchQuery || 'jobs'}"
+                </span>
+              </div>
+              <div className="jobs-market-toolbar-right">
+                <button className="saved-jobs-btn">
+                  <Heart size={18} />
+                  Saved jobs ({bookmarkedIds.size})
+                </button>
+                <select
+                  className="market-sort-select"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as 'best' | 'latest' | 'salary-high' | 'salary-low')}
+                >
+                  <option value="best">Sort by: Best Matches</option>
+                  <option value="latest">Sort by: Latest</option>
+                  <option value="salary-high">Sort by: Salary high to low</option>
+                  <option value="salary-low">Sort by: Salary low to high</option>
+                </select>
+              </div>
             </div>
 
-            {nextPageToken && (
-              <div
-                ref={observerTarget}
-                className="load-more-trigger"
-              >
-                {loadingMore && (
-                  <p className="loading-text">Loading more jobs...</p>
-                )}
+            {loading ? (
+              <div className="jobs-list">
+                {[1, 2, 3, 4].map((i, index) => (
+                  <div key={i} className="job-card-skeleton fade-in delay-2" style={staggerStyle(index, 120)}>
+                    <div className="skeleton-header"></div>
+                    <div className="skeleton-content"></div>
+                    <div className="skeleton-footer"></div>
+                  </div>
+                ))}
               </div>
+            ) : visibleJobs.length === 0 ? (
+              <div className="empty-state-modern">
+                <Briefcase size={64} className="empty-icon" />
+                <h3>No jobs found</h3>
+                <p>{errorMessage || 'Try adjusting your search or filters'}</p>
+              </div>
+            ) : (
+              <>
+                <div className="jobs-market-list">
+                  {visibleJobs.map((job, index) => (
+                    <article key={job.id} className="market-job-card fade-in delay-2" style={staggerStyle(index, 80)}>
+                      <div className="market-job-headline">
+                        <span className="market-posted">Posted {getTimeSince(job.postedDate).toLowerCase()}</span>
+                        <div className="market-action-icons">
+                          <button className="market-icon-btn" type="button">
+                            <ThumbsDown size={18} />
+                          </button>
+                          <button
+                            className={`market-icon-btn ${bookmarkedIds.has(job.id) ? 'active' : ''}`}
+                            type="button"
+                            onClick={() => toggleBookmark(job.id)}
+                          >
+                            <Heart size={18} fill={bookmarkedIds.has(job.id) ? 'currentColor' : 'none'} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="market-company-row">
+                        <a
+                          href={getCompanyUrl(job.company)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="market-company-logo"
+                          aria-label={`${job.company} company website`}
+                        >
+                          <JobLogo company={job.company} />
+                        </a>
+                        <a
+                          href={getCompanyUrl(job.company)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="market-company-link"
+                        >
+                          {job.company}
+                        </a>
+                      </div>
+
+                      <h3 className="market-job-title">{renderHighlighted(job.title, headlineQuery)}</h3>
+                      <div className="market-job-meta">
+                        <span className="verified-dot">Payment verified</span>
+                        <span>4.7</span>
+                        <span>{formatSalary(job)}</span>
+                        <span><MapPin size={15} /> {job.location}</span>
+                      </div>
+                      <p className="market-budget-line">
+                        {job.type.replace('-', ' ')} - Est. budget: {formatSalary(job)}
+                      </p>
+
+                      <p className="market-job-description">
+                        {expandedDescriptions.has(job.id) || job.description.length <= 220
+                          ? renderHighlighted(job.description, headlineQuery)
+                          : renderHighlighted(`${job.description.substring(0, 220)}...`, headlineQuery)}
+                      </p>
+
+                      {job.description.length > 220 && (
+                        <button
+                          className="toggle-desc-btn"
+                          onClick={() => toggleDescription(job.id)}
+                        >
+                          {expandedDescriptions.has(job.id) ? 'Show less' : 'Show more'}
+                        </button>
+                      )}
+
+                      <div className="market-skill-row">
+                        {(job.skills.length ? job.skills : job.tags).slice(0, 7).map((skill) => (
+                          <span key={`${job.id}-${skill}`} className="market-skill-chip">
+                            {renderHighlighted(skill, headlineQuery)}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="market-job-footer">
+                        <span className="proposal-count">
+                          Proposals: {job.applicantsCount ? `${job.applicantsCount}+` : 'Open'}
+                        </span>
+                        <div className="job-actions-modern">
+                          <button
+                            onClick={() => handleApply(job)}
+                            className="btn-apply-modern"
+                            disabled={applyingId === job.id}
+                          >
+                            {applyingId === job.id ? 'Checking...' : 'Apply'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              navigate(`/jobs/${job.id}`, { state: { returnTo: '/jobs/results', returnLabel: 'Back to Results' } });
+                            }}
+                            className="btn-details-modern"
+                          >
+                            <ExternalLink size={18} />
+                            Details
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                {nextPageToken && (
+                  <div
+                    ref={observerTarget}
+                    className="load-more-trigger"
+                  >
+                    {loadingMore && (
+                      <p className="loading-text">Loading more jobs...</p>
+                    )}
+                  </div>
+                )}
+              </>
             )}
-          </>
+          </section>
+        </div>
         )}
       </div>
       )}
@@ -746,7 +825,7 @@ export const Jobs = () => {
         }
 
         .jobs-page-modern {
-          min-height: 100vh;
+          min-height: 100%;
           background: #f8fffe;
           font-family: var(--font-family);
         }
@@ -931,6 +1010,8 @@ export const Jobs = () => {
           font-size: 14px;
           cursor: pointer;
           transition: all 0.2s;
+          width: 100%;
+          justify-content: center;
         }
 
         .clear-filters-btn:hover {
@@ -940,9 +1021,568 @@ export const Jobs = () => {
 
         /* Jobs Container */
         .jobs-container {
-          max-width: 1200px;
+          max-width: 1460px;
           margin: 0 auto;
-          padding: 40px 24px;
+          padding: 34px 22px 28px;
+          background:
+            radial-gradient(circle at 85% 22%, rgba(125, 211, 252, 0.33), transparent 46%),
+            radial-gradient(circle at 8% 90%, rgba(186, 230, 253, 0.42), transparent 48%),
+            #eff7ff;
+          border-radius: 18px;
+        }
+
+        .jobs-market-layout {
+          display: grid;
+          grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+          gap: 20px;
+          align-items: start;
+        }
+
+        .jobs-market-layout > * {
+          min-width: 0;
+        }
+
+        .jobs-market-sidebar {
+          position: sticky;
+          top: 88px;
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          border-radius: 20px;
+          padding: 20px 18px 16px;
+          display: grid;
+          gap: 18px;
+          width: 100%;
+          max-width: 360px;
+          overflow: hidden;
+        }
+
+        .jobs-market-sidebar.open {
+          box-shadow: 0 12px 36px -28px rgba(15, 23, 42, 0.55);
+        }
+
+        .market-filter-block {
+          display: grid;
+          gap: 10px;
+          padding-bottom: 14px;
+          border-bottom: 1px solid #edf0f2;
+        }
+
+        .market-filter-title {
+          font-size: 1.08rem;
+          font-weight: 700;
+          color: #0f172a;
+        }
+
+        .market-select {
+          border: 1px solid #d1d5db;
+          border-radius: 10px;
+          min-height: 44px;
+          padding: 0 12px;
+          font-size: 0.96rem;
+          color: #334155;
+          background: #fff;
+          width: 100%;
+          max-width: 100%;
+        }
+
+        .market-check {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 1rem;
+          color: #111827;
+        }
+
+        .market-budget-row {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .market-budget-input {
+          border: 1px solid #d1d5db;
+          border-radius: 10px;
+          min-height: 40px;
+          padding: 0 12px;
+          font-size: 0.92rem;
+          width: 100%;
+          max-width: 100%;
+        }
+
+        .jobs-market-results {
+          background: #fff;
+          border: 1px solid #e2e8f0;
+          border-radius: 20px;
+          padding: 16px 24px 6px;
+          overflow: hidden;
+          min-width: 0;
+        }
+
+        .jobs-market-toolbar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          border-bottom: 1px solid #e8edf3;
+          padding: 2px 0 14px;
+          margin-bottom: 10px;
+        }
+
+        .jobs-market-toolbar-left,
+        .jobs-market-toolbar-right {
+          display: inline-flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .save-search-btn,
+        .saved-jobs-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          border: none;
+          background: none;
+          color: #15803d;
+          font-size: 1.08rem;
+          cursor: pointer;
+          padding: 0;
+        }
+
+        .saved-jobs-btn {
+          color: #16a34a;
+        }
+
+        .market-sort-select {
+          min-height: 52px;
+          border: 1px solid #d1d5db;
+          border-radius: 14px;
+          padding: 0 20px;
+          min-width: 290px;
+          font-size: 1.04rem;
+          color: #0f172a;
+          background: #fff;
+        }
+
+        .jobs-market-list {
+          display: grid;
+        }
+
+        .market-job-card {
+          border-bottom: 1px solid #e5e7eb;
+          padding: 20px 0 24px;
+        }
+
+        .market-job-card:last-child {
+          border-bottom: none;
+        }
+
+        .market-job-headline {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .market-posted {
+          color: #6b7280;
+          font-size: 1rem;
+        }
+
+        .market-company-row {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          margin-top: 6px;
+          margin-bottom: 4px;
+        }
+
+        .market-company-logo {
+          width: 44px;
+          height: 44px;
+          border-radius: 10px;
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          flex-shrink: 0;
+        }
+
+        .market-company-link {
+          color: #334155;
+          text-decoration: none;
+          font-size: 1rem;
+          font-weight: 600;
+        }
+
+        .market-company-link:hover {
+          color: #0f766e;
+        }
+
+        .market-action-icons {
+          display: inline-flex;
+          gap: 10px;
+        }
+
+        .market-icon-btn {
+          width: 48px;
+          height: 48px;
+          border-radius: 999px;
+          border: 1px solid #d1d5db;
+          background: #fff;
+          color: #4b5563;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+        }
+
+        .market-icon-btn.active {
+          color: #16a34a;
+          border-color: #86efac;
+          background: #f0fdf4;
+        }
+
+        .market-job-title {
+          margin: 8px 0;
+          font-size: clamp(1.55rem, 2.1vw, 2.15rem);
+          line-height: 1.14;
+          color: #0f172a;
+          letter-spacing: -0.01em;
+        }
+
+        .market-job-meta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 16px;
+          align-items: center;
+          color: #4b5563;
+          font-size: 1.05rem;
+          margin-bottom: 8px;
+        }
+
+        .market-job-meta span {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .verified-dot {
+          color: #2563eb;
+          font-weight: 600;
+        }
+
+        .market-budget-line {
+          margin: 0 0 8px;
+          font-size: 1.03rem;
+          color: #374151;
+        }
+
+        .market-job-description {
+          color: #1f2937;
+          line-height: 1.47;
+          margin: 0 0 12px;
+          font-size: 1.04rem;
+          max-width: 92%;
+        }
+
+        .result-highlight {
+          background: #a3e635;
+          padding: 0 2px;
+          border-radius: 4px;
+          color: inherit;
+        }
+
+        .market-skill-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-bottom: 12px;
+        }
+
+        .market-skill-chip {
+          background: #f2f4f7;
+          border-radius: 999px;
+          padding: 8px 14px;
+          color: #0f172a;
+          font-size: 0.92rem;
+          font-weight: 500;
+        }
+
+        .market-job-footer {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .proposal-count {
+          color: #4b5563;
+          font-size: 1rem;
+        }
+
+        .jobs-market-results .btn-apply-modern,
+        .jobs-market-results .btn-details-modern {
+          min-height: 50px;
+          min-width: 162px;
+          border-radius: 16px;
+          font-size: 0.98rem;
+          font-weight: 700;
+        }
+
+        .jobs-market-results .btn-details-modern {
+          border: 1px solid #d1d5db;
+          color: #334155;
+          background: #ffffff;
+        }
+
+        @media (min-width: 1600px) {
+          .jobs-container {
+            max-width: 1720px;
+            padding: 36px 28px 28px;
+            border-radius: 20px;
+          }
+
+          .jobs-market-layout {
+            grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
+            gap: 24px;
+          }
+
+          .jobs-market-sidebar {
+            border-radius: 22px;
+            padding: 22px 20px 18px;
+            gap: 20px;
+            max-width: 390px;
+          }
+
+          .market-filter-title {
+            font-size: 1.15rem;
+          }
+
+          .market-select,
+          .market-budget-input {
+            min-height: 46px;
+            font-size: 1rem;
+          }
+
+          .market-check {
+            font-size: 1.04rem;
+          }
+
+          .jobs-market-results {
+            border-radius: 22px;
+            padding: 18px 28px 8px;
+          }
+
+          .jobs-market-toolbar {
+            padding: 2px 0 16px;
+            margin-bottom: 10px;
+          }
+
+          .save-search-btn,
+          .saved-jobs-btn {
+            font-size: 1.15rem;
+          }
+
+          .market-sort-select {
+            min-height: 54px;
+            min-width: 320px;
+            font-size: 1.08rem;
+          }
+
+          .market-job-card {
+            padding: 22px 0 26px;
+          }
+
+          .market-posted {
+            font-size: 1.03rem;
+          }
+
+          .market-company-logo {
+            width: 48px;
+            height: 48px;
+          }
+
+          .market-company-link {
+            font-size: 1.03rem;
+          }
+
+          .market-icon-btn {
+            width: 50px;
+            height: 50px;
+          }
+
+          .market-job-title {
+            font-size: clamp(1.75rem, 2.4vw, 2.35rem);
+            line-height: 1.18;
+            margin: 10px 0;
+          }
+
+          .market-job-meta {
+            font-size: 1.11rem;
+            gap: 16px;
+            margin-bottom: 10px;
+          }
+
+          .market-budget-line {
+            font-size: 1.08rem;
+            margin-bottom: 10px;
+          }
+
+          .market-job-description {
+            font-size: 1.08rem;
+            line-height: 1.5;
+            max-width: 95%;
+          }
+
+          .market-skill-row {
+            gap: 10px;
+            margin-bottom: 12px;
+          }
+
+          .market-skill-chip {
+            font-size: 0.95rem;
+            padding: 7px 13px;
+          }
+
+          .proposal-count {
+            font-size: 1.04rem;
+          }
+
+          .jobs-market-results .btn-apply-modern,
+          .jobs-market-results .btn-details-modern {
+            min-height: 52px;
+            min-width: 150px;
+            border-radius: 14px;
+            font-size: 1rem;
+          }
+        }
+
+        @media (max-width: 1280px) {
+          .jobs-container {
+            max-width: 100%;
+            padding: 20px 14px;
+          }
+
+          .jobs-market-layout {
+            grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
+            gap: 14px;
+          }
+
+          .jobs-market-sidebar {
+            max-width: 300px;
+          }
+
+          .market-filter-title {
+            font-size: 1.15rem;
+          }
+
+          .save-search-btn,
+          .saved-jobs-btn,
+          .market-posted,
+          .market-company-link,
+          .market-job-meta,
+          .market-budget-line,
+          .proposal-count {
+            font-size: 0.98rem;
+          }
+
+          .market-sort-select {
+            min-height: 50px;
+            min-width: 250px;
+            font-size: 0.97rem;
+          }
+
+          .market-job-title {
+            font-size: clamp(1.45rem, 2.1vw, 1.95rem);
+          }
+
+          .market-job-description {
+            font-size: 1.02rem;
+          }
+
+          .market-skill-chip {
+            font-size: 0.86rem;
+            padding: 6px 11px;
+          }
+
+          .market-icon-btn {
+            width: 46px;
+            height: 46px;
+          }
+
+          .jobs-market-results .btn-apply-modern,
+          .jobs-market-results .btn-details-modern {
+            min-height: 46px;
+            min-width: 128px;
+            border-radius: 12px;
+            font-size: 0.94rem;
+          }
+        }
+
+        @media (max-width: 1024px) {
+          .jobs-container {
+            padding: 18px 14px;
+          }
+
+          .jobs-market-layout {
+            grid-template-columns: 1fr;
+            gap: 14px;
+          }
+
+          .jobs-market-sidebar {
+            position: static;
+            top: auto;
+            border-radius: 12px;
+            padding: 12px;
+            max-width: 100%;
+          }
+
+          .jobs-market-sidebar .market-filter-block,
+          .jobs-market-sidebar .jobs-toolbar-filters,
+          .jobs-market-sidebar .clear-filters-btn {
+            display: none;
+          }
+
+          .jobs-market-sidebar.open .market-filter-block,
+          .jobs-market-sidebar.open .jobs-toolbar-filters,
+          .jobs-market-sidebar.open .clear-filters-btn {
+            display: grid;
+          }
+
+          .jobs-market-sidebar.open .jobs-toolbar-filters {
+            display: flex;
+          }
+
+          .filter-toggle-btn {
+            width: 100%;
+            justify-content: center;
+            min-height: 46px;
+          }
+
+          .jobs-market-results {
+            padding: 10px 14px 2px;
+          }
+
+          .jobs-market-toolbar {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+          }
+
+          .jobs-market-toolbar-left,
+          .jobs-market-toolbar-right {
+            width: 100%;
+            justify-content: space-between;
+          }
+
+          .market-sort-select {
+            min-width: 0;
+            width: 100%;
+          }
         }
 
         .jobs-list {
@@ -1367,8 +2007,15 @@ export const Jobs = () => {
             linear-gradient(145deg, #ffffff, #f6fbff);
         }
 
-        .jobs-page-modern.jobs-hero-only .search-hero {
+        .jobs-page-modern.jobs-hero-only {
           min-height: calc(100vh - 72px);
+          height: calc(100vh - 72px);
+          overflow: hidden;
+        }
+
+        .jobs-page-modern.jobs-hero-only .search-hero {
+          min-height: 100%;
+          height: 100%;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1832,7 +2479,8 @@ export const Jobs = () => {
           }
 
           .jobs-page-modern.jobs-hero-only .search-hero {
-            min-height: calc(100vh - 72px);
+            min-height: 100%;
+            height: 100%;
           }
 
           .search-hero-content {
@@ -1922,6 +2570,93 @@ export const Jobs = () => {
 
           .jobs-container {
             padding: 12px;
+          }
+
+          .jobs-market-sidebar {
+            padding: 10px;
+            border-radius: 12px;
+          }
+
+          .jobs-market-results {
+            border-radius: 12px;
+            padding: 8px 10px 0;
+          }
+
+          .market-company-logo {
+            width: 40px;
+            height: 40px;
+          }
+
+          .jobs-market-toolbar-left,
+          .jobs-market-toolbar-right {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+          }
+
+          .save-search-btn,
+          .saved-jobs-btn {
+            font-size: 0.96rem;
+          }
+
+          .market-sort-select {
+            width: 100%;
+            min-height: 44px;
+            font-size: 0.95rem;
+          }
+
+          .market-job-card {
+            padding: 14px 0;
+          }
+
+          .market-job-headline {
+            align-items: flex-start;
+          }
+
+          .market-icon-btn {
+            width: 40px;
+            height: 40px;
+          }
+
+          .market-job-title {
+            font-size: 1.12rem;
+            line-height: 1.28;
+          }
+
+          .market-job-meta {
+            gap: 10px;
+            font-size: 0.9rem;
+          }
+
+          .market-budget-line,
+          .proposal-count {
+            font-size: 0.9rem;
+          }
+
+          .market-job-description {
+            font-size: 0.94rem;
+            line-height: 1.52;
+          }
+
+          .market-skill-chip {
+            font-size: 0.82rem;
+            padding: 5px 10px;
+          }
+
+          .market-job-footer {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
+          .job-actions-modern {
+            width: 100%;
+            flex-direction: column;
+          }
+
+          .btn-apply-modern,
+          .btn-details-modern {
+            width: 100%;
+            justify-content: center;
           }
 
           .jobs-toolbar {
@@ -2079,6 +2814,42 @@ export const Jobs = () => {
             padding: 10px;
           }
 
+          .jobs-market-sidebar {
+            padding: 8px;
+          }
+
+          .market-company-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+          }
+
+          .market-company-link {
+            font-size: 0.88rem;
+          }
+
+          .market-filter-title {
+            font-size: 0.98rem;
+          }
+
+          .market-job-title {
+            font-size: 1.02rem;
+          }
+
+          .market-job-meta {
+            font-size: 0.84rem;
+            gap: 8px;
+          }
+
+          .market-job-description {
+            font-size: 0.9rem;
+          }
+
+          .market-skill-chip {
+            font-size: 0.78rem;
+            padding: 5px 8px;
+          }
+
           .modern-job-card {
             padding: 12px;
           }
@@ -2100,3 +2871,4 @@ export const Jobs = () => {
     </div>
   );
 };
+

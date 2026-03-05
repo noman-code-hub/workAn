@@ -8,6 +8,7 @@ import careerRouter from './routes/career.js';
 import resumeAnalysisRouter from './routes/resume-analysis.js';
 import resumeGeneratorRouter from './routes/resume-generator.js';
 import templatesRouter from './routes/templates.js';
+import seoRouter from './routes/seo.js';
 import admin from 'firebase-admin';
 import fs from 'fs';
 
@@ -82,6 +83,7 @@ app.use('/api', careerRouter);
 app.use('/api', resumeAnalysisRouter);
 app.use('/api', resumeGeneratorRouter);
 app.use('/api/templates', templatesRouter);
+app.use('/', seoRouter);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

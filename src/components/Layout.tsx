@@ -10,7 +10,7 @@ export const Layout = () => {
   const location = useLocation();
   const isCommunity = location.pathname === '/community';
   const isProfile = location.pathname === '/profile';
-  const isJobs = location.pathname === '/jobs';
+  const isJobs = location.pathname.startsWith('/jobs');
   const adSlotMain = (import.meta.env.VITE_ADSENSE_SLOT_MAIN || '').trim();
 
   // Handle role-based redirects (e.g. users with no role -> /select-role)
@@ -26,7 +26,7 @@ export const Layout = () => {
         {/* Page Content */}
         <main className={`page-content ${isCommunity ? 'page-content-full' : ''} ${isProfile ? 'page-content-profile' : ''} ${isJobs ? 'page-content-jobs' : ''}`}>
           <Outlet />
-          {!isCommunity && (
+          {!isCommunity && !isJobs && (
             <section className="adsense-wrap" aria-label="Advertisement">
               <AdSenseSlot slot={adSlotMain} />
             </section>
@@ -36,6 +36,7 @@ export const Layout = () => {
 
       <style>{`
         .layout {
+          --header-height: 72px;
           display: flex;
           flex-direction: column;
           min-height: 100vh;
@@ -46,6 +47,7 @@ export const Layout = () => {
           flex: 1;
           display: flex;
           flex-direction: column;
+          margin-top: var(--header-height);
         }
 
         .page-content {
@@ -59,21 +61,21 @@ export const Layout = () => {
         .page-content-full {
           max-width: none;
           padding: 0;
-          height: calc(100vh - 72px);
+          height: calc(100vh - var(--header-height));
           overflow: hidden;
         }
 
         .page-content-profile {
           max-width: none;
           padding: 0;
-          min-height: calc(100vh - 72px);
+          min-height: calc(100vh - var(--header-height));
         }
 
         .page-content-jobs {
           max-width: none;
           padding: 0;
           width: 100%;
-          min-height: calc(100vh - 72px);
+          min-height: calc(100vh - var(--header-height));
         }
 
         .adsense-wrap {
@@ -89,7 +91,7 @@ export const Layout = () => {
 
           .page-content-full {
             height: auto;
-            min-height: calc(100vh - 72px);
+            min-height: calc(100vh - var(--header-height));
             overflow: visible;
           }
 
@@ -110,3 +112,4 @@ export const Layout = () => {
     </div>
   );
 };
+

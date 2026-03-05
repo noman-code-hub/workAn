@@ -17,6 +17,9 @@ const RecruiterDashboard = lazy(() => import('./pages/RecruiterDashboard').then(
 const Jobs = lazy(() => import('./pages/Jobs').then((m) => ({ default: m.Jobs })));
 const MarketJobs = lazy(() => import('./pages/MarketJobs').then((m) => ({ default: m.MarketJobs })));
 const JobDetails = lazy(() => import('./pages/JobDetails').then((m) => ({ default: m.JobDetails })));
+const JobSearchTool = lazy(() => import('./pages/JobSearchTool').then((m) => ({ default: m.JobSearchTool })));
+const JobSearchDetails = lazy(() => import('./pages/JobSearchDetails').then((m) => ({ default: m.JobSearchDetails })));
+const SeoJobsPage = lazy(() => import('./pages/SeoJobsPage').then((m) => ({ default: m.SeoJobsPage })));
 const Resume = lazy(() => import('./pages/Resume').then((m) => ({ default: m.Resume })));
 const CareerTrends = lazy(() => import('./pages/CareerTrends').then((m) => ({ default: m.CareerTrends })));
 const AICopilot = lazy(() => import('./pages/AICopilot').then((m) => ({ default: m.AICopilot })));
@@ -35,7 +38,7 @@ function App() {
   const initialPathRef = useRef(location.pathname);
   const routeRestoreAttemptedRef = useRef(false);
 
-  // Suppress harmless AbortError and Analytics warnings globally
+  // Suppress harmless AbortError and analytics-blocker noise.
   useEffect(() => {
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       const reason = event.reason;
@@ -43,41 +46,41 @@ function App() {
       // Handle AbortError from canceled fetch requests
       if (reason?.name === 'AbortError') {
         event.preventDefault();
-        console.log('🟡 AbortError silently handled (component unmounted or request canceled)');
+        console.log('AbortError silently handled (component unmounted or request canceled)');
         return;
       }
 
       // Handle Google Analytics errors from ad blockers
       // Check multiple indicators that this is an analytics error
       if (reason?.message?.includes('Failed to fetch') || reason instanceof TypeError) {
-        const stack = reason?.stack || '';
-        const message = reason?.message || '';
+        const currentStack = reason?.stack || '';
+        const currentMessage = reason?.message || '';
 
         // Check if error originates from analytics code
         const isAnalyticsError =
-          stack.includes('google-analytics.com') ||
-          stack.includes('googletagmanager.com') ||
-          stack.includes('analytics') ||
-          stack.includes('gtag') ||
-          stack.includes('frame_ant.js') || // GA iframe script
-          stack.includes('dataLayer') ||
-          stack.includes('js?l=dataLayer') || // GA tag manager script
-          message.toLowerCase().includes('analytics');
+          currentStack.includes('google-analytics.com') ||
+          currentStack.includes('googletagmanager.com') ||
+          currentStack.includes('analytics') ||
+          currentStack.includes('gtag') ||
+          currentStack.includes('frame_ant.js') || // GA iframe script
+          currentStack.includes('dataLayer') ||
+          currentStack.includes('js?l=dataLayer') || // GA tag manager script
+          currentMessage.toLowerCase().includes('analytics');
 
         if (isAnalyticsError) {
           event.preventDefault();
-          console.log('📊 Google Analytics blocked by ad blocker - continuing without analytics');
+          console.log('Google Analytics blocked by ad blocker - continuing without analytics');
           return;
         }
 
         // Catch-all for Failed to fetch from external/injected scripts
-        if (message === 'Failed to fetch' && stack) {
+        if (currentMessage === 'Failed to fetch' && currentStack) {
           // If it's from an external source (not our app code), likely a blocked resource
-          const isFromOurCode = stack.includes('/src/') || stack.includes('localhost:');
+          const isFromOurCode = currentStack.includes('/src/') || currentStack.includes('localhost:');
 
           if (!isFromOurCode) {
             event.preventDefault();
-            console.log('🔒 External resource blocked (likely tracking/analytics) - continuing normally');
+            console.log('External resource blocked (likely tracking/analytics) - continuing normally');
             return;
           }
         }
@@ -90,7 +93,6 @@ function App() {
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
   }, []);
-
   useEffect(() => {
     const timer = setTimeout(() => setBootLoading(false), 600);
     return () => clearTimeout(timer);
@@ -162,8 +164,15 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/jobs" element={<Jobs />} />
+            <Route path="/jobs/results" element={<Jobs />} />
             <Route path="/market-jobs" element={<MarketJobs />} />
             <Route path="/jobs/:id" element={<JobDetails />} />
+            <Route path="/job-search" element={<JobSearchTool />} />
+            <Route path="/job-search/:id" element={<JobSearchDetails />} />
+            <Route path="/remote-software-engineer-jobs" element={<SeoJobsPage />} />
+            <Route path="/truck-driver-jobs-usa" element={<SeoJobsPage />} />
+            <Route path="/nurse-jobs-usa" element={<SeoJobsPage />} />
+            <Route path="/government-jobs-usa" element={<SeoJobsPage />} />
             <Route path="/resume" element={<Resume />} />
             <Route path="/trends" element={<CareerTrends />} />
             <Route path="/ai-copilot" element={<AICopilot />} />

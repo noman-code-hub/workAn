@@ -16,7 +16,7 @@ if (!supabaseUrl || !supabaseKey) {
     console.warn('SUPABASE_SERVICE_ROLE_KEY missing. Using SUPABASE_KEY; RLS may block template inserts.');
 }
 
-const supabase = createClient(supabaseUrl || '', supabaseKey || '');
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 /**
  * Upload Template API
@@ -30,6 +30,10 @@ router.post('/upload', upload.fields([
     { name: 'thumbnail', maxCount: 1 }
 ]), async (req, res) => {
     try {
+        if (!supabase) {
+            return res.status(503).json({ error: 'Supabase is not configured on this server.' });
+        }
+
         const { name } = req.body;
         const htmlFile = req.files?.html?.[0];
         const cssFile = req.files?.css?.[0];
@@ -139,6 +143,10 @@ router.post('/upload', upload.fields([
  */
 router.get('/', async (req, res) => {
     try {
+        if (!supabase) {
+            return res.json([]);
+        }
+
         const { data, error } = await supabase
             .from('resume_templates')
             .select('*')
