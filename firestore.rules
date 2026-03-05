@@ -124,8 +124,8 @@ service cloud.firestore {
     
     // Job postings collection rules
     match /jobs/{jobId} {
-      // Anyone authenticated can read job postings
-      allow read: if isAuthenticated();
+      // Public read access for job details/listings
+      allow read: if true;
       
       // Only recruiters and admins can create job postings
       allow create: if isRecruiterOrAdmin();
