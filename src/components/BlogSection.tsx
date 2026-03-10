@@ -5,12 +5,10 @@ import {
     Trash2,
     ChevronDown,
     ChevronUp,
-    Briefcase,
-    FileText,
     ArrowRight
 } from 'lucide-react';
 import type { User, BlogPost } from '@/types';
-import { createPost, getUserPosts, getAllPosts, deletePost } from '@/services/postService';
+import { createPost, deletePost, subscribeToPosts } from '@/services/postService';
 
 interface BlogSectionProps {
     user?: User;
@@ -37,8 +35,21 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        loadPosts();
-    }, [user?.id]);
+        setLoading(true);
+        const unsubscribe = subscribeToPosts(
+            { userId: (!user || isFeed) ? undefined : user.id, type },
+            (postsData) => {
+                setPosts(postsData);
+                setLoading(false);
+            },
+            (error) => {
+                console.error("Error fetching posts:", error);
+                setLoading(false);
+            }
+        );
+
+        return () => unsubscribe();
+    }, [user?.id, isFeed, type]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -50,15 +61,6 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
-
-    const loadPosts = async () => {
-        setLoading(true);
-        const postsData = (isFeed || !user)
-            ? await getAllPosts(isFeed ? undefined : type)
-            : await getUserPosts(user.id, type);
-        setPosts(postsData);
-        setLoading(false);
-    };
 
     const handleCreatePost = async () => {
         if (!newPostContent.trim() && !selectedImage && !postTitle.trim()) return;
@@ -118,34 +120,6 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
                 />
             )}
 
-            {/* Start a Post (LinkedIn Structure stays, but cards change) */}
-            {user && isOwnProfile && isFeedMode && (
-                <div style={styles.createBox}>
-                    <div style={styles.inputRow}>
-                        <div style={styles.miniAvatar}>
-                            {user?.photoURL ? <img src={user.photoURL} alt="" style={styles.avatarImg} /> : user?.name.charAt(0)}
-                        </div>
-                        <button style={styles.pillInput} onClick={() => setShowCreateModal(true)}>
-                            Start a post
-                        </button>
-                    </div>
-                    <div style={styles.createActions}>
-                        <button style={styles.actionBtn} onClick={() => fileInputRef.current?.click()}>
-                            <ImageIcon size={20} color="#378fe9" />
-                            <span>Media</span>
-                        </button>
-                        <button style={styles.actionBtn}>
-                            <Briefcase size={20} color="#a872e8" />
-                            <span>Job</span>
-                        </button>
-                        <button style={styles.actionBtn} onClick={() => setShowCreateModal(true)}>
-                            <FileText size={20} color="#e7a33e" />
-                            <span>Write article</span>
-                        </button>
-                    </div>
-                </div>
-            )}
-
             {!isFeedMode && (
                 <div style={styles.gridHeader}>
                     <h2 style={styles.gridTitle}>{type === 'blog' ? 'Blog' : 'Community'}</h2>
@@ -176,7 +150,17 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
                         <div style={styles.modalBody}>
                             <div style={styles.modalUserRow}>
                                 <div style={styles.miniAvatar}>
-                                    {user.photoURL ? <img src={user.photoURL} alt="" style={styles.avatarImg} /> : user.name.charAt(0)}
+                                    {user.photoURL ? (
+                                        <img
+                                            src={user.photoURL}
+                                            alt={user?.name ? `${user.name} avatar` : 'User avatar'}
+                                            style={styles.avatarImg}
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                    ) : (
+                                        user.name.charAt(0)
+                                    )}
                                 </div>
                                 <div style={{ textAlign: 'left' }}>
                                     <p style={{ fontWeight: 600, fontSize: '16px', margin: 0 }}>{user.name}</p>
@@ -199,7 +183,13 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
                             />
                             {selectedImage && (
                                 <div style={styles.modalImagePreview}>
-                                    <img src={URL.createObjectURL(selectedImage)} alt="" style={styles.previewImg} />
+                                    <img
+                                        src={URL.createObjectURL(selectedImage)}
+                                        alt="Selected image preview"
+                                        style={styles.previewImg}
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
                                     <button onClick={() => setSelectedImage(null)} style={styles.removeImg}>×</button>
                                 </div>
                             )}
@@ -232,7 +222,13 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
                             {/* Card Media */}
                             {post.imageURL && (
                                 <div style={styles.modernImageWrapper}>
-                                    <img src={post.imageURL} alt={post.title || 'Blog image'} style={styles.modernImage} loading="lazy" />
+                                    <img
+                                        src={post.imageURL}
+                                        alt={post.title || 'Blog image'}
+                                        style={styles.modernImage}
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
                                 </div>
                             )}
 

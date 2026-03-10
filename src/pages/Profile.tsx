@@ -1,17 +1,20 @@
-import { Pencil, ExternalLink, X, Camera, LogOut } from 'lucide-react';
+import { Pencil, ExternalLink, X, Camera, Heart, MapPin } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { uploadFile } from '@/services/userService';
 import axios from 'axios';
 import { apiUrl } from '@/config/api';
+import type { Job } from '@/types';
 
 import { AboutSection } from '@/components/AboutSection';
 import { BlogSection } from '@/components/BlogSection';
 import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
 
+const FAVORITE_JOBS_STORAGE_PREFIX = 'careerpilot:favorite-jobs';
+
 export const Profile = () => {
-    const { user, logout, updateProfile } = useAuth();
+    const { user, updateProfile } = useAuth();
     const navigate = useNavigate();
 
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -19,6 +22,7 @@ export const Profile = () => {
     const [isUploadingBanner, setIsUploadingBanner] = useState(false);
     const [isUploadingResume, setIsUploadingResume] = useState(false);
     const [isSyncingScore, setIsSyncingScore] = useState(false);
+    const [favoriteJobs, setFavoriteJobs] = useState<Job[]>([]);
     const [editName, setEditName] = useState(user?.name || '');
     const [editProfession, setEditProfession] = useState(user?.profession || '');
     const [editAbout, setEditAbout] = useState(user?.about || '');
@@ -26,16 +30,6 @@ export const Profile = () => {
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const bannerInputRef = useRef<HTMLInputElement>(null);
     const resumeInputRef = useRef<HTMLInputElement>(null);
-
-    const handleLogout = async () => {
-        try {
-            await logout();
-            // Navigate to landing page after successful logout
-            navigate('/');
-        } catch (error) {
-            console.error("Logout failed", error);
-        }
-    };
 
     const handleAvatarClick = () => avatarInputRef.current?.click();
     const handleBannerClick = () => bannerInputRef.current?.click();
@@ -169,6 +163,43 @@ export const Profile = () => {
         }
     }, [user?.id, user?.resumeURL]); // Re-run if user changes or resume is uploaded
 
+    useEffect(() => {
+        if (!user?.id) {
+            setFavoriteJobs([]);
+            return;
+        }
+
+        try {
+            const key = `${FAVORITE_JOBS_STORAGE_PREFIX}:${user.id}`;
+            const raw = window.localStorage.getItem(key);
+            if (!raw) {
+                setFavoriteJobs([]);
+                return;
+            }
+
+            const parsed = JSON.parse(raw) as unknown;
+            const nextFavorites = Array.isArray(parsed) ? parsed as Job[] : [];
+            setFavoriteJobs(nextFavorites.filter((item) => item && typeof item.id === 'string'));
+        } catch {
+            setFavoriteJobs([]);
+        }
+    }, [user?.id]);
+
+    const removeFavoriteJob = (jobId: string) => {
+        if (!user?.id) return;
+
+        setFavoriteJobs((prev) => {
+            const next = prev.filter((job) => job.id !== jobId);
+            try {
+                const key = `${FAVORITE_JOBS_STORAGE_PREFIX}:${user.id}`;
+                window.localStorage.setItem(key, JSON.stringify(next));
+            } catch {
+                // Ignore localStorage write errors and keep UI state.
+            }
+            return next;
+        });
+    };
+
     // If not logged in, we can show a placeholder or empty state,
     // but the layout header/sidebar already handles login prompts.
     // We'll just render placeholder text if no user is present.
@@ -245,8 +276,10 @@ export const Profile = () => {
                                 {hasPhoto ? (
                                     <img
                                         src={user.photoURL}
-                                        alt={user.name || 'Profile'}
+                                        alt={user.name ? `${user.name} avatar` : 'Profile avatar'}
                                         className="profile-avatar"
+                                        loading="lazy"
+                                        decoding="async"
                                     />
                                 ) : (
                                     <div className="profile-avatar-fallback">
@@ -436,6 +469,56 @@ export const Profile = () => {
                             <AnalyticsDashboard />
                         </div>
 
+                        <div className="favorite-jobs-shell">
+                            <div className="favorite-jobs-header">
+                                <h3>
+                                    <Heart size={16} />
+                                    Favorite Jobs
+                                </h3>
+                                <span>{favoriteJobs.length}</span>
+                            </div>
+
+                            {favoriteJobs.length === 0 ? (
+                                <p className="favorite-jobs-empty">
+                                    No favorite jobs yet. Add jobs from the results page using the heart button.
+                                </p>
+                            ) : (
+                                <div className="favorite-jobs-list">
+                                    {favoriteJobs.map((job) => (
+                                        <article key={`favorite-${job.id}`} className="favorite-job-item">
+                                            <div className="favorite-job-main">
+                                                <h4>{job.title || 'Untitled role'}</h4>
+                                                <p>{job.company || 'Unknown company'}</p>
+                                                <div className="favorite-job-meta">
+                                                    <span>
+                                                        <MapPin size={13} />
+                                                        {job.location || 'Unknown location'}
+                                                    </span>
+                                                    <span>{job.type ? String(job.type).replace('-', ' ') : 'job'}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="favorite-job-actions">
+                                                <button
+                                                    className="favorite-job-btn"
+                                                    onClick={() => navigate(`/jobs/${job.id}`, { state: { returnTo: '/profile', returnLabel: 'Back to Profile' } })}
+                                                    type="button"
+                                                >
+                                                    View
+                                                </button>
+                                                <button
+                                                    className="favorite-job-btn remove"
+                                                    onClick={() => removeFavoriteJob(job.id)}
+                                                    type="button"
+                                                >
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        </article>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
 
                     </div>
                 </div>
@@ -483,7 +566,13 @@ export const Profile = () => {
                                     <label className="section-label">Profile Image</label>
                                     <div className="modal-avatar-preview-wrapper">
                                         {user?.photoURL ? (
-                                            <img src={user.photoURL} alt="Avatar" className="modal-avatar-preview" />
+                                            <img
+                                                src={user.photoURL}
+                                                alt={user?.name ? `${user.name} avatar` : 'Profile avatar'}
+                                                className="modal-avatar-preview"
+                                                loading="lazy"
+                                                decoding="async"
+                                            />
                                         ) : (
                                             <div className="modal-avatar-preview-fallback">{initial}</div>
                                         )}
@@ -530,13 +619,6 @@ export const Profile = () => {
                     </div>
                 )}
 
-                {/* Logout Button Footer */}
-                <div className="profile-footer-logout">
-                    <button className="btn-logout-bottom" onClick={handleLogout}>
-                        <LogOut size={20} />
-                        <span>Sign Out</span>
-                    </button>
-                </div>
             </div>
 
             <style>{`
@@ -987,52 +1069,6 @@ export const Profile = () => {
         .btn-status-action:hover {
             text-decoration: underline;
         }
-
-
-
-        .profile-footer-logout {
-            margin-top: 48px;
-            padding: 32px 0;
-            display: flex;
-            justify-content: center;
-            border-top: 1px solid rgba(0,0,0,0.08);
-        }
-
-        .btn-logout-bottom {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: linear-gradient(135deg, #ff4b2b 0%, #ff416c 100%);
-            color: white;
-            border: none;
-            border-radius: 30px;
-            padding: 14px 40px;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 10px 20px -5px rgba(255, 75, 43, 0.3);
-            letter-spacing: 0.5px;
-        }
-
-        .btn-logout-bottom:hover {
-            transform: translateY(-4px) scale(1.02);
-            box-shadow: 0 15px 30px -8px rgba(255, 75, 43, 0.4);
-            filter: brightness(1.1);
-        }
-
-        .btn-logout-bottom:active {
-            transform: translateY(-1px);
-        }
-
-        .btn-logout-bottom svg {
-            transition: transform 0.3s ease;
-        }
-
-        .btn-logout-bottom:hover svg {
-            transform: translateX(3px);
-        }
-
         @media (max-width: 768px) {
             .profile-info-grid {
                 grid-template-columns: 1fr;
@@ -2130,33 +2166,128 @@ export const Profile = () => {
             padding: clamp(12px, 2vw, 20px);
         }
 
-        .profile-footer-logout {
-            width: min(1140px, 100%);
-            margin: 0 auto 16px;
+        .favorite-jobs-shell {
             border-radius: 16px;
-            background: var(--profile-surface);
             border: 1px solid var(--profile-border);
+            background: var(--profile-surface);
             box-shadow: var(--profile-shadow);
-            padding: 24px;
+            padding: clamp(12px, 2vw, 20px);
+            display: grid;
+            gap: 12px;
         }
 
-        .btn-logout-bottom {
+        .favorite-jobs-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .favorite-jobs-header h3 {
+            margin: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+            color: #0f172a;
+        }
+
+        .favorite-jobs-header span {
+            min-width: 28px;
+            height: 24px;
+            border-radius: 999px;
+            background: #ecfeff;
+            color: #0f766e;
+            border: 1px solid #99f6e4;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 0 8px;
+        }
+
+        .favorite-jobs-empty {
+            margin: 0;
+            font-size: 14px;
+            color: #64748b;
+            line-height: 1.5;
+        }
+
+        .favorite-jobs-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .favorite-job-item {
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            border-radius: 12px;
+            background: #f8fafc;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .favorite-job-main {
+            min-width: 0;
+        }
+
+        .favorite-job-main h4 {
+            margin: 0;
+            font-size: 15px;
+            color: #0f172a;
+            line-height: 1.35;
+        }
+
+        .favorite-job-main p {
+            margin: 3px 0 0;
+            font-size: 13px;
+            color: #475569;
+        }
+
+        .favorite-job-meta {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px 12px;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .favorite-job-meta span {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
             background: #ffffff;
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            border-radius: 999px;
+            padding: 3px 9px;
+        }
+
+        .favorite-job-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .favorite-job-btn {
+            border-radius: 9px;
+            border: 1px solid rgba(14, 116, 144, 0.35);
+            background: #ffffff;
+            color: #0e7490;
+            min-height: 34px;
+            padding: 0 12px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .favorite-job-btn.remove {
+            border-color: rgba(185, 28, 28, 0.32);
             color: #b91c1c;
-            border: 1px solid rgba(185, 28, 28, 0.3);
-            letter-spacing: 0;
-            font-weight: 600;
-            box-shadow: 0 8px 20px rgba(185, 28, 28, 0.14);
-        }
-
-        .btn-logout-bottom:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 12px 22px rgba(185, 28, 28, 0.18);
-            filter: none;
-        }
-
-        .btn-logout-bottom:hover svg {
-            transform: none;
         }
 
         .modal-content {
@@ -2208,7 +2339,6 @@ export const Profile = () => {
                 grid-template-columns: 1fr;
             }
 
-            .profile-footer-logout,
             .analytics-shell,
             .profile-section-shell {
                 border-radius: 16px;
@@ -2242,6 +2372,15 @@ export const Profile = () => {
             .view-resume-link {
                 font-size: 12px;
                 padding: 7px 12px;
+            }
+
+            .favorite-job-item {
+                flex-direction: column;
+            }
+
+            .favorite-job-actions {
+                width: 100%;
+                justify-content: flex-end;
             }
         }
       `}</style>

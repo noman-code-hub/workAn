@@ -1,11 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Poppins:wght@700;800;900&family=Space+Grotesk:wght@500;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ===========================
-   CareerPilot Design System
+   Workshour Design System
    Modern AI-Powered SaaS Platform
    =========================== */
 
@@ -73,6 +73,7 @@
 
   /* Typography */
   --font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family-brand: 'Poppins', 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-base: 1rem;
@@ -576,6 +577,121 @@ a:hover {
 .resume-page .builder-section {
   background: var(--color-surface) !important;
   border-color: var(--color-border) !important;
+}
+
+/* Global Dark Mode Overrides for hardcoded page styles */
+[data-theme="dark"] .layout,
+[data-theme="dark"] .main-content,
+[data-theme="dark"] .page-content,
+[data-theme="dark"] main,
+[data-theme="dark"] section {
+  background: var(--color-bg-primary) !important;
+  color: var(--color-text-primary) !important;
+}
+
+[data-theme="dark"] [class*="card"],
+[data-theme="dark"] [class*="panel"],
+[data-theme="dark"] [class*="modal"],
+[data-theme="dark"] [class*="toolbar"],
+[data-theme="dark"] [class*="sidebar"],
+[data-theme="dark"] [class*="dropdown"],
+[data-theme="dark"] [class*="sheet"] {
+  background: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-primary) !important;
+}
+
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] h6,
+[data-theme="dark"] [class*="title"],
+[data-theme="dark"] [class*="heading"] {
+  color: var(--color-text-primary) !important;
+}
+
+[data-theme="dark"] p,
+[data-theme="dark"] label,
+[data-theme="dark"] small,
+[data-theme="dark"] li,
+[data-theme="dark"] [class*="subtitle"],
+[data-theme="dark"] [class*="meta"],
+[data-theme="dark"] [class*="copy"] {
+  color: var(--color-text-secondary) !important;
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  background: #0b1220 !important;
+  color: var(--color-text-primary) !important;
+  border-color: var(--color-border) !important;
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: var(--color-text-tertiary) !important;
+}
+
+[data-theme="dark"] [style*="background: #fff"],
+[data-theme="dark"] [style*="background:#fff"],
+[data-theme="dark"] [style*="background: #ffffff"],
+[data-theme="dark"] [style*="background:#ffffff"],
+[data-theme="dark"] [style*="background: white"],
+[data-theme="dark"] [style*="background:white"],
+[data-theme="dark"] [style*="background-color: #fff"],
+[data-theme="dark"] [style*="background-color:#fff"],
+[data-theme="dark"] [style*="background-color: #ffffff"],
+[data-theme="dark"] [style*="background-color:#ffffff"],
+[data-theme="dark"] [style*="background-color: white"],
+[data-theme="dark"] [style*="background-color:white"] {
+  background: var(--color-surface) !important;
+}
+
+[data-theme="dark"] [style*="color: #111827"],
+[data-theme="dark"] [style*="color:#111827"],
+[data-theme="dark"] [style*="color: #0f172a"],
+[data-theme="dark"] [style*="color:#0f172a"],
+[data-theme="dark"] [style*="color: #1f2937"],
+[data-theme="dark"] [style*="color:#1f2937"] {
+  color: var(--color-text-primary) !important;
+}
+
+[data-theme="dark"] .jobs-page-modern {
+  background:
+    radial-gradient(circle at 15% -5%, rgba(56, 189, 248, 0.13), transparent 42%),
+    radial-gradient(circle at 84% 12%, rgba(45, 212, 191, 0.11), transparent 46%),
+    linear-gradient(180deg, #0b1220 0%, #0f172a 100%) !important;
+}
+
+[data-theme="dark"] .jobs-page-modern .search-hero {
+  background:
+    radial-gradient(circle at top right, rgba(45, 212, 191, 0.1), transparent 42%),
+    linear-gradient(145deg, #111827, #0f172a) !important;
+}
+
+[data-theme="dark"] .jobs-page-modern .hero-title {
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .jobs-page-modern .hero-subtitle {
+  color: #94a3b8 !important;
+  border-left-color: #334155 !important;
+}
+
+[data-theme="dark"] .jobs-page-modern .panel,
+[data-theme="dark"] .jobs-page-modern .modern-search-box,
+[data-theme="dark"] .jobs-page-modern .insight-card,
+[data-theme="dark"] .jobs-page-modern .hero-popular-chip,
+[data-theme="dark"] .jobs-page-modern .jobs-toolbar,
+[data-theme="dark"] .jobs-page-modern .modern-job-card,
+[data-theme="dark"] .jobs-page-modern .job-details-modern,
+[data-theme="dark"] .jobs-page-modern .active-filter-pill {
+  background: #111827 !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
 }
 
 /* Responsive */

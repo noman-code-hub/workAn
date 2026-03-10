@@ -46,8 +46,8 @@ service cloud.firestore {
     // Blog posts and Community posts collection rules
     // Keep both paths to support legacy data ('posts') and current app data ('blogs').
     match /posts/{postId} {
-      // Anyone authenticated can read posts
-      allow read: if isAuthenticated();
+      // Public read access so community feed is visible to everyone
+      allow read: if true;
       
       // Authenticated users can create posts
       allow create: if isAuthenticated() && (
@@ -64,8 +64,8 @@ service cloud.firestore {
     }
 
     match /blogs/{postId} {
-      // Anyone authenticated can read posts
-      allow read: if isAuthenticated();
+      // Public read access so community feed is visible to everyone
+      allow read: if true;
       
       // Authenticated users can create posts
       allow create: if isAuthenticated() && (

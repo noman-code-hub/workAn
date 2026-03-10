@@ -1,8 +1,10 @@
+import { Analytics } from '@vercel/analytics/react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Layout } from './components/Layout';
 import { RoleGuard } from './components/RoleGuard';
 import { AppLoader } from './components/AppLoader';
+import { SeoManager } from './components/SeoManager';
 import { useAuth } from './contexts/AuthContext';
 
 const LAST_ROUTE_STORAGE_KEY = 'careerpilot:last-route';
@@ -35,6 +37,9 @@ function App() {
   const navigate = useNavigate();
   const [routeLoading, setRouteLoading] = useState(false);
   const [bootLoading, setBootLoading] = useState(true);
+  const [pageLoaded, setPageLoaded] = useState(
+    () => typeof document !== 'undefined' && document.readyState === 'complete'
+  );
   const initialPathRef = useRef(location.pathname);
   const routeRestoreAttemptedRef = useRef(false);
 
@@ -99,6 +104,17 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (pageLoaded) return;
+
+    const handlePageLoad = () => setPageLoaded(true);
+    window.addEventListener('load', handlePageLoad);
+
+    return () => {
+      window.removeEventListener('load', handlePageLoad);
+    };
+  }, [pageLoaded]);
+
+  useEffect(() => {
     if (initialPathRef.current === location.pathname) {
       initialPathRef.current = '';
       return;
@@ -135,24 +151,25 @@ function App() {
     window.sessionStorage.setItem(LAST_ROUTE_STORAGE_KEY, currentFullPath);
   }, [location.pathname, location.search, location.hash]);
 
-  if (loading) {
-    return <AppLoader variant="full" message="Loading" />;
+  if (loading || !pageLoaded) {
+    return <AppLoader variant="full" />;
   }
 
   const homeRoute = !user
-    ? '/dashboard'
+    ? '/jobs'
     : !user.role
       ? '/select-role'
       : user.role === 'admin'
         ? '/admin-dashboard'
         : user.role === 'recruiter'
           ? '/recruiter'
-          : '/dashboard';
+          : '/jobs';
 
   return (
     <>
-      {(bootLoading || routeLoading) && <AppLoader variant="overlay" message="Loading" />}
-      <Suspense fallback={<AppLoader variant="overlay" message="Loading" />}>
+      <SeoManager />
+      {(bootLoading || routeLoading) && <AppLoader variant="overlay" />}
+      <Suspense fallback={<AppLoader variant="overlay" />}>
         <Routes>
           <Route path="/" element={<Navigate to={homeRoute} replace />} />
           <Route path="/landing" element={<LandingPage />} />
@@ -224,6 +241,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Suspense>
+      <Analytics />
     </>
   );
 }

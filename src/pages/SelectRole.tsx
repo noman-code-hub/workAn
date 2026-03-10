@@ -66,7 +66,7 @@ export const SelectRole = () => {
             <div className="container">
                 <div className="header">
                     <h1>Select Your Role</h1>
-                    <p>Tell us how you plan to use CareerPilot</p>
+                    <p>Tell us how you plan to use Workshour</p>
                 </div>
 
                 <div className="roles-grid">

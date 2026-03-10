@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Briefcase, Clock3, MapPin, Search, TriangleAlert } from 'lucide-react';
 import type { Job } from '../types';
 import { JobLogo } from '../components/JobLogo';
+import { AppLoader } from '../components/AppLoader';
 import { apiUrl, parseApiJson } from '../config/api';
 
 type MarketJobsResponse = {
@@ -154,6 +155,7 @@ export const MarketJobs = () => {
   const [search, setSearch] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
   const [activeGroup, setActiveGroup] = useState('All');
+  const hasInitializedFilterFetchRef = useRef(false);
 
   const allRoles = useMemo(() => ROLE_GROUPS.flatMap((group) => group.roles), []);
 
@@ -187,11 +189,18 @@ export const MarketJobs = () => {
       const message = fetchError instanceof Error ? fetchError.message : 'Failed to load jobs right now.';
       setError(message);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
+    if (!hasInitializedFilterFetchRef.current) {
+      hasInitializedFilterFetchRef.current = true;
+      return;
+    }
+
     const timer = setTimeout(() => {
       fetchJobs({ silent: true });
     }, 350);
@@ -212,6 +221,10 @@ export const MarketJobs = () => {
   const groupRoles = activeGroup === 'All'
     ? allRoles
     : (ROLE_GROUPS.find((group) => group.label === activeGroup)?.roles || []);
+
+  if (loading) {
+    return <AppLoader variant="full" />;
+  }
 
   return (
     <div className="market-jobs-page">
@@ -267,9 +280,7 @@ export const MarketJobs = () => {
         <div className="error"><TriangleAlert size={16} /> {error}</div>
       )}
 
-      {loading ? (
-        <div className="placeholder">Loading jobs...</div>
-      ) : jobs.length === 0 ? (
+      {jobs.length === 0 ? (
         <div className="placeholder">No jobs found for this filter yet.</div>
       ) : (
         <div className="grid">
@@ -533,6 +544,111 @@ export const MarketJobs = () => {
         .apply-link:hover {
           background: #0f766e;
           color: white;
+        }
+
+        [data-theme="dark"] .market-jobs-page {
+          background:
+            radial-gradient(circle at 85% 18%, rgba(56, 189, 248, 0.14), transparent 42%),
+            radial-gradient(circle at 8% 95%, rgba(20, 184, 166, 0.12), transparent 45%),
+            #0b1220;
+        }
+
+        [data-theme="dark"] .market-jobs-page .hero {
+          background: linear-gradient(140deg, #0f172a, #111827);
+          border-color: #334155;
+        }
+
+        [data-theme="dark"] .market-jobs-page .hero h1 {
+          color: #f1f5f9;
+        }
+
+        [data-theme="dark"] .market-jobs-page .hero p {
+          color: #94a3b8;
+        }
+
+        [data-theme="dark"] .market-jobs-page .search-wrap,
+        [data-theme="dark"] .market-jobs-page .filters select {
+          border-color: #334155;
+          background: #0f172a;
+          color: #e2e8f0;
+        }
+
+        [data-theme="dark"] .market-jobs-page .search-wrap svg {
+          color: #94a3b8;
+        }
+
+        [data-theme="dark"] .market-jobs-page .search-wrap input,
+        [data-theme="dark"] .market-jobs-page .search-wrap input::placeholder,
+        [data-theme="dark"] .market-jobs-page .filters select {
+          color: #cbd5e1;
+        }
+
+        [data-theme="dark"] .market-jobs-page .status {
+          color: #cbd5e1;
+          border-color: #334155;
+          background: #0f172a;
+        }
+
+        [data-theme="dark"] .market-jobs-page .warning {
+          background: rgba(245, 158, 11, 0.12);
+          border-color: rgba(245, 158, 11, 0.4);
+          color: #fcd34d;
+        }
+
+        [data-theme="dark"] .market-jobs-page .error {
+          background: rgba(239, 68, 68, 0.14);
+          border-color: rgba(248, 113, 113, 0.45);
+          color: #fca5a5;
+        }
+
+        [data-theme="dark"] .market-jobs-page .placeholder {
+          border-color: #334155;
+          color: #94a3b8;
+          background: #0f172a;
+        }
+
+        [data-theme="dark"] .market-jobs-page .card {
+          border-color: #334155;
+          background: linear-gradient(170deg, #111827, #0f172a);
+          box-shadow: 0 16px 30px -24px rgba(2, 6, 23, 0.9);
+        }
+
+        [data-theme="dark"] .market-jobs-page .card:hover {
+          border-color: #14b8a6;
+          box-shadow: 0 20px 34px -24px rgba(2, 6, 23, 0.95);
+        }
+
+        [data-theme="dark"] .market-jobs-page .card-head h3 {
+          color: #e2e8f0;
+        }
+
+        [data-theme="dark"] .market-jobs-page .card-head p,
+        [data-theme="dark"] .market-jobs-page .desc,
+        [data-theme="dark"] .market-jobs-page .meta {
+          color: #94a3b8;
+        }
+
+        [data-theme="dark"] .market-jobs-page .meta span {
+          background: #0b1220;
+          border-color: #334155;
+          color: #cbd5e1;
+        }
+
+        [data-theme="dark"] .market-jobs-page .skills span {
+          background: rgba(59, 130, 246, 0.16);
+          color: #93c5fd;
+          border-color: rgba(96, 165, 250, 0.45);
+        }
+
+        [data-theme="dark"] .market-jobs-page .apply-link {
+          border-color: #14b8a6;
+          color: #5eead4;
+          background: rgba(20, 184, 166, 0.08);
+        }
+
+        [data-theme="dark"] .market-jobs-page .apply-link:hover {
+          background: #0f766e;
+          color: #ecfeff;
         }
 
         @media (max-width: 1180px) {

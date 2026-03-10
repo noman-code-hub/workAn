@@ -1,84 +1,95 @@
 import { useState, useEffect, useRef } from "react";
-import { deleteDoc, doc, onSnapshot, collection, query, orderBy } from "firebase/firestore";
-import { db } from '../config/firebase';
-import { Trash2, MessageCircle, Heart, Search } from "lucide-react";
+import { Trash2, MessageCircle, Heart, Search, Pencil } from "lucide-react";
 import { formatDistanceToNow } from 'date-fns';
 import { useAuth } from '../contexts/AuthContext';
-import { createPost } from '../services/postService';
-
-interface Post {
-    id: string;
-    authorName: string;
-    content: string;
-    imageUrl?: string;
-    likes: number;
-    commentsCount: number;
-    createdAt: any;
-}
+import type { BlogPost } from '../types';
+import { createPost, deletePost, subscribeToPosts, updatePost } from '../services/postService';
 
 export const AdminPosts = () => {
     const { user } = useAuth();
-    const [posts, setPosts] = useState<Post[]>([]);
+    const [posts, setPosts] = useState<BlogPost[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
-    const [blogTitle, setBlogTitle] = useState("");
-    const [blogContent, setBlogContent] = useState("");
-    const [blogImage, setBlogImage] = useState<File | null>(null);
-    const [isPublishingBlog, setIsPublishingBlog] = useState(false);
+    const [postTitle, setPostTitle] = useState("");
+    const [postContent, setPostContent] = useState("");
+    const [postImage, setPostImage] = useState<File | null>(null);
+    const [postType, setPostType] = useState<'community' | 'blog'>('community');
+    const [isPublishingPost, setIsPublishingPost] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map((doc) => ({
-                id: doc.id,
-                ...doc.data(),
-            })) as Post[];
-            setPosts(data);
-            setLoading(false);
-        });
+        const unsubscribe = subscribeToPosts(
+            { type: 'community' },
+            (postsData) => {
+                setPosts(postsData);
+                setLoading(false);
+            },
+            (error) => {
+                console.error("Error loading posts:", error);
+                setLoading(false);
+            }
+        );
+
         return () => unsubscribe();
     }, []);
 
     const handleDelete = async (id: string) => {
         if (!window.confirm("Are you sure you want to delete this post? This action cannot be undone.")) return;
         try {
-            await deleteDoc(doc(db, "posts", id));
+            await deletePost(id);
         } catch (error) {
             console.error("Error deleting post:", error);
             alert("Failed to delete post.");
         }
     };
 
-    const filteredPosts = posts.filter(post =>
-        post.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        post.authorName.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    const handlePublishBlog = async () => {
-        const hasContent = blogContent.trim().length > 0;
-        const hasTitle = blogTitle.trim().length > 0;
-        if (!hasContent && !hasTitle && !blogImage) return;
-        if (!user) {
-            alert("You must be logged in to publish a blog.");
+    const handleEdit = async (post: BlogPost) => {
+        const nextContent = window.prompt("Edit post content", post.content);
+        if (nextContent === null) return;
+        const trimmed = nextContent.trim();
+        if (!trimmed) {
+            alert("Post content cannot be empty.");
             return;
         }
 
         try {
-            setIsPublishingBlog(true);
-            await createPost(user, blogTitle.trim(), blogContent.trim(), blogImage || undefined, 'blog');
-            setBlogTitle("");
-            setBlogContent("");
-            setBlogImage(null);
+            await updatePost(post.id, { content: trimmed });
+        } catch (error) {
+            console.error("Error updating post:", error);
+            alert("Failed to update post.");
+        }
+    };
+
+    const filteredPosts = posts.filter(post =>
+        post.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        post.authorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (post.title || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const handlePublishPost = async () => {
+        const hasContent = postContent.trim().length > 0;
+        const hasTitle = postTitle.trim().length > 0;
+        if (!hasContent && !hasTitle && !postImage) return;
+        if (!user) {
+            alert("You must be logged in to publish a post.");
+            return;
+        }
+
+        try {
+            setIsPublishingPost(true);
+            await createPost(user, postTitle.trim(), postContent.trim(), postImage || undefined, postType);
+            setPostTitle("");
+            setPostContent("");
+            setPostImage(null);
             if (fileInputRef.current) {
                 fileInputRef.current.value = "";
             }
-            alert("Blog published successfully.");
+            alert("Post published successfully.");
         } catch (error) {
-            console.error("Error publishing blog:", error);
-            alert("Failed to publish blog.");
+            console.error("Error publishing post:", error);
+            alert("Failed to publish post.");
         } finally {
-            setIsPublishingBlog(false);
+            setIsPublishingPost(false);
         }
     };
 
@@ -89,33 +100,41 @@ export const AdminPosts = () => {
             <section className="admin-create-blog">
                 <div>
                     <p className="admin-eyebrow">Publish</p>
-                    <h2>Create Blog Article</h2>
-                    <p className="admin-subtitle">Post articles directly from the admin panel.</p>
+                    <h2>Create Post</h2>
+                    <p className="admin-subtitle">Publish community updates or blog articles from the admin panel.</p>
                 </div>
 
                 <div className="admin-create-blog-form">
+                    <select
+                        className="input"
+                        value={postType}
+                        onChange={(e) => setPostType(e.target.value as 'community' | 'blog')}
+                    >
+                        <option value="community">Community Post</option>
+                        <option value="blog">Blog Article</option>
+                    </select>
                     <input
                         type="text"
                         className="input"
-                        placeholder="Blog title (optional)"
-                        value={blogTitle}
-                        onChange={(e) => setBlogTitle(e.target.value)}
+                        placeholder="Title (optional)"
+                        value={postTitle}
+                        onChange={(e) => setPostTitle(e.target.value)}
                     />
                     <textarea
                         className="input"
-                        placeholder="Write your blog content..."
-                        value={blogContent}
-                        onChange={(e) => setBlogContent(e.target.value)}
+                        placeholder="Write your post content..."
+                        value={postContent}
+                        onChange={(e) => setPostContent(e.target.value)}
                         rows={6}
                     />
-                    {blogImage && (
+                    {postImage && (
                         <div className="admin-selected-image">
-                            <span>{blogImage.name}</span>
+                            <span>{postImage.name}</span>
                             <button
                                 type="button"
                                 className="btn btn-secondary btn-sm"
                                 onClick={() => {
-                                    setBlogImage(null);
+                                    setPostImage(null);
                                     if (fileInputRef.current) {
                                         fileInputRef.current.value = "";
                                     }
@@ -130,7 +149,7 @@ export const AdminPosts = () => {
                         type="file"
                         accept="image/*"
                         style={{ display: 'none' }}
-                        onChange={(e) => setBlogImage(e.target.files?.[0] || null)}
+                        onChange={(e) => setPostImage(e.target.files?.[0] || null)}
                     />
                     <div className="admin-create-blog-actions">
                         <button
@@ -143,10 +162,10 @@ export const AdminPosts = () => {
                         <button
                             type="button"
                             className="btn btn-primary"
-                            onClick={handlePublishBlog}
-                            disabled={isPublishingBlog || (!blogTitle.trim() && !blogContent.trim() && !blogImage)}
+                            onClick={handlePublishPost}
+                            disabled={isPublishingPost || (!postTitle.trim() && !postContent.trim() && !postImage)}
                         >
-                            {isPublishingBlog ? "Publishing..." : "Publish Blog"}
+                            {isPublishingPost ? "Publishing..." : "Publish Post"}
                         </button>
                     </div>
                 </div>
@@ -186,14 +205,17 @@ export const AdminPosts = () => {
                                 <div className="post-meta">
                                     <span className="post-author">{post.authorName}</span>
                                     <span className="post-time">
-                                        {post.createdAt?.seconds
-                                            ? formatDistanceToNow(new Date(post.createdAt.seconds * 1000), { addSuffix: true })
+                                        {post.createdAt
+                                            ? formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })
                                             : 'Just now'}
                                     </span>
-                                    {post.imageUrl && (
+                                    {post.imageURL && (
                                         <span className="badge badge-primary">Image</span>
                                     )}
                                 </div>
+                                {post.title && (
+                                    <p className="post-content"><strong>{post.title}</strong></p>
+                                )}
                                 <p className="post-content">{post.content}</p>
                                 <div className="post-stats">
                                     <span className="post-stat">
@@ -204,13 +226,22 @@ export const AdminPosts = () => {
                                     </span>
                                 </div>
                             </div>
-                            <button
-                                onClick={() => handleDelete(post.id)}
-                                className="btn btn-danger btn-sm icon-btn"
-                                title="Delete Post"
-                            >
-                                <Trash2 size={16} />
-                            </button>
+                            <div className="post-actions">
+                                <button
+                                    onClick={() => handleEdit(post)}
+                                    className="btn btn-secondary btn-sm icon-btn"
+                                    title="Edit Post"
+                                >
+                                    <Pencil size={16} />
+                                </button>
+                                <button
+                                    onClick={() => handleDelete(post.id)}
+                                    className="btn btn-danger btn-sm icon-btn"
+                                    title="Delete Post"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
                         </div>
                     ))
                 )}

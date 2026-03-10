@@ -3,6 +3,7 @@ import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { User } from '../types';
 import { Users, Briefcase, FileText, MessageCircle } from 'lucide-react';
+import { subscribeToPosts } from '../services/postService';
 
 interface AdminAnalyticsProps {
     users: User[];
@@ -20,12 +21,17 @@ export const AdminAnalytics = ({ users }: AdminAnalyticsProps) => {
             setJobCount(snapshot.size);
         });
 
-        // Real-time listener for posts collection
-        const postsQuery = query(collection(db, 'posts'));
-        const unsubscribePosts = onSnapshot(postsQuery, (snapshot) => {
-            setPostCount(snapshot.size);
-            setLoading(false);
-        });
+        const unsubscribePosts = subscribeToPosts(
+            { type: 'community' },
+            (posts) => {
+                setPostCount(posts.length);
+                setLoading(false);
+            },
+            (error) => {
+                console.error('Failed to load community posts count:', error);
+                setLoading(false);
+            }
+        );
 
         return () => {
             unsubscribeJobs();

@@ -1,14 +1,33 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Sun, Zap, Globe, Menu, X } from 'lucide-react';
+import { Sun, Globe, Menu, X, Moon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { ProfileDropdown } from './ProfileDropdown';
+import { BRAND } from '../config/brand';
+
+type SupportedLanguage = 'EN' | 'ES';
+type ThemeMode = 'light' | 'dark';
+
+const LANGUAGE_STORAGE_KEY = 'careerpilot:language';
+const THEME_STORAGE_KEY = 'careerpilot:theme';
 
 export const Header = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [language, setLanguage] = useState<SupportedLanguage>(() => {
+    if (typeof window === 'undefined') return 'EN';
+    const savedLanguage = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    return savedLanguage === 'EN' || savedLanguage === 'ES' ? savedLanguage : 'EN';
+  });
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    if (typeof window === 'undefined') return 'light';
+    const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+    if (savedTheme === 'light' || savedTheme === 'dark') return savedTheme;
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+    return 'light';
+  });
 
   // Lock body scroll when mobile menu is open
   useEffect(() => {
@@ -20,6 +39,17 @@ export const Header = () => {
     return () => document.body.classList.remove('no-scroll');
   }, [isMenuOpen]);
 
+  useEffect(() => {
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+    document.documentElement.lang = language === 'ES' ? 'es' : 'en';
+  }, [language]);
+
+  useEffect(() => {
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.style.colorScheme = theme;
+  }, [theme]);
+
   const handleLogoClick = () => {
     navigate('/');
     setIsMenuOpen(false);
@@ -30,6 +60,14 @@ export const Header = () => {
     setIsMenuOpen(false);
   };
 
+  const handleLanguageToggle = () => {
+    setLanguage((currentLanguage) => (currentLanguage === 'EN' ? 'ES' : 'EN'));
+  };
+
+  const handleThemeToggle = () => {
+    setTheme((currentTheme) => (currentTheme === 'light' ? 'dark' : 'light'));
+  };
+
   const overviewPath =
     user?.role === 'admin'
       ? '/admin-dashboard'
@@ -37,61 +75,84 @@ export const Header = () => {
         ? '/recruiter'
         : '/dashboard';
 
+  const copy = language === 'ES'
+    ? {
+        jobSearch: 'Buscar Empleo',
+        overview: 'Resumen',
+        marketJobs: 'Empleos del Mercado',
+        resumeOptimizer: 'Optimizador CV',
+        community: 'Comunidad',
+        trends: 'Tendencias',
+        aiCopilot: 'Copiloto IA',
+        signIn: 'Iniciar Sesion',
+      }
+    : {
+        jobSearch: 'Job Search',
+        overview: 'Overview',
+        marketJobs: 'Market Jobs',
+        resumeOptimizer: 'Resume Optimizer',
+        community: 'Community',
+        trends: 'Trends',
+        aiCopilot: 'AI Copilot',
+        signIn: 'Sign In',
+      };
+
+  const nextLanguageLabel = language === 'EN' ? 'Switch to Spanish' : 'Switch to English';
+  const nextThemeLabel = theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode';
+
   return (
     <header className="universal-header">
       <div className="header-inner">
         <div className="header-left">
           <div className="logo" onClick={handleLogoClick}>
-            <div className="logo-icon">
-              <Zap size={18} fill="currentColor" />
-            </div>
-            <span className="logo-text">workIn</span>
+            <span className="logo-text">{BRAND.name}</span>
+            <span className="logo-dot" aria-hidden="true" />
           </div>
         </div>
 
         {/* Desktop Navigation */}
         <nav className="header-nav">
           <button
-            onClick={() => handleNavClick(overviewPath)}
-            className={`nav-link ${location.pathname === overviewPath ? 'active' : ''}`}
-          >
-            Overview
-          </button>
-          <button
             onClick={() => handleNavClick('/jobs')}
             className={`nav-link ${location.pathname === '/jobs' ? 'active' : ''}`}
           >
-            Job Search
+            {copy.jobSearch}
+          </button>
+          <button
+            onClick={() => handleNavClick(overviewPath)}
+            className={`nav-link ${location.pathname === overviewPath ? 'active' : ''}`}
+          >
+            {copy.overview}
           </button>
           <button
             onClick={() => handleNavClick('/market-jobs')}
             className={`nav-link ${location.pathname === '/market-jobs' ? 'active' : ''}`}
           >
-            Market Jobs
+            {copy.marketJobs}
           </button>
           <button
             onClick={() => handleNavClick('/resume')}
             className={`nav-link ${location.pathname === '/resume' ? 'active' : ''}`}
           >
-            Resume Optimizer
+            {copy.resumeOptimizer}
           </button>
           <button
             onClick={() => handleNavClick('/community')}
             className={`nav-link ${location.pathname === '/community' ? 'active' : ''}`}
           >
-            Community
+            {copy.community}
           </button>
           <button
             onClick={() => handleNavClick('/trends')}
             className={`nav-link ${location.pathname === '/trends' ? 'active' : ''}`}
           >
-            Trends
+            {copy.trends}
           </button>
           <button
             onClick={() => handleNavClick('/ai-copilot')}
             className={`nav-link ${location.pathname === '/ai-copilot' ? 'active' : ''}`}
           >
-            AI Copilot
+            {copy.aiCopilot}
           </button>
 
           {/* Role-based navigation */}
@@ -115,12 +176,22 @@ export const Header = () => {
 
         <div className="header-right">
           <div className="header-actions">
-            <button className="icon-btn-universal desktop-only">
+            <button
+              className="icon-btn-universal desktop-only"
+              onClick={handleLanguageToggle}
+              aria-label={nextLanguageLabel}
+              title={nextLanguageLabel}
+            >
               <Globe size={18} />
-              <span>EN</span>
+              <span>{language}</span>
             </button>
-            <button className="icon-btn-universal desktop-only">
-              <Sun size={18} />
+            <button
+              className="icon-btn-universal desktop-only"
+              onClick={handleThemeToggle}
+              aria-label={nextThemeLabel}
+              title={nextThemeLabel}
+            >
+              {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
             </button>
             {user ? (
               <ProfileDropdown />
@@ -129,7 +200,7 @@ export const Header = () => {
                 className="signin-btn-universal"
                 onClick={() => handleNavClick('/login')}
               >
-                Sign In
+                {copy.signIn}
               </button>
             )}
             {/* Mobile Menu Toggle */}
@@ -148,46 +219,46 @@ export const Header = () => {
         <div className="mobile-menu">
           <div className="mobile-nav-links">
             <button
-              onClick={() => handleNavClick(overviewPath)}
-              className={`mobile-nav-link ${location.pathname === overviewPath ? 'active' : ''}`}
-            >
-              Overview
-            </button>
-            <button
               onClick={() => handleNavClick('/jobs')}
               className={`mobile-nav-link ${location.pathname === '/jobs' ? 'active' : ''}`}
             >
-              Job Search
+              {copy.jobSearch}
+            </button>
+            <button
+              onClick={() => handleNavClick(overviewPath)}
+              className={`mobile-nav-link ${location.pathname === overviewPath ? 'active' : ''}`}
+            >
+              {copy.overview}
             </button>
             <button
               onClick={() => handleNavClick('/market-jobs')}
               className={`mobile-nav-link ${location.pathname === '/market-jobs' ? 'active' : ''}`}
             >
-              Market Jobs
+              {copy.marketJobs}
             </button>
             <button
               onClick={() => handleNavClick('/resume')}
               className={`mobile-nav-link ${location.pathname === '/resume' ? 'active' : ''}`}
             >
-              Resume Optimizer
+              {copy.resumeOptimizer}
             </button>
             <button
               onClick={() => handleNavClick('/community')}
               className={`mobile-nav-link ${location.pathname === '/community' ? 'active' : ''}`}
             >
-              Community
+              {copy.community}
             </button>
             <button
               onClick={() => handleNavClick('/trends')}
               className={`mobile-nav-link ${location.pathname === '/trends' ? 'active' : ''}`}
             >
-              Trends
+              {copy.trends}
             </button>
             <button
               onClick={() => handleNavClick('/ai-copilot')}
               className={`mobile-nav-link ${location.pathname === '/ai-copilot' ? 'active' : ''}`}
             >
-              AI Copilot
+              {copy.aiCopilot}
             </button>
 
             {/* Role-based navigation */}
@@ -213,7 +284,7 @@ export const Header = () => {
                 onClick={() => handleNavClick('/login')}
                 className="mobile-nav-link highlight"
               >
-                Sign In
+                {copy.signIn}
               </button>
             )}
           </div>
@@ -222,8 +293,8 @@ export const Header = () => {
 
       <style>{`
         .universal-header {
-          background: white;
-          border-bottom: 1px solid #e5e7eb;
+          background: var(--color-surface);
+          border-bottom: 1px solid var(--color-border-light);
           height: var(--header-height, 72px);
           display: flex;
           align-items: center;
@@ -263,23 +334,29 @@ export const Header = () => {
           transform: scale(1.02);
         }
 
-        .logo-icon {
-          width: 36px;
-          height: 36px;
-          background: linear-gradient(135deg, #00d4aa 0%, #00a389 100%);
-          border-radius: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          box-shadow: 0 4px 12px rgba(0, 212, 170, 0.2);
+        .logo-text {
+          font-size: 26px;
+          font-weight: 800;
+          color: #3f4246;
+          font-family: var(--font-family-brand);
+          letter-spacing: -0.6px;
+          line-height: 1;
+          text-transform: lowercase;
         }
 
-        .logo-text {
-          font-size: 20px;
-          font-weight: 800;
-          color: #111827;
-          letter-spacing: -0.5px;
+        [data-theme="dark"] .logo-text {
+          color: #e2e8f0;
+        }
+
+        .logo-dot {
+          width: 8px;
+          height: 8px;
+          background: #1dbf73;
+          border-radius: 999px;
+          margin-left: 4px;
+          align-self: flex-end;
+          margin-bottom: 4px;
+          box-shadow: 0 0 0 2px rgba(29, 191, 115, 0.12);
         }
 
         .header-nav {
@@ -293,7 +370,7 @@ export const Header = () => {
           border: none;
           font-size: 14px;
           font-weight: 600;
-          color: #6b7280;
+          color: var(--color-text-secondary);
           cursor: pointer;
           transition: all 0.2s;
           padding: 8px 12px;
@@ -302,13 +379,13 @@ export const Header = () => {
         }
 
         .nav-link:hover {
-          color: #111827;
-          background: #f9fafb;
+          color: var(--color-text-primary);
+          background: var(--color-surface-hover);
         }
 
         .nav-link.active {
-          color: #00d4aa;
-          background: #f0fdf9;
+          color: var(--color-primary);
+          background: rgba(23, 201, 176, 0.18);
         }
 
         .header-right {
@@ -328,7 +405,7 @@ export const Header = () => {
           gap: 4px;
           background: none;
           border: none;
-          color: #6b7280;
+          color: var(--color-text-secondary);
           cursor: pointer;
           padding: 8px;
           border-radius: 8px;
@@ -338,8 +415,8 @@ export const Header = () => {
         }
 
         .icon-btn-universal:hover {
-          background: #f3f4f6;
-          color: #111827;
+          background: var(--color-surface-hover);
+          color: var(--color-text-primary);
         }
 
         .signin-btn-universal {
@@ -369,11 +446,11 @@ export const Header = () => {
           left: 0;
           right: 0;
           bottom: 0;
-          background: white;
+          background: var(--color-surface);
           z-index: 999;
           padding: 24px;
           overflow-y: auto;
-          border-top: 1px solid #e5e7eb;
+          border-top: 1px solid var(--color-border-light);
         }
 
         .mobile-nav-links {
@@ -385,24 +462,24 @@ export const Header = () => {
         .mobile-nav-link {
           padding: 16px;
           border: none;
-          background: #f9fafb;
+          background: var(--color-surface-hover);
           border-radius: 12px;
           font-size: 16px;
           font-weight: 600;
-          color: #374151;
+          color: var(--color-text-secondary);
           text-align: left;
           cursor: pointer;
           transition: all 0.2s;
         }
 
         .mobile-nav-link:hover, .mobile-nav-link.active {
-          background: #f0fdf9;
-          color: #00d4aa;
+          background: rgba(23, 201, 176, 0.18);
+          color: var(--color-primary);
         }
         
         .mobile-nav-link.highlight {
-           background: #111827;
-           color: white;
+           background: var(--color-text-primary);
+           color: var(--color-text-inverse);
            text-align: center;
            margin-top: 16px;
         }
@@ -424,7 +501,7 @@ export const Header = () => {
             padding: 0 12px;
           }
           .logo-text {
-            font-size: 18px;
+            font-size: 22px;
           }
         }
       `}</style>

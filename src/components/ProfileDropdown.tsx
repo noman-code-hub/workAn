@@ -52,7 +52,13 @@ export const ProfileDropdown = ({ onViewProfile }: ProfileDropdownProps) => {
                 style={{ cursor: 'pointer' }}
             >
                 {user.photoURL ? (
-                    <img src={user.photoURL} alt={user.name} className="topbar-avatar" />
+                    <img
+                        src={user.photoURL}
+                        alt={user.name ? `${user.name} avatar` : 'User avatar'}
+                        className="topbar-avatar"
+                        loading="lazy"
+                        decoding="async"
+                    />
                 ) : (
                     <div className="topbar-avatar-fallback">
                         {user.name?.charAt(0).toUpperCase()}
@@ -66,7 +72,13 @@ export const ProfileDropdown = ({ onViewProfile }: ProfileDropdownProps) => {
                     <div className="dropdown-header-card">
                         <div className="dropdown-avatar-wrapper">
                             {user.photoURL ? (
-                                <img src={user.photoURL} alt={user.name} className="dropdown-avatar" />
+                                <img
+                                    src={user.photoURL}
+                                    alt={user.name ? `${user.name} avatar` : 'User avatar'}
+                                    className="dropdown-avatar"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
                             ) : (
                                 <div className="dropdown-avatar-fallback">
                                     {user.name?.charAt(0).toUpperCase()}

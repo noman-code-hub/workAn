@@ -24,6 +24,7 @@ import { useAuth } from '../contexts/AuthContext';
 import type { Job } from '../types';
 import { JobLogo } from '../components/JobLogo';
 import { getApplyLink } from '../utils/jobUtils';
+import { applySeoMeta } from '../utils/seo';
 
 const getCompanyUrl = (company: string) => {
   const clean = company.toLowerCase()
@@ -70,6 +71,21 @@ export const JobDetails = () => {
     // If not in cache, fetch from API or Firestore
     fetchJobDetails();
   }, [id]);
+
+  useEffect(() => {
+    if (!job) return;
+    const description = job.description
+      ? job.description.replace(/\s+/g, ' ').slice(0, 160)
+      : 'View job details, requirements, and apply in minutes.';
+    applySeoMeta(
+      `${job.title} at ${job.company} | Workshour`,
+      description,
+      `/jobs/${job.id}`,
+      {
+        keywords: `${job.title}, ${job.company}, job details, workshour`,
+      }
+    );
+  }, [job]);
 
   const fetchJobDetails = async () => {
     if (!id) return;

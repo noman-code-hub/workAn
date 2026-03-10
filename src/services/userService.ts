@@ -6,6 +6,42 @@ import type { User as FirebaseUser } from 'firebase/auth';
 
 const LOCAL_STORAGE_KEY = 'hirevo_user_profile';
 
+const AVATAR_COLORS = ['#2563eb', '#0ea5e9', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'];
+
+const getInitial = (name: string) => {
+    const trimmed = (name || '').trim();
+    if (!trimmed) return 'U';
+    return trimmed.charAt(0).toUpperCase();
+};
+
+const hashString = (value: string) => {
+    let hash = 0;
+    for (let i = 0; i < value.length; i += 1) {
+        hash = (hash * 31 + value.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash);
+};
+
+const buildDefaultAvatar = (name: string) => {
+    const initial = getInitial(name);
+    const color = AVATAR_COLORS[hashString(name) % AVATAR_COLORS.length];
+    const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+            <rect width="128" height="128" rx="64" fill="${color}" />
+            <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central"
+                font-family="Arial, sans-serif" font-size="64" font-weight="600" fill="#ffffff">
+                ${initial}
+            </text>
+        </svg>
+    `;
+    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+};
+
+const resolvePhotoURL = (name: string, photoURL?: string | null) => {
+    if (photoURL && photoURL.trim()) return photoURL;
+    return buildDefaultAvatar(name);
+};
+
 const saveToLocal = (user: User) => {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(user));
 };
@@ -29,13 +65,15 @@ export const fetchOrCreateUserProfile = async (firebaseUser: FirebaseUser): Prom
             // User profile exists, return it
             const data = userDoc.data();
             const localData = getFromLocal();
+            const resolvedName = data.name || firebaseUser.displayName || 'User';
+            const storedPhotoURL = data.photoURL || firebaseUser.photoURL || undefined;
 
             const profile: User = {
                 id: firebaseUser.uid,
                 email: firebaseUser.email || '',
-                name: data.name || firebaseUser.displayName || 'User',
+                name: resolvedName,
                 role: data.role || undefined, // Undefined if not set (redirect to selection)
-                photoURL: data.photoURL || firebaseUser.photoURL || undefined,
+                photoURL: resolvePhotoURL(resolvedName, storedPhotoURL),
                 bannerURL: data.bannerURL || undefined,
                 country: data.country,
                 profession: data.profession,
@@ -55,18 +93,31 @@ export const fetchOrCreateUserProfile = async (firebaseUser: FirebaseUser): Prom
                 Object.assign(profile, localData);
             }
 
+            const hadStoredPhoto = Boolean(storedPhotoURL);
+            const localPhoto = localData?.photoURL;
+            const needsDefaultPhoto = !profile.photoURL;
+            if (needsDefaultPhoto) {
+                profile.photoURL = buildDefaultAvatar(profile.name);
+            }
+
             saveToLocal(profile);
+
+            if (!hadStoredPhoto && !localPhoto && needsDefaultPhoto) {
+                void updateUserProfile(profile.id, { photoURL: profile.photoURL });
+            }
+
             return profile;
         } else {
             // User doesn't exist - create new user profile in Firestore
             console.log('📝 Creating new user profile in Firestore for:', firebaseUser.uid);
+            const resolvedName = firebaseUser.displayName || 'User';
 
             const newUser: User = {
                 id: firebaseUser.uid,
                 email: firebaseUser.email || '',
-                name: firebaseUser.displayName || 'User',
+                name: resolvedName,
                 role: undefined, // No default role for new users (redirect to selection)
-                photoURL: firebaseUser.photoURL || undefined,
+                photoURL: resolvePhotoURL(resolvedName, firebaseUser.photoURL),
                 bannerURL: undefined,
                 country: undefined,
                 profession: undefined,
@@ -117,12 +168,13 @@ export const fetchOrCreateUserProfile = async (firebaseUser: FirebaseUser): Prom
         console.warn('Error accessing Firestore. Falling back to LocalStorage/Auth data.', error);
 
         const localData = getFromLocal();
+        const resolvedName = firebaseUser.displayName || 'User';
         const transientUser: User = {
             id: firebaseUser.uid,
             email: firebaseUser.email || '',
-            name: firebaseUser.displayName || 'User',
+            name: resolvedName,
             role: 'user', // Default role for transient users
-            photoURL: firebaseUser.photoURL || undefined,
+            photoURL: resolvePhotoURL(resolvedName, firebaseUser.photoURL),
             bannerURL: undefined,
             country: undefined,
             profession: undefined,
@@ -185,7 +237,7 @@ export const createUserProfile = async (userId: string, data: { email: string; n
         email: data.email,
         name: data.name,
         role: data.role, // Role provided or undefined
-        photoURL: undefined,
+        photoURL: resolvePhotoURL(data.name, undefined),
         country: undefined,
         profession: undefined,
         skills: [],
@@ -203,7 +255,7 @@ export const createUserProfile = async (userId: string, data: { email: string; n
             email: newUser.email,
             name: newUser.name,
             role: newUser.role || null,
-            photoURL: null,
+            photoURL: newUser.photoURL || null,
             bannerURL: null,
             country: null,
             profession: null,

@@ -257,7 +257,13 @@ export const AdminDashboard = () => {
                                                     <td>
                                                         <div className="user-cell">
                                                             {user.photoURL ? (
-                                                                <img src={user.photoURL} alt={user.name} className="user-avatar" />
+                                                                <img
+                                                                    src={user.photoURL}
+                                                                    alt={user.name ? `${user.name} avatar` : 'User avatar'}
+                                                                    className="user-avatar"
+                                                                    loading="lazy"
+                                                                    decoding="async"
+                                                                />
                                                             ) : (
                                                                 <div className="user-avatar-fallback">
                                                                     {user.name?.charAt(0).toUpperCase()}
@@ -816,6 +822,12 @@ export const AdminDashboard = () => {
                     display: inline-flex;
                     align-items: center;
                     gap: 6px;
+                }
+
+                .post-actions {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
                 }
 
                 .btn-danger {

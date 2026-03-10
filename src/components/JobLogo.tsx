@@ -31,6 +31,8 @@ export const JobLogo = ({ company }: JobLogoProps) => {
                 src={logoUrl}
                 alt={`${company} logo`}
                 className="job-company-logo-img"
+                loading="lazy"
+                decoding="async"
                 onError={() => setError(true)}
             />
         </div>

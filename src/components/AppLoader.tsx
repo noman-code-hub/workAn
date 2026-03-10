@@ -1,26 +1,28 @@
-import { Zap } from 'lucide-react';
+import { BRAND } from '../config/brand';
+
+const splashLogo = BRAND.logo.loader;
 
 type AppLoaderProps = {
-  message?: string;
   variant?: 'overlay' | 'full';
 };
 
-export const AppLoader = ({ message = 'Loading', variant = 'overlay' }: AppLoaderProps) => (
+export const AppLoader = ({ variant = 'overlay' }: AppLoaderProps) => (
   <div className={`app-loader ${variant}`} role="status" aria-live="polite" aria-busy="true">
-    <div className="loader-card">
-      <div className="loader-logo">
-        <div className="logo-shape">
-          <Zap size={28} fill="currentColor" />
+      <div className="loader-card">
+        <div className="loader-logo">
+          <img
+            src={splashLogo}
+            alt={`${BRAND.name} logo`}
+            className="logo-image"
+            loading="lazy"
+            decoding="async"
+          />
         </div>
-        <div className="logo-ring" />
-      </div>
-      <div className="loader-text">CareerPilot</div>
-      <div className="loader-subtext">{message}</div>
-      <div className="loader-dots" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-      </div>
+        <div className="loader-dots" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
     </div>
 
     <style>{`
@@ -43,78 +45,80 @@ export const AppLoader = ({ message = 'Loading', variant = 'overlay' }: AppLoade
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 10px;
+        gap: 6px;
         padding: 12px 18px;
         background: transparent;
         border: none;
         box-shadow: none;
-        min-width: 220px;
+        min-width: 120px;
       }
 
       .loader-logo {
         position: relative;
-        width: 74px;
-        height: 74px;
+        width: 112px;
+        height: 112px;
         display: grid;
         place-items: center;
       }
 
-      .logo-shape {
-        width: 64px;
-        height: 64px;
-        border-radius: 16px;
-        background: linear-gradient(135deg, #00d4aa 0%, #00a389 100%);
-        color: white;
-        display: grid;
-        place-items: center;
-        box-shadow: 0 12px 24px rgba(0, 212, 170, 0.28);
+      .logo-image {
+        width: 100px;
+        height: 100px;
+        border-radius: 0;
+        object-fit: contain;
+        box-shadow: none;
         animation: loader-float 1.6s ease-in-out infinite;
-      }
-
-      .logo-ring {
-        position: absolute;
-        inset: 0;
-        border-radius: 22px;
-        border: 2px solid rgba(0, 212, 170, 0.25);
-        animation: loader-ring 1.6s ease-in-out infinite;
-      }
-
-      .loader-text {
-        font-size: 18px;
-        font-weight: 800;
-        color: #111827;
-        letter-spacing: -0.3px;
-      }
-
-      .loader-subtext {
-        font-size: 12px;
-        color: #6b7280;
-        text-transform: uppercase;
-        letter-spacing: 0.3em;
       }
 
       .loader-dots {
         display: flex;
         gap: 6px;
-        margin-top: 4px;
+        margin-top: -2px;
       }
 
       .loader-dots span {
-        width: 8px;
-        height: 8px;
+        width: 7px;
+        height: 7px;
         border-radius: 50%;
-        background: #00d4aa;
+        background: #1dbf73;
         animation: loader-bounce 0.9s ease-in-out infinite;
       }
 
       .loader-dots span:nth-child(2) {
         animation-delay: 0.12s;
-        background: #00c19a;
+        background: #17a864;
       }
 
       .loader-dots span:nth-child(3) {
         animation-delay: 0.24s;
-        background: #00a389;
+        background: #149457;
+      }
+
+      [data-theme="dark"] .app-loader {
+        background: rgba(2, 6, 23, 0.76);
+      }
+
+      [data-theme="dark"] .app-loader.full {
+        background:
+          radial-gradient(circle at 82% 12%, rgba(56, 189, 248, 0.14), transparent 40%),
+          radial-gradient(circle at 12% 88%, rgba(20, 184, 166, 0.12), transparent 42%),
+          #020617;
+      }
+
+      [data-theme="dark"] .logo-image {
+        box-shadow: none;
+      }
+
+      [data-theme="dark"] .loader-dots span {
+        background: #34d399;
+      }
+
+      [data-theme="dark"] .loader-dots span:nth-child(2) {
+        background: #10b981;
+      }
+
+      [data-theme="dark"] .loader-dots span:nth-child(3) {
+        background: #059669;
       }
 
       @keyframes loader-float {
@@ -122,15 +126,11 @@ export const AppLoader = ({ message = 'Loading', variant = 'overlay' }: AppLoade
         50% { transform: translateY(-6px); }
       }
 
-      @keyframes loader-ring {
-        0%, 100% { transform: scale(0.96); opacity: 0.6; }
-        50% { transform: scale(1.05); opacity: 0.25; }
-      }
-
       @keyframes loader-bounce {
         0%, 100% { transform: translateY(0); opacity: 0.7; }
-        50% { transform: translateY(-6px); opacity: 1; }
+        50% { transform: translateY(-5px); opacity: 1; }
       }
+
     `}</style>
   </div>
 );

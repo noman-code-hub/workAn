@@ -66,9 +66,12 @@ export const SeoJobsPage = () => {
 
   useEffect(() => {
     applySeoMeta(
-      `${config.title} | Hirevo`,
+      `${config.title} | Workshour`,
       config.description,
-      routeLocation.pathname
+      routeLocation.pathname,
+      {
+        keywords: `${config.keyword} jobs, ${config.location} jobs, workshour`,
+      }
     );
   }, [config, routeLocation.pathname]);
 

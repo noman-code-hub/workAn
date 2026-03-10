@@ -238,7 +238,13 @@ export const CommunityFeed = () => {
                     <div className="flex gap-4 mb-4">
                         <div className="w-12 h-12 border-2 border-black flex-shrink-0 bg-gray-100 overflow-hidden">
                             {user?.photoURL ? (
-                                <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
+                                <img
+                                    src={user.photoURL}
+                                    alt={user?.name ? `${user.name} avatar` : 'User avatar'}
+                                    className="w-full h-full object-cover"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-black text-white font-bold">
                                     {user?.name.charAt(0)}
@@ -255,7 +261,13 @@ export const CommunityFeed = () => {
 
                     {selectedImage && (
                         <div className="relative mb-4 ml-16 max-w-xs border border-black">
-                            <img src={URL.createObjectURL(selectedImage)} alt="Preview" className="w-full" />
+                            <img
+                                src={URL.createObjectURL(selectedImage)}
+                                alt="Post image preview"
+                                className="w-full"
+                                loading="lazy"
+                                decoding="async"
+                            />
                             <button
                                 onClick={() => setSelectedImage(null)}
                                 className="absolute -top-3 -right-3 bg-red-600 text-white border-2 border-black p-1 hover:bg-red-700 transition-colors shadow-[2px_2px_0px_0px_#000000] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px]"
@@ -301,7 +313,13 @@ export const CommunityFeed = () => {
                                     <div className="flex gap-4 items-center">
                                         <div className="w-10 h-10 border-2 border-black bg-gray-100 overflow-hidden">
                                             {post.authorPhoto ? (
-                                                <img src={post.authorPhoto} alt="" className="w-full h-full object-cover" />
+                                                <img
+                                                    src={post.authorPhoto}
+                                                    alt={post.authorName ? `${post.authorName} avatar` : 'Author avatar'}
+                                                    className="w-full h-full object-cover"
+                                                    loading="lazy"
+                                                    decoding="async"
+                                                />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center bg-black text-white font-bold">
                                                     {post.authorName.charAt(0)}
@@ -337,7 +355,13 @@ export const CommunityFeed = () => {
                                     </p>
                                     {post.imageUrl && (
                                         <div className="border border-black overflow-hidden bg-gray-50">
-                                            <img src={post.imageUrl} alt="Post content" className="w-full h-auto" />
+                                            <img
+                                                src={post.imageUrl}
+                                                alt={post.content ? `Post image: ${post.content.slice(0, 60)}` : 'Post image'}
+                                                className="w-full h-auto"
+                                                loading="lazy"
+                                                decoding="async"
+                                            />
                                         </div>
                                     )}
                                 </div>
@@ -371,7 +395,13 @@ export const CommunityFeed = () => {
                                     <div className="flex gap-3 mb-8">
                                         <div className="w-8 h-8 border border-black bg-white overflow-hidden flex-shrink-0">
                                             {user?.photoURL ? (
-                                                <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
+                                                <img
+                                                    src={user.photoURL}
+                                                    alt={user?.name ? `${user.name} avatar` : 'User avatar'}
+                                                    className="w-full h-full object-cover"
+                                                    loading="lazy"
+                                                    decoding="async"
+                                                />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center bg-black text-white text-xs font-bold">
                                                     {user?.name.charAt(0)}
@@ -407,7 +437,13 @@ export const CommunityFeed = () => {
                                                 <div key={comment.id} className="flex gap-3">
                                                     <div className="w-8 h-8 border border-black bg-white overflow-hidden flex-shrink-0">
                                                         {comment.authorPhoto ? (
-                                                            <img src={comment.authorPhoto} alt="" className="w-full h-full object-cover" />
+                                                            <img
+                                                                src={comment.authorPhoto}
+                                                                alt={comment.authorName ? `${comment.authorName} avatar` : 'Comment author avatar'}
+                                                                className="w-full h-full object-cover"
+                                                                loading="lazy"
+                                                                decoding="async"
+                                                            />
                                                         ) : (
                                                             <div className="w-full h-full flex items-center justify-center bg-black text-white text-xs font-bold">
                                                                 {comment.authorName.charAt(0)}

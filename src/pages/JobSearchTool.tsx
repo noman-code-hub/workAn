@@ -28,7 +28,10 @@ export const JobSearchTool = () => {
     applySeoMeta(
       'Job Search Tool | Multi-Source US Jobs',
       'Search jobs from Arbeitnow, Remotive, USAJOBS, and Indeed RSS in one place.',
-      '/job-search'
+      '/job-search',
+      {
+        keywords: 'job search tool, multi-source jobs, USA jobs, workshour',
+      }
     );
   }, []);
 

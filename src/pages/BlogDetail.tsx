@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Clock } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { applySeoMeta } from '../utils/seo';
 import type { BlogPost } from '@/types';
 
 export const BlogDetail = () => {
@@ -16,14 +17,35 @@ export const BlogDetail = () => {
             if (!id) return;
 
             try {
-                const postDoc = await getDoc(doc(db, 'blogs', id));
+                const blogDoc = await getDoc(doc(db, 'blogs', id));
+                const postDoc = blogDoc.exists() ? blogDoc : await getDoc(doc(db, 'posts', id));
+
                 if (postDoc.exists()) {
                     const data = postDoc.data();
+                    const title = data.title ? `${data.title} | Workshour` : 'Career Insights | Workshour';
+                    const description = typeof data.content === 'string'
+                        ? data.content.replace(/\s+/g, ' ').slice(0, 160)
+                        : '';
+                    const image = data.imageURL || data.imageUrl || '';
+                    applySeoMeta(
+                        title,
+                        description,
+                        `/blog/${postDoc.id}`,
+                        {
+                            ogType: 'article',
+                            image: image || undefined,
+                            keywords: data.title ? `${data.title}, career insights, workshour` : undefined,
+                        }
+                    );
                     setPost({
                         id: postDoc.id,
                         ...data,
-                        createdAt: data.createdAt?.toDate?.() || new Date(),
-                        updatedAt: data.updatedAt?.toDate?.() || new Date()
+                        userId: data.userId || data.authorId || '',
+                        authorAvatar: data.authorAvatar || data.authorPhoto || '',
+                        imageURL: data.imageURL || data.imageUrl || '',
+                        type: data.type === 'blog' ? 'blog' : 'community',
+                        createdAt: data.createdAt?.toDate?.() || (data.createdAt ? new Date(data.createdAt) : new Date()),
+                        updatedAt: data.updatedAt?.toDate?.() || (data.updatedAt ? new Date(data.updatedAt) : (data.createdAt?.toDate?.() || new Date()))
                     } as BlogPost);
                 }
             } catch (error) {
@@ -85,7 +107,13 @@ export const BlogDetail = () => {
                     {/* Featured Image */}
                     {post.imageURL && (
                         <div style={styles.featuredImageWrapper}>
-                            <img src={post.imageURL} alt={post.title} style={styles.featuredImage} />
+                            <img
+                                src={post.imageURL}
+                                alt={post.title || 'Blog featured image'}
+                                style={styles.featuredImage}
+                                loading="lazy"
+                                decoding="async"
+                            />
                         </div>
                     )}
 

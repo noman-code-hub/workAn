@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useRoleBasedRedirect } from '../hooks/useRoleBasedRedirect';
-import { Eye, EyeOff, Mail, Lock, Zap, AlertCircle, User as UserIcon, Briefcase } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, AlertCircle, User as UserIcon, Briefcase } from 'lucide-react';
+import { BRAND } from '../config/brand';
 
 export const Register = () => {
 
@@ -51,9 +52,15 @@ export const Register = () => {
                 <div className="login-left">
                     <div className="branding">
                         <div className="brand-icon">
-                            <Zap size={40} fill="white" />
+                            <img
+                                src={BRAND.logo.glyph}
+                                alt={`${BRAND.name} logo`}
+                                className="brand-icon-img"
+                                loading="lazy"
+                                decoding="async"
+                            />
                         </div>
-                        <h1>Join CareerPilot</h1>
+                        <h1>Join {BRAND.name}</h1>
                         <p>Start your journey to the perfect career</p>
                     </div>
                     <div className="features">
@@ -86,7 +93,7 @@ export const Register = () => {
                     <div className="login-form-wrapper">
                         <div className="form-header">
                             <h2>Create Account</h2>
-                            <p>Sign up to get started with CareerPilot</p>
+                            <p>Sign up to get started with Workshour</p>
                         </div>
 
                         {error && (
@@ -207,17 +214,19 @@ export const Register = () => {
             <style>{`
                 .login-page {
                     min-height: 100vh;
+                    min-height: 100svh;
                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    padding: 20px;
+                    overflow: hidden;
+                    padding: clamp(20px, 4vw, 40px);
                 }
 
                 .login-container {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
-                    max-width: 1200px;
+                    max-width: 1080px;
                     width: 100%;
                     background: white;
                     border-radius: 24px;
@@ -241,13 +250,21 @@ export const Register = () => {
                 .brand-icon {
                     width: 80px;
                     height: 80px;
-                    background: rgba(255, 255, 255, 0.2);
-                    border-radius: 20px;
+                    background: linear-gradient(135deg, #1dbf73 0%, #00d4aa 100%);
+                    border-radius: 50%;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     margin: 0 auto 20px;
-                    backdrop-filter: blur(10px);
+                    border: 1px solid rgba(0, 0, 0, 0.08);
+                    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+                }
+
+                .brand-icon-img {
+                    width: 52px;
+                    height: 52px;
+                    object-fit: contain;
+                    filter: brightness(0) invert(1);
                 }
 
                 .branding h1 {
@@ -306,7 +323,7 @@ export const Register = () => {
 
                 .login-form-wrapper {
                     width: 100%;
-                    max-width: 400px;
+                    max-width: 380px;
                 }
 
                 .form-header {
@@ -492,6 +509,24 @@ export const Register = () => {
                     text-decoration: underline;
                 }
 
+                @media (max-width: 1200px) {
+                    .login-container {
+                        max-width: 960px;
+                    }
+
+                    .login-left {
+                        padding: 48px 40px;
+                    }
+
+                    .login-right {
+                        padding: 48px 44px;
+                    }
+
+                    .login-form-wrapper {
+                        max-width: 380px;
+                    }
+                }
+
                 @media (max-width: 1024px) {
                     .login-container {
                         grid-template-columns: 1fr;
@@ -504,6 +539,48 @@ export const Register = () => {
                     .login-right {
                         padding: 40px 20px;
                     }
+
+                    .login-form-wrapper {
+                        max-width: 460px;
+                    }
+                }
+
+                @media (max-width: 900px) {
+                    .login-container {
+                        max-width: 820px;
+                    }
+
+                    .login-left {
+                        padding: 44px 34px;
+                    }
+
+                    .feature-item {
+                        padding: 16px 18px;
+                    }
+                }
+
+                @media (max-width: 768px) {
+                    .login-right {
+                        padding: 32px 18px;
+                    }
+
+                    .login-form-wrapper {
+                        max-width: 100%;
+                    }
+
+                    .form-header h2 {
+                        font-size: 26px;
+                    }
+                }
+
+                @media (max-width: 640px) {
+                    .login-container {
+                        border-radius: 22px;
+                    }
+
+                    .form-header p {
+                        font-size: 14px;
+                    }
                 }
 
                 @media (max-width: 480px) {
@@ -513,6 +590,114 @@ export const Register = () => {
 
                     .login-right {
                         padding: 30px 16px;
+                    }
+
+                    .role-selector {
+                        grid-template-columns: 1fr;
+                    }
+
+                    .btn-primary,
+                    .btn-google {
+                        font-size: 15px;
+                    }
+                }
+
+                @media (max-width: 360px) {
+                    .login-page {
+                        padding: 20px 12px;
+                    }
+                }
+
+                @media (max-height: 760px) {
+                    .login-page {
+                        align-items: center;
+                        padding-top: 16px;
+                        padding-bottom: 16px;
+                    }
+
+                    .login-left {
+                        padding: 40px 36px;
+                    }
+
+                    .brand-icon {
+                        width: 68px;
+                        height: 68px;
+                        margin-bottom: 14px;
+                    }
+
+                    .brand-icon-img {
+                        width: 44px;
+                        height: 44px;
+                    }
+
+                    .branding h1 {
+                        font-size: 28px;
+                        margin-bottom: 8px;
+                    }
+
+                    .branding p {
+                        font-size: 14px;
+                    }
+
+                    .features {
+                        gap: 14px;
+                        margin-top: 24px;
+                    }
+
+                    .feature-item {
+                        padding: 12px 14px;
+                    }
+
+                    .feature-item h3 {
+                        font-size: 15px;
+                        margin-bottom: 6px;
+                    }
+
+                    .feature-item p {
+                        font-size: 12px;
+                    }
+
+                    .login-right {
+                        padding: 36px 36px;
+                    }
+
+                    .login-form-wrapper {
+                        max-width: 420px;
+                    }
+
+                    .form-header {
+                        margin-bottom: 20px;
+                    }
+
+                    .form-header h2 {
+                        font-size: 24px;
+                    }
+
+                    .form-header p {
+                        font-size: 14px;
+                    }
+
+                    .form-group {
+                        margin-bottom: 14px;
+                    }
+
+                    .input-wrapper input {
+                        padding: 10px 14px 10px 44px;
+                        font-size: 14px;
+                    }
+
+                    .btn-primary,
+                    .btn-google {
+                        padding: 12px;
+                        font-size: 14px;
+                    }
+
+                    .divider {
+                        margin: 18px 0;
+                    }
+
+                    .signup-link {
+                        margin-top: 18px;
                     }
                 }
 

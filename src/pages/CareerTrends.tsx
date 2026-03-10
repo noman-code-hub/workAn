@@ -666,6 +666,135 @@ export const CareerTrends = () => {
           color: #0f766e;
         }
 
+        [data-theme="dark"] .trends-glow-a {
+          background: #1d4ed8;
+          opacity: 0.2;
+        }
+
+        [data-theme="dark"] .trends-glow-b {
+          background: #0f766e;
+          opacity: 0.22;
+        }
+
+        [data-theme="dark"] .trends-panel {
+          background: linear-gradient(180deg, #111827, #0f172a);
+          border-color: #334155;
+          box-shadow: 0 22px 40px -30px rgba(2, 6, 23, 0.9);
+        }
+
+        [data-theme="dark"] .trends-hero {
+          background:
+            radial-gradient(circle at top right, rgba(45, 212, 191, 0.12), transparent 42%),
+            linear-gradient(145deg, #111827 0%, #0b1220 100%);
+        }
+
+        [data-theme="dark"] .hero-kicker {
+          color: #5eead4;
+        }
+
+        [data-theme="dark"] .hero-copy h1,
+        [data-theme="dark"] .hero-stat h3,
+        [data-theme="dark"] .insight-card h3,
+        [data-theme="dark"] .section-head h2,
+        [data-theme="dark"] .skill-title-wrap h3,
+        [data-theme="dark"] .industry-head h3,
+        [data-theme="dark"] .industry-stats strong {
+          color: #e2e8f0;
+        }
+
+        [data-theme="dark"] .hero-copy p,
+        [data-theme="dark"] .hero-stat small,
+        [data-theme="dark"] .insight-card p,
+        [data-theme="dark"] .section-head p,
+        [data-theme="dark"] .skill-title-wrap small,
+        [data-theme="dark"] .growth-value,
+        [data-theme="dark"] .industry-stats small {
+          color: #94a3b8;
+        }
+
+        [data-theme="dark"] .hero-stat,
+        [data-theme="dark"] .insight-card,
+        [data-theme="dark"] .skill-card,
+        [data-theme="dark"] .industry-card {
+          border-color: #334155;
+          background: #111827;
+        }
+
+        [data-theme="dark"] .hero-stat:hover,
+        [data-theme="dark"] .insight-card:hover,
+        [data-theme="dark"] .skill-card:hover,
+        [data-theme="dark"] .industry-card:hover {
+          border-color: #2dd4bf;
+          box-shadow: 0 20px 28px -24px rgba(2, 6, 23, 0.92);
+        }
+
+        [data-theme="dark"] .hero-stat p {
+          color: #64748b;
+        }
+
+        [data-theme="dark"] .tone-primary .insight-icon {
+          background: linear-gradient(145deg, rgba(20, 184, 166, 0.24), rgba(14, 165, 233, 0.18));
+          color: #5eead4;
+        }
+
+        [data-theme="dark"] .tone-warning .insight-icon {
+          background: linear-gradient(145deg, rgba(245, 158, 11, 0.25), rgba(251, 191, 36, 0.16));
+          color: #fbbf24;
+        }
+
+        [data-theme="dark"] .tone-success .insight-icon {
+          background: linear-gradient(145deg, rgba(16, 185, 129, 0.26), rgba(52, 211, 153, 0.16));
+          color: #34d399;
+        }
+
+        [data-theme="dark"] .tone-secondary .insight-icon {
+          background: linear-gradient(145deg, rgba(139, 92, 246, 0.28), rgba(167, 139, 250, 0.15));
+          color: #a78bfa;
+        }
+
+        [data-theme="dark"] .section-chip {
+          border-color: #334155;
+          background: #0f172a;
+          color: #cbd5e1;
+        }
+
+        [data-theme="dark"] .demand-vhigh {
+          background: rgba(16, 185, 129, 0.16);
+          color: #6ee7b7;
+          border-color: rgba(16, 185, 129, 0.45);
+        }
+
+        [data-theme="dark"] .demand-high {
+          background: rgba(6, 182, 212, 0.16);
+          color: #67e8f9;
+          border-color: rgba(6, 182, 212, 0.45);
+        }
+
+        [data-theme="dark"] .demand-medium {
+          background: rgba(245, 158, 11, 0.16);
+          color: #fcd34d;
+          border-color: rgba(245, 158, 11, 0.45);
+        }
+
+        [data-theme="dark"] .skill-salary {
+          color: #5eead4;
+        }
+
+        [data-theme="dark"] .skill-progress {
+          background: #1e293b;
+        }
+
+        [data-theme="dark"] .industry-link {
+          border-color: #334155;
+          background: #0f172a;
+          color: #cbd5e1;
+        }
+
+        [data-theme="dark"] .industry-link:hover {
+          border-color: #2dd4bf;
+          color: #5eead4;
+        }
+
         @keyframes tr-rise {
           from { opacity: 0; transform: translateY(14px) scale(0.986); }
           to { opacity: 1; transform: translateY(0) scale(1); }

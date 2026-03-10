@@ -337,7 +337,13 @@ export const AdminTemplates = () => {
                                 <div key={template.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all group">
                                     <div className="relative aspect-video bg-gray-100 overflow-hidden">
                                         {template.thumbnail_url ? (
-                                            <img src={template.thumbnail_url} alt={template.name} className="w-full h-full object-cover" />
+                                            <img
+                                                src={template.thumbnail_url}
+                                                alt={template.name}
+                                                className="w-full h-full object-contain bg-white p-1"
+                                                loading="lazy"
+                                                decoding="async"
+                                            />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-gray-400">No Preview</div>
                                         )}

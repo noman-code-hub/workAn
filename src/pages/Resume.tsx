@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Download, AlertCircle, Zap } from 'lucide-react';
+import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
 import { normalizeFieldKey, renderTemplateWithSchema } from '../services/resumeTemplateRenderer';
+import { API_BASE, apiUrl } from '../config/api';
+import { AppLoader } from '../components/AppLoader';
 
 const RESUME_VIEW_STORAGE_KEY = 'careerpilot:resume-view';
+const RESUME_UPLOAD_TIMEOUT_MS = Number(import.meta.env.VITE_RESUME_UPLOAD_TIMEOUT_MS || 90000);
 
 export const Resume = () => {
   const { user } = useAuth();
@@ -45,14 +49,17 @@ export const Resume = () => {
   const [generateError, setGenerateError] = useState<string | null>(null);
   const previewFrameRef = useRef<HTMLDivElement | null>(null);
   const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
+  const resumeUploadInputRef = useRef<HTMLInputElement | null>(null);
   const previewFontsReadyRef = useRef(false);
   const [previewScale, setPreviewScale] = useState(1);
   const [previewSize, setPreviewSize] = useState({ width: 800, height: 1100 });
   const [templateStep, setTemplateStep] = useState<'choose' | 'edit'>('choose');
+  const [uploadingResume, setUploadingResume] = useState(false);
 
   const [activeTemplateFilter, setActiveTemplateFilter] = useState('All templates');
   const [showMobilePreview, setShowMobilePreview] = useState(false);
   const resumeViewRestoreRef = useRef(false);
+  const [initialResumeReady, setInitialResumeReady] = useState(false);
 
   const {
     templates,
@@ -60,6 +67,7 @@ export const Resume = () => {
     templateLoading,
     templateError,
     templatePreviewHtml,
+    templatePreviewLoading,
     templateFields,
     templateFieldValues,
     templateSourceHtml,
@@ -683,6 +691,243 @@ export const Resume = () => {
     setTemplateStep('edit');
   };
 
+  const ensureEditModeReady = useCallback(() => {
+    const fallbackTemplate = selectedTemplate || filteredTemplates[0]?.name || templates[0]?.name;
+    if (!fallbackTemplate) {
+      setGenerateError('No resume template is available yet.');
+      return false;
+    }
+    if (!selectedTemplate) {
+      selectTemplate(fallbackTemplate);
+    }
+    setTemplateStep('edit');
+    setActiveSectionId('contact');
+    setGenerateError(null);
+    return true;
+  }, [filteredTemplates, selectedTemplate, selectTemplate, templates]);
+
+  const handleCreateResumeClick = useCallback(() => {
+    ensureEditModeReady();
+  }, [ensureEditModeReady]);
+
+  const normalizeImportKey = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const humanizeFileName = (name: string) =>
+    name
+      .replace(/\.[^.]+$/, '')
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+
+  const findFirstByKeys = useCallback((root: unknown, keys: string[]) => {
+    if (!root || typeof root !== 'object') return undefined;
+
+    const normalized = new Set(keys.map((key) => normalizeImportKey(key)));
+    const queue: unknown[] = [root];
+    const visited = new WeakSet<object>();
+
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (!current || typeof current !== 'object') continue;
+      if (visited.has(current as object)) continue;
+      visited.add(current as object);
+
+      if (Array.isArray(current)) {
+        current.forEach((item) => queue.push(item));
+        continue;
+      }
+
+      for (const [entryKey, entryValue] of Object.entries(current as Record<string, unknown>)) {
+        if (normalized.has(normalizeImportKey(entryKey))) {
+          return entryValue;
+        }
+        if (entryValue && typeof entryValue === 'object') {
+          queue.push(entryValue);
+        }
+      }
+    }
+
+    return undefined;
+  }, []);
+
+  const toStringValue = (value: unknown) => {
+    if (typeof value === 'string') return value.trim();
+    if (typeof value === 'number') return String(value);
+    return '';
+  };
+
+  const toStringList = (value: unknown) => {
+    if (Array.isArray(value)) {
+      return value.map((item) => toStringValue(item)).filter(Boolean);
+    }
+    if (typeof value === 'string') {
+      return value
+        .split(/[\n,;|]+/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+    return [];
+  };
+
+  const mapExperienceEntries = (raw: unknown) => {
+    if (!Array.isArray(raw)) return [] as typeof experienceItems;
+    return raw
+      .map((entry, index) => {
+        const record = (entry && typeof entry === 'object') ? (entry as Record<string, unknown>) : {};
+        const role = toStringValue(record.role ?? record.title ?? record.position ?? record.job_title);
+        const company = toStringValue(record.company ?? record.employer ?? record.organization);
+        const dates = toStringValue(record.dates ?? record.date ?? record.period ?? record.duration ?? record.years);
+        const detailsSource = record.details ?? record.description ?? record.summary ?? record.responsibilities;
+        const details = Array.isArray(detailsSource)
+          ? detailsSource.map((item) => toStringValue(item)).filter(Boolean).join('\n')
+          : toStringValue(detailsSource);
+        if (![role, company, dates, details].some(Boolean)) return null;
+        return { id: `exp-import-${index + 1}`, role, company, dates, details };
+      })
+      .filter((item): item is { id: string; role: string; company: string; dates: string; details: string } => Boolean(item));
+  };
+
+  const mapEducationEntries = (raw: unknown) => {
+    if (!Array.isArray(raw)) return [] as typeof educationItems;
+    return raw
+      .map((entry, index) => {
+        const record = (entry && typeof entry === 'object') ? (entry as Record<string, unknown>) : {};
+        const degree = toStringValue(record.degree ?? record.course ?? record.qualification);
+        const school = toStringValue(record.school ?? record.university ?? record.institution ?? record.institute);
+        const dates = toStringValue(record.dates ?? record.date ?? record.period ?? record.duration ?? record.years);
+        const detailsSource = record.details ?? record.description ?? record.summary;
+        const details = Array.isArray(detailsSource)
+          ? detailsSource.map((item) => toStringValue(item)).filter(Boolean).join('\n')
+          : toStringValue(detailsSource);
+        if (![degree, school, dates, details].some(Boolean)) return null;
+        return { id: `edu-import-${index + 1}`, degree, school, dates, details };
+      })
+      .filter((item): item is { id: string; degree: string; school: string; dates: string; details: string } => Boolean(item));
+  };
+
+  const handleUploadResumeClick = useCallback(() => {
+    resumeUploadInputRef.current?.click();
+  }, []);
+
+  const handleUploadResumeFile = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setUploadingResume(true);
+    setGenerateError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('resume', file);
+
+      const localDevHost = typeof window !== 'undefined'
+        && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      const prefersLocalFallback = localDevHost && !/localhost|127\.0\.0\.1/i.test(API_BASE);
+      const uploadEndpoints = [
+        apiUrl('/upload-resume'),
+        ...(prefersLocalFallback ? ['http://localhost:5000/api/upload-resume'] : []),
+      ];
+
+      let response: Awaited<ReturnType<typeof axios.post>> | null = null;
+      let lastError: unknown = null;
+      for (const endpoint of uploadEndpoints) {
+        try {
+          response = await axios.post(endpoint, formData, {
+            timeout: RESUME_UPLOAD_TIMEOUT_MS,
+          });
+          lastError = null;
+          break;
+        } catch (err) {
+          lastError = err;
+        }
+      }
+
+      if (lastError) {
+        throw lastError;
+      }
+      if (!response) {
+        throw new Error('Resume upload request did not return a response.');
+      }
+
+      const payload = (response.data || {}) as Record<string, unknown>;
+      const parserUnavailable = payload.parser_unavailable === true;
+      if (parserUnavailable) {
+        if (!contactName.trim()) {
+          const fallbackName = humanizeFileName(file.name);
+          if (fallbackName) setContactName(fallbackName);
+        }
+        ensureEditModeReady();
+        setGenerateError('Parser is offline, so fields were not auto-filled. You can still edit manually.');
+        return;
+      }
+      const metadata = (payload.resume_metadata && typeof payload.resume_metadata === 'object')
+        ? (payload.resume_metadata as Record<string, unknown>)
+        : {};
+
+      const importedName = toStringValue(findFirstByKeys(metadata, ['name', 'full_name', 'fullname', 'candidate_name']));
+      const importedRole = toStringValue(findFirstByKeys(metadata, ['role', 'title', 'position', 'job_title', 'target_role']));
+      const importedEmail = toStringValue(findFirstByKeys(metadata, ['email', 'mail']));
+      const importedPhone = toStringValue(findFirstByKeys(metadata, ['phone', 'mobile', 'phone_number']));
+      const importedLocation = toStringValue(findFirstByKeys(metadata, ['location', 'address', 'city', 'country']));
+      const importedSummary = toStringValue(findFirstByKeys(metadata, ['summary', 'profile', 'objective', 'professional_summary']))
+        || toStringValue(payload.summary);
+
+      const metadataSkills = toStringList(
+        findFirstByKeys(metadata, ['skills', 'skillset', 'key_skills', 'keywords', 'technical_skills', 'technicalSkills'])
+      );
+      const importedSkills = (
+        metadataSkills.length > 0
+          ? metadataSkills
+          : toStringList(payload.keywords_matched)
+      ).filter((value, index, list) => list.indexOf(value) === index);
+
+      const importedExperience = mapExperienceEntries(
+        findFirstByKeys(metadata, ['experience', 'work_experience', 'employment_history'])
+      );
+      const importedEducation = mapEducationEntries(
+        findFirstByKeys(metadata, ['education', 'academic_history'])
+      );
+      const importedProjects = toStringList(
+        findFirstByKeys(metadata, ['projects', 'personal_projects', 'personalProjects', 'project_experience', 'portfolio_projects'])
+      );
+
+      if (importedName) setContactName(importedName);
+      if (importedRole) setContactRole(importedRole);
+      if (importedEmail) setContactEmail(importedEmail);
+      if (importedPhone) setContactPhone(importedPhone);
+      if (importedLocation) setContactLocation(importedLocation);
+      if (importedSummary) setSummaryText(importedSummary);
+      if (importedSkills.length > 0) setSkillsText(importedSkills.join(', '));
+      if (importedExperience.length > 0) setExperienceItems(importedExperience);
+      if (importedEducation.length > 0) setEducationItems(importedEducation);
+      if (importedProjects.length > 0) setProjectsText(importedProjects.join('\n'));
+
+      ensureEditModeReady();
+    } catch (error: any) {
+      const statusCode = Number(error?.response?.status || 0);
+      if (statusCode >= 500) {
+        console.warn('Resume upload server error:', error);
+      } else {
+        console.error('Resume upload error:', error);
+      }
+      const isTimedOut =
+        error?.code === 'ECONNABORTED'
+        || /timeout/i.test(String(error?.message || ''));
+      const serviceUnavailable = Number(error?.response?.status) === 503;
+      const message = isTimedOut
+        ? `Resume parsing timed out after ${Math.round(RESUME_UPLOAD_TIMEOUT_MS / 1000)}s. Please retry.`
+        : serviceUnavailable
+          ? 'Resume parser service is not running. Please start it and retry upload.'
+        : typeof error?.response?.data?.error === 'string'
+          ? error.response.data.error
+          : 'Failed to upload and parse resume.';
+      setGenerateError(message);
+    } finally {
+      setUploadingResume(false);
+    }
+  }, [ensureEditModeReady, findFirstByKeys]);
+
   const handleDownloadPDF = async () => {
     const html = generatedHTML || (templateSourceHtml
       ? renderTemplateWithSchema(templateSourceHtml, buildResumeView())
@@ -960,6 +1205,32 @@ export const Resume = () => {
     return undefined;
   }, [showMobilePreview]);
 
+  useEffect(() => {
+    if (initialResumeReady) return;
+
+    const waitingForInitialTemplate =
+      Boolean(selectedTemplate) &&
+      !templateSourceHtml &&
+      !templateError;
+
+    if (templateLoading || (templatePreviewLoading && waitingForInitialTemplate) || waitingForInitialTemplate) {
+      return;
+    }
+
+    setInitialResumeReady(true);
+  }, [
+    initialResumeReady,
+    selectedTemplate,
+    templateError,
+    templateLoading,
+    templatePreviewLoading,
+    templateSourceHtml,
+  ]);
+
+  if (!initialResumeReady) {
+    return <AppLoader variant="full" />;
+  }
+
 
   return (
     <div className={`resume-page ${isTemplateSelection ? 'is-template-mode' : ''}`}>
@@ -980,13 +1251,25 @@ export const Resume = () => {
                 <button
                   type="button"
                   className="btn btn-primary btn-lg"
-                  onClick={() => setTemplateStep('edit')}
+                  onClick={handleCreateResumeClick}
                 >
                   Create my resume
                 </button>
-                <button type="button" className="btn btn-secondary btn-lg">
-                  Upload my resume
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-lg"
+                  onClick={handleUploadResumeClick}
+                  disabled={uploadingResume}
+                >
+                  {uploadingResume ? 'Uploading...' : 'Upload my resume'}
                 </button>
+                <input
+                  ref={resumeUploadInputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt"
+                  style={{ display: 'none' }}
+                  onChange={handleUploadResumeFile}
+                />
               </div>
               <div className="template-filters">
                 {templateFilters.map((filter) => (
@@ -1039,7 +1322,12 @@ export const Resume = () => {
                     >
                       <div className="template-card-compact-preview">
                         {t.thumbnailUrl ? (
-                          <img src={t.thumbnailUrl} alt={`${t.displayName} template`} />
+                          <img
+                            src={t.thumbnailUrl}
+                            alt={`${t.displayName} template`}
+                            loading="lazy"
+                            decoding="async"
+                          />
                         ) : (
                           <div className="template-preview-placeholder">
                             <div className="template-preview-paper" />
@@ -1192,6 +1480,8 @@ export const Resume = () => {
                                         src={contactPhotoUrl}
                                         alt="Profile preview"
                                         className="w-12 h-12 rounded-full object-cover border border-gray-200"
+                                        loading="lazy"
+                                        decoding="async"
                                       />
                                     )}
                                     <div className="text-sm text-gray-600">{contactPhotoName || 'Photo selected'}</div>
@@ -2057,13 +2347,14 @@ export const Resume = () => {
         }
 
         .template-card-compact-preview {
-          height: 580px;
+          aspect-ratio: 210 / 297;
+          height: auto;
           overflow: hidden;
           background: var(--color-bg-secondary);
           display: flex;
-          align-items: flex-start;
+          align-items: center;
           justify-content: center;
-          // padding-top: 10px;
+          padding: 8px;
           width: 100%;
         }
 
@@ -2071,6 +2362,7 @@ export const Resume = () => {
           width: 100%;
           height: 100%;
           object-fit: contain;
+          object-position: top center;
           transition: transform 0.3s ease;
         }
 
@@ -2863,6 +3155,167 @@ export const Resume = () => {
         .resume-page .form-group select:focus {
           border-color: #14b8a6 !important;
           box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.14) !important;
+        }
+
+        [data-theme="dark"] .resume-page {
+          background:
+            radial-gradient(circle at 85% -8%, rgba(56, 189, 248, 0.16), transparent 40%),
+            radial-gradient(circle at 10% 12%, rgba(20, 184, 166, 0.14), transparent 42%),
+            linear-gradient(180deg, #0b1220 0%, #0f172a 100%);
+        }
+
+        [data-theme="dark"] .resume-page.is-template-mode {
+          background: #0f172a;
+        }
+
+        [data-theme="dark"] .resume-page::before {
+          background: #1d4ed8;
+          opacity: 0.18;
+        }
+
+        [data-theme="dark"] .resume-page::after {
+          background: #0f766e;
+          opacity: 0.2;
+        }
+
+        [data-theme="dark"] .resume-page.is-template-mode::before,
+        [data-theme="dark"] .resume-page.is-template-mode::after {
+          display: none;
+        }
+
+        [data-theme="dark"] .resume-page .resume-hero {
+          border-color: #334155;
+          background:
+            radial-gradient(circle at top right, rgba(45, 212, 191, 0.12), transparent 42%),
+            linear-gradient(145deg, #111827, #0f172a);
+          box-shadow: 0 24px 44px -30px rgba(2, 6, 23, 0.9);
+        }
+
+        [data-theme="dark"] .resume-page .resume-hero h1 {
+          color: #f1f5f9;
+        }
+
+        [data-theme="dark"] .resume-page .subtitle {
+          color: #94a3b8;
+        }
+
+        [data-theme="dark"] .resume-page .resume-hero-meta span {
+          border-color: #334155;
+          background: #0f172a;
+          color: #cbd5e1;
+        }
+
+        [data-theme="dark"] .resume-page .template-filter {
+          border-color: #334155;
+          background: #111827;
+          color: #cbd5e1;
+        }
+
+        [data-theme="dark"] .resume-page .template-filter.active {
+          background: rgba(20, 184, 166, 0.2);
+          border-color: rgba(45, 212, 191, 0.5);
+          color: #5eead4;
+        }
+
+        [data-theme="dark"] .resume-page .template-state {
+          border-color: #334155;
+          background: #111827;
+          color: #94a3b8;
+        }
+
+        [data-theme="dark"] .resume-page .template-card-compact {
+          border-color: #334155;
+          background: linear-gradient(165deg, #111827 0%, #0f172a 100%);
+          box-shadow: 0 16px 30px -24px rgba(2, 6, 23, 0.9);
+        }
+
+        [data-theme="dark"] .resume-page .template-card-compact:hover {
+          border-color: #2dd4bf;
+          box-shadow: 0 20px 32px -22px rgba(2, 6, 23, 0.95);
+        }
+
+        [data-theme="dark"] .resume-page .template-card-compact.is-selected {
+          background: rgba(45, 212, 191, 0.08);
+          box-shadow: 0 12px 24px rgba(20, 184, 166, 0.22);
+        }
+
+        [data-theme="dark"] .resume-page .template-card-compact-preview {
+          border-bottom-color: #334155;
+          background: #0b1220;
+        }
+
+        [data-theme="dark"] .resume-page .template-card-compact-preview img {
+          background: #0b1220;
+        }
+
+        [data-theme="dark"] .resume-page .ai-generator-section {
+          border-color: #334155;
+          background: linear-gradient(180deg, #111827, #0f172a);
+          box-shadow: 0 24px 44px -30px rgba(2, 6, 23, 0.9);
+        }
+
+        [data-theme="dark"] .resume-page .resume-toolbar-row {
+          border-color: #334155;
+          background: #0f172a;
+        }
+
+        [data-theme="dark"] .resume-page .resume-action-btn {
+          border-color: #334155;
+          background: #111827;
+          color: #e2e8f0;
+        }
+
+        [data-theme="dark"] .resume-page .resume-action-btn.ghost {
+          background: #0f172a;
+          color: #cbd5e1;
+        }
+
+        [data-theme="dark"] .resume-page .resume-action-btn.ghost:hover {
+          border-color: #2dd4bf;
+          color: #5eead4;
+        }
+
+        [data-theme="dark"] .resume-page .builder-section,
+        [data-theme="dark"] .resume-page .builder-preview {
+          border-color: #334155;
+          background: #111827;
+          box-shadow: 0 16px 28px -24px rgba(2, 6, 23, 0.9);
+        }
+
+        [data-theme="dark"] .resume-page .builder-preview-frame {
+          border-color: #334155;
+          background:
+            radial-gradient(circle at top right, rgba(45, 212, 191, 0.12), transparent 40%),
+            linear-gradient(180deg, #0f172a, #111827);
+        }
+
+        [data-theme="dark"] .resume-page .preview-frame-inner {
+          border-color: #334155;
+          background: #0b1220;
+        }
+
+        [data-theme="dark"] .resume-page .form-group input,
+        [data-theme="dark"] .resume-page .form-group textarea,
+        [data-theme="dark"] .resume-page .form-group select {
+          border-color: #334155 !important;
+          background: #0f172a;
+          color: #e2e8f0;
+        }
+
+        [data-theme="dark"] .resume-page .form-group input::placeholder,
+        [data-theme="dark"] .resume-page .form-group textarea::placeholder {
+          color: #94a3b8;
+        }
+
+        [data-theme="dark"] .resume-page .text-gray-500,
+        [data-theme="dark"] .resume-page .text-gray-600,
+        [data-theme="dark"] .resume-page .text-gray-700 {
+          color: #94a3b8 !important;
+        }
+
+        [data-theme="dark"] .resume-page .text-gray-800,
+        [data-theme="dark"] .resume-page .text-gray-900 {
+          color: #e2e8f0 !important;
         }
 
         @keyframes resume-rise {

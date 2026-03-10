@@ -39,7 +39,10 @@ export const JobSearchDetails = () => {
           applySeoMeta(
             `${localHit.title} at ${localHit.company} | Job Details`,
             localHit.description.slice(0, 150),
-            `/job-search/${encodeURIComponent(localHit.id)}`
+            `/job-search/${encodeURIComponent(localHit.id)}`,
+            {
+              keywords: `${localHit.title}, ${localHit.company}, job details, workshour`,
+            }
           );
           return;
         }
@@ -64,7 +67,10 @@ export const JobSearchDetails = () => {
         applySeoMeta(
           `${payload.title} at ${payload.company} | Job Details`,
           payload.description.slice(0, 150),
-          `/job-search/${encodeURIComponent(payload.id)}`
+          `/job-search/${encodeURIComponent(payload.id)}`,
+          {
+            keywords: `${payload.title}, ${payload.company}, job details, workshour`,
+          }
         );
       } catch (err) {
         if (!active) return;

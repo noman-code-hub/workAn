@@ -5,7 +5,6 @@ import {
   Search,
   MapPin,
   Heart,
-  ThumbsDown,
   FolderPlus,
   ExternalLink,
   Filter,
@@ -55,6 +54,125 @@ const networkLines = [
   { top: '58%', left: '31%', width: '28%', rotate: '-14deg' },
 ];
 
+const FAVORITE_JOBS_STORAGE_PREFIX = 'careerpilot:favorite-jobs';
+
+type ExperienceLevel = 'entry' | 'intermediate' | 'expert';
+
+type ActiveFilterPill = {
+  key: string;
+  label: string;
+  onClear: () => void;
+};
+
+const EXPERIENCE_LEVEL_OPTIONS: Array<{ value: ExperienceLevel; label: string }> = [
+  { value: 'entry', label: 'Entry level' },
+  { value: 'intermediate', label: 'Intermediate' },
+  { value: 'expert', label: 'Expert' },
+];
+
+const normalizeContractType = (value: string) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const toTypeFilterValue = (value: string) => {
+  const normalized = normalizeContractType(value);
+  if (normalized === 'full time') return 'full-time';
+  if (normalized === 'part time') return 'part-time';
+  if (normalized === 'contract') return 'contract';
+  if (normalized === 'remote') return 'remote';
+  return normalized.replace(/\s+/g, '-');
+};
+
+const formatContractTypeLabel = (value: string) => normalizeContractType(value);
+
+const matchesContractType = (jobType: string, selectedType: string) => {
+  const normalizedSelected = normalizeContractType(selectedType);
+  if (!normalizedSelected) return true;
+
+  const normalizedJobType = normalizeContractType(jobType || '');
+  if (!normalizedJobType) return false;
+
+  if (normalizedSelected === 'full time') {
+    return normalizedJobType.includes('full time') || normalizedJobType.includes('permanent');
+  }
+  if (normalizedSelected === 'part time') {
+    return normalizedJobType.includes('part time');
+  }
+  if (normalizedSelected === 'contract') {
+    return (
+      normalizedJobType.includes('contract') ||
+      normalizedJobType.includes('freelance') ||
+      normalizedJobType.includes('temporary')
+    );
+  }
+  if (normalizedSelected === 'remote') {
+    return normalizedJobType.includes('remote');
+  }
+
+  return normalizedJobType.includes(normalizedSelected);
+};
+
+const includesAny = (text: string, keywords: string[]) =>
+  keywords.some((keyword) => text.includes(keyword));
+
+const getDetectedExperienceLevels = (job: Job): Set<ExperienceLevel> => {
+  const text = `${job.title || ''} ${job.description || ''} ${(job.tags || []).join(' ')} ${(job.requirements || []).join(' ')}`
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const levels = new Set<ExperienceLevel>();
+
+  const yearMatches = [...text.matchAll(/(\d+)\s*\+?\s*(?:years?|yrs?)/g)]
+    .map((match) => Number(match[1]))
+    .filter((value) => Number.isFinite(value));
+
+  if (yearMatches.length > 0) {
+    const minYears = Math.min(...yearMatches);
+    const maxYears = Math.max(...yearMatches);
+    if (maxYears <= 1) {
+      levels.add('entry');
+    } else if (minYears >= 5 || maxYears >= 6) {
+      levels.add('expert');
+    } else {
+      levels.add('intermediate');
+    }
+  }
+
+  if (
+    includesAny(text, ['entry level', 'entry-level', 'junior', 'jr ', 'intern', 'graduate', 'trainee', 'no experience'])
+  ) {
+    levels.add('entry');
+  }
+
+  if (
+    includesAny(text, ['intermediate', 'mid level', 'mid-level', 'associate', '2+ years', '3+ years', '4+ years'])
+  ) {
+    levels.add('intermediate');
+  }
+
+  if (
+    includesAny(text, ['senior', 'lead', 'principal', 'staff', 'architect', 'manager', 'expert', '5+ years', '7+ years', '10+ years'])
+  ) {
+    levels.add('expert');
+  }
+
+  if (levels.size === 0) {
+    levels.add('intermediate');
+  }
+
+  return levels;
+};
+
+const matchesExperienceLevels = (job: Job, selectedLevels: ExperienceLevel[]) => {
+  if (selectedLevels.length === 0) return true;
+  const detectedLevels = getDetectedExperienceLevels(job);
+  return selectedLevels.some((level) => detectedLevels.has(level));
+};
+
 export const Jobs = () => {
   const { user } = useAuth();
   const routeLocation = useLocation();
@@ -63,7 +181,7 @@ export const Jobs = () => {
   const initialSearchParams = new URLSearchParams(routeLocation.search);
   const initialQueryFromUrl = (initialSearchParams.get('q') || '').trim();
   const initialLocationFromUrl = (initialSearchParams.get('location') || '').trim();
-  const initialTypeFromUrl = (initialSearchParams.get('contract_type') || '').trim();
+  const initialTypeFromUrl = toTypeFilterValue((initialSearchParams.get('contract_type') || '').trim());
   const hasInitialSearchParams = Boolean(initialQueryFromUrl || initialLocationFromUrl || initialTypeFromUrl);
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
   const [totalJobs, setTotalJobs] = useState<number>(0);
@@ -72,7 +190,8 @@ export const Jobs = () => {
   const [locationFilter, setLocationFilter] = useState(initialLocationFromUrl);
   const [typeFilter, setTypeFilter] = useState<string>(initialTypeFromUrl);
   const [showFilters, setShowFilters] = useState(true);
-  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
+  const [favoriteJobs, setFavoriteJobs] = useState<Job[]>([]);
+  const [showSavedJobs, setShowSavedJobs] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [hasSearched, setHasSearched] = useState(isResultsPage && hasInitialSearchParams);
 
@@ -85,6 +204,31 @@ export const Jobs = () => {
   const [sortBy, setSortBy] = useState<'best' | 'latest' | 'salary-high' | 'salary-low'>('best');
   const [budgetMin, setBudgetMin] = useState('');
   const [budgetMax, setBudgetMax] = useState('');
+  const [experienceLevels, setExperienceLevels] = useState<ExperienceLevel[]>([]);
+  const bookmarkedIds = useMemo(() => new Set(favoriteJobs.map((job) => job.id)), [favoriteJobs]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setFavoriteJobs([]);
+      setShowSavedJobs(false);
+      return;
+    }
+
+    try {
+      const key = `${FAVORITE_JOBS_STORAGE_PREFIX}:${user.id}`;
+      const raw = window.localStorage.getItem(key);
+      if (!raw) {
+        setFavoriteJobs([]);
+        return;
+      }
+
+      const parsed = JSON.parse(raw) as unknown;
+      const nextFavorites = Array.isArray(parsed) ? parsed as Job[] : [];
+      setFavoriteJobs(nextFavorites.filter((item) => item && typeof item.id === 'string'));
+    } catch {
+      setFavoriteJobs([]);
+    }
+  }, [user?.id]);
 
   const handleApply = async (job: Job) => {
     setApplyingId(job.id);
@@ -279,7 +423,7 @@ export const Jobs = () => {
     const params = new URLSearchParams(routeLocation.search);
     const q = (params.get('q') || '').trim();
     const loc = (params.get('location') || '').trim();
-    const contractType = (params.get('contract_type') || '').trim();
+    const contractType = toTypeFilterValue((params.get('contract_type') || '').trim());
     const shouldSearch = isResultsPage && Boolean(q || loc || contractType);
 
     setSearchQuery(q);
@@ -339,15 +483,26 @@ export const Jobs = () => {
     };
   }, [loadingMore, nextPageToken]);
 
-  const toggleBookmark = (jobId: string) => {
-    setBookmarkedIds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(jobId)) {
-        newSet.delete(jobId);
-      } else {
-        newSet.add(jobId);
+  const toggleBookmark = (job: Job) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    setFavoriteJobs((prev) => {
+      const exists = prev.some((item) => item.id === job.id);
+      const next = exists
+        ? prev.filter((item) => item.id !== job.id)
+        : [job, ...prev.filter((item) => item.id !== job.id)].slice(0, 200);
+
+      try {
+        const key = `${FAVORITE_JOBS_STORAGE_PREFIX}:${user.id}`;
+        window.localStorage.setItem(key, JSON.stringify(next));
+      } catch {
+        // Ignore storage write failures and keep in-memory favorites.
       }
-      return newSet;
+
+      return next;
     });
   };
 
@@ -380,16 +535,57 @@ export const Jobs = () => {
     ['--delay' as string]: `${delay}ms`,
   });
 
-  const activeFiltersCount = [locationFilter, typeFilter].filter(Boolean).length;
-  const activeFilterPills = [
-    locationFilter ? { key: 'location' as const, label: `Location: ${locationFilter}` } : null,
-    typeFilter ? { key: 'type' as const, label: `Type: ${typeFilter.replace('-', ' ')}` } : null,
-  ].filter(Boolean) as Array<{ key: 'location' | 'type'; label: string }>;
-
-  const clearSingleFilter = (key: 'location' | 'type') => {
-    if (key === 'location') setLocationFilter('');
-    if (key === 'type') setTypeFilter('');
+  const toggleExperienceLevel = (level: ExperienceLevel) => {
+    setExperienceLevels((prev) =>
+      prev.includes(level) ? prev.filter((item) => item !== level) : [...prev, level]
+    );
   };
+
+  const budgetFilterLabel = useMemo(() => {
+    if (budgetMin && budgetMax) return `Budget: $${budgetMin} - $${budgetMax}`;
+    if (budgetMin) return `Budget: $${budgetMin}+`;
+    if (budgetMax) return `Budget: up to $${budgetMax}`;
+    return '';
+  }, [budgetMin, budgetMax]);
+
+  const activeFilterPills = useMemo<ActiveFilterPill[]>(() => {
+    const pills: ActiveFilterPill[] = [];
+
+    if (typeFilter) {
+      pills.push({
+        key: 'type',
+        label: `Type: ${formatContractTypeLabel(typeFilter)}`,
+        onClear: () => setTypeFilter(''),
+      });
+    }
+
+    EXPERIENCE_LEVEL_OPTIONS.forEach((option) => {
+      if (experienceLevels.includes(option.value)) {
+        pills.push({
+          key: `exp-${option.value}`,
+          label: `Experience: ${option.label.toLowerCase()}`,
+          onClear: () => {
+            setExperienceLevels((prev) => prev.filter((level) => level !== option.value));
+          },
+        });
+      }
+    });
+
+    if (budgetFilterLabel) {
+      pills.push({
+        key: 'budget',
+        label: budgetFilterLabel,
+        onClear: () => {
+          setBudgetMin('');
+          setBudgetMax('');
+        },
+      });
+    }
+
+    return pills;
+  }, [budgetFilterLabel, experienceLevels, typeFilter]);
+
+  const activeFiltersCount = activeFilterPills.length;
 
   const renderHighlighted = (text: string, query: string) => {
     const cleanQuery = query.trim();
@@ -409,6 +605,8 @@ export const Jobs = () => {
     const max = budgetMax ? Number(budgetMax) : 0;
 
     let next = filteredJobs.filter((job) => {
+      if (typeFilter && !matchesContractType(job.type, typeFilter)) return false;
+      if (!matchesExperienceLevels(job, experienceLevels)) return false;
       const low = Number(job.salary.min || 0);
       const high = Number(job.salary.max || 0);
       if (min > 0 && high < min) return false;
@@ -429,7 +627,7 @@ export const Jobs = () => {
     }
 
     return next;
-  }, [filteredJobs, budgetMin, budgetMax, sortBy]);
+  }, [filteredJobs, budgetMin, budgetMax, sortBy, typeFilter, experienceLevels]);
 
   const headlineQuery = displayedQuery || searchQuery;
   const showSearchPage = !isResultsPage;
@@ -474,7 +672,7 @@ export const Jobs = () => {
             Find the role that <span>fits your DNA.</span>
           </h1>
           <p className="hero-subtitle">
-            workIn uses AI to analyze your skills and preferences, matching you
+            Workshour uses AI to analyze your skills and preferences, matching you
             with opportunities where you can truly thrive.
           </p>
 
@@ -589,9 +787,16 @@ export const Jobs = () => {
 
             <div className="market-filter-block">
               <div className="market-filter-title">Experience level</div>
-              <label className="market-check"><input type="checkbox" /> Entry level</label>
-              <label className="market-check"><input type="checkbox" /> Intermediate</label>
-              <label className="market-check"><input type="checkbox" /> Expert</label>
+              {EXPERIENCE_LEVEL_OPTIONS.map((option) => (
+                <label key={option.value} className="market-check">
+                  <input
+                    type="checkbox"
+                    checked={experienceLevels.includes(option.value)}
+                    onChange={() => toggleExperienceLevel(option.value)}
+                  />
+                  {option.label}
+                </label>
+              ))}
             </div>
 
             <div className="market-filter-block">
@@ -620,7 +825,7 @@ export const Jobs = () => {
                   <button
                     key={pill.key}
                     className="active-filter-pill"
-                    onClick={() => clearSingleFilter(pill.key)}
+                    onClick={pill.onClear}
                   >
                     {pill.label}
                     <X size={14} />
@@ -632,9 +837,8 @@ export const Jobs = () => {
             <button
               className="clear-filters-btn"
               onClick={() => {
-                setSearchQuery('');
-                setLocationFilter('');
                 setTypeFilter('');
+                setExperienceLevels([]);
                 setBudgetMin('');
                 setBudgetMax('');
               }}
@@ -656,7 +860,17 @@ export const Jobs = () => {
                 </span>
               </div>
               <div className="jobs-market-toolbar-right">
-                <button className="saved-jobs-btn">
+                <button
+                  className={`saved-jobs-btn ${showSavedJobs ? 'active' : ''}`}
+                  onClick={() => {
+                    if (!user) {
+                      navigate('/login');
+                      return;
+                    }
+                    setShowSavedJobs((prev) => !prev);
+                  }}
+                  type="button"
+                >
                   <Heart size={18} />
                   Saved jobs ({bookmarkedIds.size})
                 </button>
@@ -672,6 +886,50 @@ export const Jobs = () => {
                 </select>
               </div>
             </div>
+
+            {showSavedJobs && (
+              <section className="saved-jobs-section" aria-label="Favorite jobs">
+                <div className="saved-jobs-header">
+                  <h3>Favorite Jobs</h3>
+                  <span>{favoriteJobs.length}</span>
+                </div>
+
+                {favoriteJobs.length === 0 ? (
+                  <p className="saved-jobs-empty">No favorite jobs yet.</p>
+                ) : (
+                  <div className="saved-jobs-list">
+                    {favoriteJobs.map((job) => (
+                      <article key={`saved-${job.id}`} className="saved-job-item">
+                        <div className="saved-job-copy">
+                          <h4>{job.title}</h4>
+                          <p>{job.company} - {job.location}</p>
+                        </div>
+                        <div className="saved-job-actions">
+                          <button
+                            className="saved-job-remove"
+                            onClick={() => toggleBookmark(job)}
+                            aria-label="Remove from favorites"
+                            type="button"
+                          >
+                            <Heart size={14} fill="currentColor" />
+                            Remove
+                          </button>
+                          <button
+                            onClick={() => {
+                              navigate(`/jobs/${job.id}`, { state: { returnTo: '/jobs/results', returnLabel: 'Back to Results' } });
+                            }}
+                            className="saved-job-view"
+                            type="button"
+                          >
+                            View
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
 
             {loading ? (
               <div className="jobs-list">
@@ -697,13 +955,10 @@ export const Jobs = () => {
                       <div className="market-job-headline">
                         <span className="market-posted">Posted {getTimeSince(job.postedDate).toLowerCase()}</span>
                         <div className="market-action-icons">
-                          <button className="market-icon-btn" type="button">
-                            <ThumbsDown size={18} />
-                          </button>
                           <button
                             className={`market-icon-btn ${bookmarkedIds.has(job.id) ? 'active' : ''}`}
                             type="button"
-                            onClick={() => toggleBookmark(job.id)}
+                            onClick={() => toggleBookmark(job)}
                           >
                             <Heart size={18} fill={bookmarkedIds.has(job.id) ? 'currentColor' : 'none'} />
                           </button>
@@ -732,9 +987,6 @@ export const Jobs = () => {
 
                       <h3 className="market-job-title">{renderHighlighted(job.title, headlineQuery)}</h3>
                       <div className="market-job-meta">
-                        <span className="verified-dot">Payment verified</span>
-                        <span>4.7</span>
-                        <span>{formatSalary(job)}</span>
                         <span><MapPin size={15} /> {job.location}</span>
                       </div>
                       <p className="market-budget-line">
@@ -765,9 +1017,6 @@ export const Jobs = () => {
                       </div>
 
                       <div className="market-job-footer">
-                        <span className="proposal-count">
-                          Proposals: {job.applicantsCount ? `${job.applicantsCount}+` : 'Open'}
-                        </span>
                         <div className="job-actions-modern">
                           <button
                             onClick={() => handleApply(job)}
@@ -1153,6 +1402,12 @@ export const Jobs = () => {
           color: #16a34a;
         }
 
+        .saved-jobs-btn.active {
+          color: #0f766e;
+          text-decoration: underline;
+          text-underline-offset: 4px;
+        }
+
         .market-sort-select {
           min-height: 52px;
           border: 1px solid #d1d5db;
@@ -1166,6 +1421,109 @@ export const Jobs = () => {
 
         .jobs-market-list {
           display: grid;
+        }
+
+        .saved-jobs-section {
+          border: 1px solid #dbe5ef;
+          background: #f8fbff;
+          border-radius: 14px;
+          padding: 12px;
+          margin-bottom: 12px;
+        }
+
+        .saved-jobs-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+
+        .saved-jobs-header h3 {
+          margin: 0;
+          font-size: 0.95rem;
+          color: #0f172a;
+        }
+
+        .saved-jobs-header span {
+          font-size: 0.82rem;
+          color: #334155;
+          font-weight: 600;
+          background: #e0f2fe;
+          border-radius: 999px;
+          padding: 2px 8px;
+        }
+
+        .saved-jobs-empty {
+          margin: 0;
+          font-size: 0.88rem;
+          color: #64748b;
+        }
+
+        .saved-jobs-list {
+          display: grid;
+          gap: 8px;
+        }
+
+        .saved-job-item {
+          display: flex;
+          justify-content: space-between;
+          gap: 10px;
+          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+          background: #ffffff;
+          padding: 10px;
+        }
+
+        .saved-job-copy {
+          min-width: 0;
+        }
+
+        .saved-job-copy h4 {
+          margin: 0;
+          font-size: 0.9rem;
+          color: #0f172a;
+          line-height: 1.3;
+        }
+
+        .saved-job-copy p {
+          margin: 4px 0 0;
+          font-size: 0.8rem;
+          color: #475569;
+        }
+
+        .saved-job-actions {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          flex-shrink: 0;
+        }
+
+        .saved-job-remove,
+        .saved-job-view {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          min-height: 32px;
+          border-radius: 8px;
+          border: 1px solid #d1d5db;
+          background: #fff;
+          color: #1f2937;
+          padding: 0 10px;
+          font-size: 0.78rem;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        .saved-job-remove {
+          border-color: #fecaca;
+          color: #b91c1c;
+          background: #fff5f5;
+        }
+
+        .saved-job-view {
+          border-color: #bae6fd;
+          color: #075985;
+          background: #f0f9ff;
         }
 
         .market-job-card {
@@ -1247,8 +1605,8 @@ export const Jobs = () => {
 
         .market-job-title {
           margin: 8px 0;
-          font-size: clamp(1.55rem, 2.1vw, 2.15rem);
-          line-height: 1.14;
+          font-size: clamp(1.1rem, 1.55vw, 1.45rem);
+          line-height: 1.2;
           color: #0f172a;
           letter-spacing: -0.01em;
         }
@@ -1267,11 +1625,6 @@ export const Jobs = () => {
           display: inline-flex;
           align-items: center;
           gap: 6px;
-        }
-
-        .verified-dot {
-          color: #2563eb;
-          font-weight: 600;
         }
 
         .market-budget-line {
@@ -1314,14 +1667,9 @@ export const Jobs = () => {
         .market-job-footer {
           display: flex;
           align-items: center;
-          justify-content: space-between;
+          justify-content: flex-end;
           gap: 10px;
           flex-wrap: wrap;
-        }
-
-        .proposal-count {
-          color: #4b5563;
-          font-size: 1rem;
         }
 
         .jobs-market-results .btn-apply-modern,
@@ -1416,8 +1764,8 @@ export const Jobs = () => {
           }
 
           .market-job-title {
-            font-size: clamp(1.75rem, 2.4vw, 2.35rem);
-            line-height: 1.18;
+            font-size: clamp(1.22rem, 1.75vw, 1.6rem);
+            line-height: 1.2;
             margin: 10px 0;
           }
 
@@ -1446,10 +1794,6 @@ export const Jobs = () => {
           .market-skill-chip {
             font-size: 0.95rem;
             padding: 7px 13px;
-          }
-
-          .proposal-count {
-            font-size: 1.04rem;
           }
 
           .jobs-market-results .btn-apply-modern,
@@ -1485,8 +1829,7 @@ export const Jobs = () => {
           .market-posted,
           .market-company-link,
           .market-job-meta,
-          .market-budget-line,
-          .proposal-count {
+          .market-budget-line {
             font-size: 0.98rem;
           }
 
@@ -1497,7 +1840,7 @@ export const Jobs = () => {
           }
 
           .market-job-title {
-            font-size: clamp(1.45rem, 2.1vw, 1.95rem);
+            font-size: clamp(1.04rem, 1.45vw, 1.3rem);
           }
 
           .market-job-description {
@@ -2619,7 +2962,7 @@ export const Jobs = () => {
           }
 
           .market-job-title {
-            font-size: 1.12rem;
+            font-size: 0.96rem;
             line-height: 1.28;
           }
 
@@ -2628,8 +2971,7 @@ export const Jobs = () => {
             font-size: 0.9rem;
           }
 
-          .market-budget-line,
-          .proposal-count {
+          .market-budget-line {
             font-size: 0.9rem;
           }
 
@@ -2833,7 +3175,7 @@ export const Jobs = () => {
           }
 
           .market-job-title {
-            font-size: 1.02rem;
+            font-size: 0.9rem;
           }
 
           .market-job-meta {

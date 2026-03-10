@@ -53,7 +53,7 @@ export const Dashboard = () => {
       : score >= 60
         ? 'Improving'
         : 'Needs attention';
-  const heroTitle = isAuthenticated ? `Welcome back, ${firstName}` : 'Welcome to workIn';
+  const heroTitle = isAuthenticated ? `Welcome back, ${firstName}` : 'Welcome to Workshour';
   const heroSubtitle = isAuthenticated
     ? 'A focused workspace to track progress, discover jobs, and improve readiness.'
     : 'Explore jobs and tools. Sign in to personalize your dashboard.';
@@ -914,6 +914,100 @@ export const Dashboard = () => {
         .ov-road small {
           color: #64748b;
           font-size: 0.72rem;
+        }
+
+        [data-theme="dark"] .ov:before {
+          background: #1d4ed8;
+          opacity: 0.18;
+        }
+
+        [data-theme="dark"] .ov:after {
+          background: #0f766e;
+          opacity: 0.2;
+        }
+
+        [data-theme="dark"] .ov-card {
+          background: linear-gradient(180deg, #111827, #0f172a);
+          border-color: #334155;
+          box-shadow: 0 20px 36px -28px rgba(2, 6, 23, 0.88);
+        }
+
+        [data-theme="dark"] .ov-hero {
+          background:
+            radial-gradient(circle at top right, rgba(45, 212, 191, 0.12), transparent 46%),
+            linear-gradient(155deg, #111827, #0b1220);
+        }
+
+        [data-theme="dark"] .ov-sub {
+          color: #94a3b8;
+        }
+
+        [data-theme="dark"] .ov-meta span {
+          border-color: #334155;
+          background: #0f172a;
+          color: #cbd5e1;
+        }
+
+        [data-theme="dark"] .ov-score {
+          background: linear-gradient(155deg, #020617, #0f172a);
+        }
+
+        [data-theme="dark"] .ov-stat p,
+        [data-theme="dark"] .ov-stat small,
+        [data-theme="dark"] .ov-empty,
+        [data-theme="dark"] .ov-empty p {
+          color: #94a3b8;
+        }
+
+        [data-theme="dark"] .ov-job {
+          border-color: #334155;
+          background: linear-gradient(150deg, #111827, #0f172a);
+          box-shadow: 0 14px 26px -24px rgba(2, 6, 23, 0.9);
+        }
+
+        [data-theme="dark"] .ov-job:hover {
+          border-color: #2dd4bf;
+          box-shadow: 0 18px 30px -20px rgba(15, 23, 42, 0.92);
+        }
+
+        [data-theme="dark"] .ov-company,
+        [data-theme="dark"] .ov-line,
+        [data-theme="dark"] .ov-match small {
+          color: #94a3b8;
+        }
+
+        [data-theme="dark"] .ov-tags span {
+          border-color: rgba(45, 212, 191, 0.35);
+          background: rgba(20, 184, 166, 0.16);
+          color: #67e8f9;
+        }
+
+        [data-theme="dark"] .ov-action,
+        [data-theme="dark"] .ov-road {
+          border-color: #334155;
+          background: #111827;
+          color: #e2e8f0;
+        }
+
+        [data-theme="dark"] .ov-action:hover,
+        [data-theme="dark"] .ov-road:hover {
+          border-color: #2dd4bf;
+          box-shadow: 0 14px 24px -20px rgba(2, 6, 23, 0.9);
+        }
+
+        [data-theme="dark"] .ov-road span {
+          background: rgba(15, 118, 110, 0.24);
+          color: #5eead4;
+        }
+
+        [data-theme="dark"] .ov-road small {
+          color: #94a3b8;
+        }
+
+        [data-theme="dark"] .ov-skeleton {
+          border-color: #334155;
+          background: linear-gradient(110deg, #0f172a, #1e293b, #0f172a);
+          background-size: 200% 100%;
         }
 
         @keyframes ov-rise {

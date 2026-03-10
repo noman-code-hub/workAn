@@ -142,7 +142,12 @@ export const AICopilot = () => {
               <div className="message-avatar">
                 {message.role === 'user' ? (
                   user?.photoURL ? (
-                    <img src={user.photoURL} alt={user.name || 'User'} />
+                    <img
+                      src={user.photoURL}
+                      alt={user.name ? `${user.name} avatar` : 'User avatar'}
+                      loading="lazy"
+                      decoding="async"
+                    />
                   ) : (
                     <User size={18} />
                   )
@@ -624,6 +629,127 @@ export const AICopilot = () => {
           margin: 0;
           color: #94a3b8;
           font-size: 0.72rem;
+        }
+
+        [data-theme="dark"] .copilot-glow-a {
+          background: #1d4ed8;
+          opacity: 0.2;
+        }
+
+        [data-theme="dark"] .copilot-glow-b {
+          background: #0f766e;
+          opacity: 0.22;
+        }
+
+        [data-theme="dark"] .copilot-hero {
+          border-color: #334155;
+          background:
+            radial-gradient(circle at top right, rgba(45, 212, 191, 0.12), transparent 42%),
+            linear-gradient(145deg, #111827, #0b1220);
+          box-shadow: 0 24px 42px -30px rgba(2, 6, 23, 0.92);
+        }
+
+        [data-theme="dark"] .hero-kicker {
+          color: #5eead4;
+        }
+
+        [data-theme="dark"] .hero-left h1,
+        [data-theme="dark"] .hero-status h3,
+        [data-theme="dark"] .chat-head h2 {
+          color: #e2e8f0;
+        }
+
+        [data-theme="dark"] .hero-left > p,
+        [data-theme="dark"] .hero-status small,
+        [data-theme="dark"] .hero-status p,
+        [data-theme="dark"] .chat-head small,
+        [data-theme="dark"] .quick-prompts > p,
+        [data-theme="dark"] .input-hint,
+        [data-theme="dark"] .message-time {
+          color: #94a3b8;
+        }
+
+        [data-theme="dark"] .hero-chips span {
+          border-color: #334155;
+          background: #0f172a;
+          color: #cbd5e1;
+        }
+
+        [data-theme="dark"] .hero-status {
+          border-color: #334155;
+          background: #111827;
+        }
+
+        [data-theme="dark"] .chat-shell {
+          border-color: #334155;
+          background: linear-gradient(180deg, #111827, #0f172a);
+          box-shadow: 0 24px 40px -30px rgba(2, 6, 23, 0.92);
+        }
+
+        [data-theme="dark"] .chat-head {
+          border-bottom-color: #334155;
+          background: #0f172a;
+        }
+
+        [data-theme="dark"] .chat-status {
+          border-color: rgba(16, 185, 129, 0.45);
+          background: rgba(16, 185, 129, 0.16);
+          color: #6ee7b7;
+        }
+
+        [data-theme="dark"] .message-avatar {
+          border-color: #334155;
+        }
+
+        [data-theme="dark"] .assistant-message .message-avatar {
+          background: #0f172a;
+          color: #5eead4;
+        }
+
+        [data-theme="dark"] .assistant-message .message-text {
+          background: #0f172a;
+          border-color: #334155;
+          color: #e2e8f0;
+        }
+
+        [data-theme="dark"] .typing-indicator {
+          border-color: #334155;
+          background: #0f172a;
+        }
+
+        [data-theme="dark"] .typing-indicator span {
+          background: #64748b;
+        }
+
+        [data-theme="dark"] .quick-prompts {
+          border-top-color: #334155;
+          background: #0f172a;
+        }
+
+        [data-theme="dark"] .prompt-btn {
+          border-color: #334155;
+          background: #111827;
+          color: #cbd5e1;
+        }
+
+        [data-theme="dark"] .prompt-btn:hover {
+          border-color: #2dd4bf;
+          color: #5eead4;
+        }
+
+        [data-theme="dark"] .chat-input-container {
+          border-top-color: #334155;
+          background: #0f172a;
+        }
+
+        [data-theme="dark"] .chat-input .input {
+          border-color: #334155;
+          background: #111827;
+          color: #e2e8f0;
+        }
+
+        [data-theme="dark"] .chat-input .input::placeholder {
+          color: #94a3b8;
         }
 
         @keyframes cp-rise {

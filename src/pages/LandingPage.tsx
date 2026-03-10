@@ -83,7 +83,7 @@ export const LandingPage = () => {
               Find the role that <span>fits your DNA.</span>
             </h1>
             <p className="hero-subtitle">
-              CareerPilot uses advanced AI to analyze your skills and preferences, matching you
+              Workshour uses advanced AI to analyze your skills and preferences, matching you
               with opportunities where you can truly thrive.
             </p>
 
