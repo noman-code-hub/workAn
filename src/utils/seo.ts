@@ -238,7 +238,6 @@ export const applySeoMeta = (
 ) => {
   if (typeof document === 'undefined') return;
 
-  const siteUrl = getSiteUrl();
   const safeTitle = title || DEFAULT_SEO.title;
   const safeDescription = description || DEFAULT_DESCRIPTION;
   const canonicalUrl = options.canonicalUrl || buildAbsoluteUrl(canonicalPath);

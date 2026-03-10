@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Download, AlertCircle, Zap } from 'lucide-react';
-import axios from 'axios';
+import axios, { type AxiosResponse } from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
 import { normalizeFieldKey, renderTemplateWithSchema } from '../services/resumeTemplateRenderer';
@@ -829,11 +829,11 @@ export const Resume = () => {
         ...(prefersLocalFallback ? ['http://localhost:5000/api/upload-resume'] : []),
       ];
 
-      let response: Awaited<ReturnType<typeof axios.post>> | null = null;
+      let response: AxiosResponse<Record<string, unknown>> | null = null;
       let lastError: unknown = null;
       for (const endpoint of uploadEndpoints) {
         try {
-          response = await axios.post(endpoint, formData, {
+          response = await axios.post<Record<string, unknown>>(endpoint, formData, {
             timeout: RESUME_UPLOAD_TIMEOUT_MS,
           });
           lastError = null;
@@ -850,7 +850,7 @@ export const Resume = () => {
         throw new Error('Resume upload request did not return a response.');
       }
 
-      const payload = (response.data || {}) as Record<string, unknown>;
+      const payload = response.data || {};
       const parserUnavailable = payload.parser_unavailable === true;
       if (parserUnavailable) {
         if (!contactName.trim()) {
