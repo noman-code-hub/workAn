@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { getDb } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import type { User, UserRole } from '../types';
 import { Users, Shield, Briefcase, Search, Filter, BarChart2, MessageCircle, FileText } from 'lucide-react';
@@ -18,26 +18,44 @@ export const AdminDashboard = () => {
     const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'posts' | 'templates'>('analytics');
 
     useEffect(() => {
-        // Real-time listener for users collection
-        const unsubscribe = onSnapshot(collection(db, 'users'),
-            (snapshot) => {
-                const usersList = snapshot.docs.map(doc => ({
-                    ...doc.data(),
-                    id: doc.id,
-                    createdAt: doc.data().createdAt?.toDate() || new Date(),
-                    updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-                })) as User[];
-                setUsers(usersList);
-                setLoading(false);
-            },
-            (error) => {
-                console.error('Error fetching users:', error);
-                setLoading(false);
-            }
-        );
+        let isMounted = true;
+        let unsubscribe = () => {};
 
-        // Cleanup subscription
-        return () => unsubscribe();
+        const initUsers = async () => {
+            try {
+                const db = await getDb();
+                if (!isMounted) return;
+                unsubscribe = onSnapshot(
+                    collection(db, 'users'),
+                    (snapshot) => {
+                        const usersList = snapshot.docs.map(doc => ({
+                            ...doc.data(),
+                            id: doc.id,
+                            createdAt: doc.data().createdAt?.toDate() || new Date(),
+                            updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+                        })) as User[];
+                        if (isMounted) {
+                            setUsers(usersList);
+                            setLoading(false);
+                        }
+                    },
+                    (error) => {
+                        console.error('Error fetching users:', error);
+                        if (isMounted) setLoading(false);
+                    }
+                );
+            } catch (error) {
+                console.error('Error initializing users listener:', error);
+                if (isMounted) setLoading(false);
+            }
+        };
+
+        initUsers();
+
+        return () => {
+            isMounted = false;
+            unsubscribe();
+        };
     }, []);
 
     const updateUserRole = async (userId: string, newRole: UserRole) => {
@@ -54,6 +72,7 @@ export const AdminDashboard = () => {
 
         try {
             setUpdating(userId);
+            const db = await getDb();
             const userDocRef = doc(db, 'users', userId);
             await updateDoc(userDocRef, {
                 role: newRole,

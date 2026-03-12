@@ -1067,8 +1067,6 @@ export const Jobs = () => {
       </button>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap');
-
         * {
           box-sizing: border-box;
         }

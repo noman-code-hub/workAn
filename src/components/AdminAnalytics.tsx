@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { collection, onSnapshot, query } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { getDb } from '../config/firebase';
 import type { User } from '../types';
 import { Users, Briefcase, FileText, MessageCircle } from 'lucide-react';
 import { subscribeToPosts } from '../services/postService';
@@ -15,25 +15,52 @@ export const AdminAnalytics = ({ users }: AdminAnalyticsProps) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Real-time listener for jobs collection
-        const jobsQuery = query(collection(db, 'jobs'));
-        const unsubscribeJobs = onSnapshot(jobsQuery, (snapshot) => {
-            setJobCount(snapshot.size);
-        });
+        let isMounted = true;
+        let unsubscribeJobs = () => {};
+        let unsubscribePosts = () => {};
 
-        const unsubscribePosts = subscribeToPosts(
+        const initJobs = async () => {
+            try {
+                const db = await getDb();
+                if (!isMounted) return;
+                const jobsQuery = query(collection(db, 'jobs'));
+                unsubscribeJobs = onSnapshot(jobsQuery, (snapshot) => {
+                    if (isMounted) setJobCount(snapshot.size);
+                });
+            } catch (error) {
+                console.error('Failed to load jobs count:', error);
+                if (isMounted) setLoading(false);
+            }
+        };
+
+        subscribeToPosts(
             { type: 'community' },
             (posts) => {
+                if (!isMounted) return;
                 setPostCount(posts.length);
                 setLoading(false);
             },
             (error) => {
                 console.error('Failed to load community posts count:', error);
-                setLoading(false);
+                if (isMounted) setLoading(false);
             }
-        );
+        )
+            .then((unsub) => {
+                if (!isMounted) {
+                    unsub();
+                    return;
+                }
+                unsubscribePosts = unsub;
+            })
+            .catch((error) => {
+                console.error('Failed to initialize posts subscription:', error);
+                if (isMounted) setLoading(false);
+            });
+
+        initJobs();
 
         return () => {
+            isMounted = false;
             unsubscribeJobs();
             unsubscribePosts();
         };

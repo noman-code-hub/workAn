@@ -18,19 +18,37 @@ export const AdminPosts = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        const unsubscribe = subscribeToPosts(
+        let isMounted = true;
+        let unsubscribe = () => {};
+
+        subscribeToPosts(
             { type: 'community' },
             (postsData) => {
+                if (!isMounted) return;
                 setPosts(postsData);
                 setLoading(false);
             },
             (error) => {
                 console.error("Error loading posts:", error);
-                setLoading(false);
+                if (isMounted) setLoading(false);
             }
-        );
+        )
+            .then((unsub) => {
+                if (!isMounted) {
+                    unsub();
+                    return;
+                }
+                unsubscribe = unsub;
+            })
+            .catch((error) => {
+                console.error("Error initializing posts subscription:", error);
+                if (isMounted) setLoading(false);
+            });
 
-        return () => unsubscribe();
+        return () => {
+            isMounted = false;
+            unsubscribe();
+        };
     }, []);
 
     const handleDelete = async (id: string) => {

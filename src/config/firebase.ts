@@ -1,12 +1,7 @@
-import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, GithubAuthProvider } from "firebase/auth";
-import {
-    getFirestore,
-    initializeFirestore,
-    persistentLocalCache,
-    persistentSingleTabManager,
-} from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import type { FirebaseApp } from 'firebase/app';
+import type { Auth } from 'firebase/auth';
+import type { Firestore } from 'firebase/firestore';
+import type { FirebaseStorage } from 'firebase/storage';
 
 const firebaseConfig = {
     apiKey: "AIzaSyB1LtzuqH1IT7eryd1oiFVKkxR578VdNCc",
@@ -18,38 +13,85 @@ const firebaseConfig = {
     measurementId: "G-0PEXF8E43Y",
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = (() => {
-    try {
-        return initializeFirestore(app, {
-            // New Firestore cache configuration API replacing deprecated persistence helper.
-            localCache: persistentLocalCache({
-                tabManager: persistentSingleTabManager({}),
-            }),
-        });
-    } catch (error) {
-        console.warn("Firestore initialized without persistent cache:", error);
-        return getFirestore(app);
-    }
-})();
-const storage = getStorage(app);
-const googleProvider = new GoogleAuthProvider();
-const githubProvider = new GithubAuthProvider();
+type FirebaseBundle = {
+    app: FirebaseApp;
+    auth: Auth;
+    db: Firestore;
+    storage: FirebaseStorage;
+    googleProvider: InstanceType<typeof import('firebase/auth').GoogleAuthProvider>;
+    githubProvider: InstanceType<typeof import('firebase/auth').GithubAuthProvider>;
+    authModule: typeof import('firebase/auth');
+};
 
-let analytics: any = null;
+let firebasePromise: Promise<FirebaseBundle> | null = null;
 
-if (import.meta.env.PROD) {
-    import("firebase/analytics").then(({ getAnalytics }) => {
+const initFirebase = async (): Promise<FirebaseBundle> => {
+    const [{ initializeApp }, authModule, firestoreModule, storageModule] = await Promise.all([
+        import('firebase/app'),
+        import('firebase/auth'),
+        import('firebase/firestore'),
+        import('firebase/storage'),
+    ]);
+
+    const app = initializeApp(firebaseConfig);
+    const auth = authModule.getAuth(app);
+
+    const db = (() => {
         try {
-            analytics = getAnalytics(app);
-            console.log("Analytics enabled (production mode)");
-        } catch {
-            console.log("Analytics blocked (ad blocker detected) - continuing without analytics");
+            return firestoreModule.initializeFirestore(app, {
+                // New Firestore cache configuration API replacing deprecated persistence helper.
+                localCache: firestoreModule.persistentLocalCache({
+                    tabManager: firestoreModule.persistentSingleTabManager({}),
+                }),
+            });
+        } catch (error) {
+            console.warn("Firestore initialized without persistent cache:", error);
+            return firestoreModule.getFirestore(app);
         }
-    });
-} else {
-    console.log("Analytics disabled (development mode)");
-}
+    })();
 
-export { app, analytics, auth, db, storage, googleProvider, githubProvider };
+    const storage = storageModule.getStorage(app);
+    const googleProvider = new authModule.GoogleAuthProvider();
+    const githubProvider = new authModule.GithubAuthProvider();
+
+    if (import.meta.env.PROD) {
+        import('firebase/analytics')
+            .then(({ getAnalytics }) => {
+                try {
+                    getAnalytics(app);
+                    console.log('Analytics enabled (production mode)');
+                } catch {
+                    console.log('Analytics blocked (ad blocker detected) - continuing without analytics');
+                }
+            })
+            .catch(() => {
+                console.log('Analytics blocked (ad blocker detected) - continuing without analytics');
+            });
+    } else {
+        console.log('Analytics disabled (development mode)');
+    }
+
+    return { app, auth, db, storage, googleProvider, githubProvider, authModule };
+};
+
+export const getFirebase = async (): Promise<FirebaseBundle> => {
+    if (!firebasePromise) {
+        firebasePromise = initFirebase();
+    }
+    return firebasePromise;
+};
+
+export const getAuthClient = async () => {
+    const { auth, googleProvider, githubProvider, authModule } = await getFirebase();
+    return { auth, googleProvider, githubProvider, authModule };
+};
+
+export const getDb = async () => {
+    const { db } = await getFirebase();
+    return db;
+};
+
+export const getStorage = async () => {
+    const { storage } = await getFirebase();
+    return storage;
+};

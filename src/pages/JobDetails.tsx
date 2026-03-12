@@ -19,7 +19,7 @@ import {
   serverTimestamp,
   increment
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { getDb } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Job } from '../types';
 import { JobLogo } from '../components/JobLogo';
@@ -90,6 +90,7 @@ export const JobDetails = () => {
   const fetchJobDetails = async () => {
     if (!id) return;
     try {
+      const db = await getDb();
       // Check Firestore for internal jobs
       const jobDoc = await getDoc(doc(db, 'jobs', id));
       if (jobDoc.exists()) {
@@ -129,6 +130,7 @@ export const JobDetails = () => {
 
     setApplyingId(job.id);
     try {
+      const db = await getDb();
       // Check if it's an internal job (has postedBy)
       if (job.postedBy) {
         const applicantRef = doc(db, 'jobs', job.id, 'applicants', user.id);

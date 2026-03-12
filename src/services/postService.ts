@@ -1,5 +1,5 @@
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc, onSnapshot, updateDoc } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { getDb } from '../config/firebase';
 import { uploadImage } from './supabaseStorage';
 import type { User, BlogPost } from '../types';
 
@@ -58,6 +58,7 @@ export const createPost = async (user: User, title: string, content: string, ima
         imageURL = result.publicUrl;
     }
 
+    const db = await getDb();
     const now = new Date();
     const newPostData = {
         userId: user.id,
@@ -83,6 +84,7 @@ export const createPost = async (user: User, title: string, content: string, ima
 
 export const getUserPosts = async (userId: string, type?: 'blog' | 'community'): Promise<BlogPost[]> => {
     try {
+        const db = await getDb();
         const blogsQuery = query(collection(db, BLOGS_COLLECTION), where('userId', '==', userId));
         const legacyQuery = query(collection(db, LEGACY_POSTS_COLLECTION), where('authorId', '==', userId));
         const [blogsResult, legacyResult] = await Promise.allSettled([getDocs(blogsQuery), getDocs(legacyQuery)]);
@@ -106,6 +108,7 @@ export const getUserPosts = async (userId: string, type?: 'blog' | 'community'):
 
 export const getAllPosts = async (type?: 'blog' | 'community'): Promise<BlogPost[]> => {
     try {
+        const db = await getDb();
         const [blogsResult, legacyResult] = await Promise.allSettled([
             getDocs(query(collection(db, BLOGS_COLLECTION))),
             getDocs(query(collection(db, LEGACY_POSTS_COLLECTION))),
@@ -133,6 +136,7 @@ export const getAllPosts = async (type?: 'blog' | 'community'): Promise<BlogPost
 };
 
 export const deletePost = async (postId: string): Promise<void> => {
+    const db = await getDb();
     await Promise.allSettled([
         deleteDoc(doc(db, BLOGS_COLLECTION, postId)),
         deleteDoc(doc(db, LEGACY_POSTS_COLLECTION, postId)),
@@ -143,6 +147,7 @@ export const updatePost = async (
     postId: string,
     updates: Partial<Pick<BlogPost, 'title' | 'content' | 'imageURL' | 'type'>>
 ): Promise<void> => {
+    const db = await getDb();
     const payload = {
         ...updates,
         updatedAt: new Date(),
@@ -154,11 +159,12 @@ export const updatePost = async (
     ]);
 };
 
-export const subscribeToPosts = (
+export const subscribeToPosts = async (
     options: { userId?: string; type?: 'blog' | 'community' },
     onChange: (posts: BlogPost[]) => void,
     onError?: (error: Error) => void
-): (() => void) => {
+): Promise<() => void> => {
+    const db = await getDb();
     let blogPosts: BlogPost[] = [];
     let legacyPosts: BlogPost[] = [];
 

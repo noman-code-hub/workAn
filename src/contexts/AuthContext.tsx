@@ -1,16 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import {
-    signInWithPopup,
-    signInWithEmailAndPassword,
-    createUserWithEmailAndPassword,
-    signOut,
-    onAuthStateChanged,
-    fetchSignInMethodsForEmail,
-    linkWithCredential,
-    GithubAuthProvider,
-} from 'firebase/auth';
-import { auth, googleProvider, githubProvider } from '../config/firebase';
+import { getAuthClient } from '../config/firebase';
 import type { User, UserRole } from '../types';
 import * as userService from '../services/userService';
 
@@ -45,29 +35,51 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     // Listen to Firebase auth state changes
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-            if (firebaseUser) {
-                try {
-                    const userProfile = await userService.fetchOrCreateUserProfile(firebaseUser);
-                    setUser(userProfile);
-                } catch (error) {
-                    console.error('Error fetching user profile:', error);
-                    setUser(null);
-                }
-            } else {
-                setUser(null);
-            }
-            setLoading(false);
-        });
+        let isMounted = true;
+        let unsubscribe: (() => void) | undefined;
 
-        return () => unsubscribe();
+        const initAuth = async () => {
+            try {
+                const { auth, authModule } = await getAuthClient();
+                if (!isMounted) return;
+
+                unsubscribe = authModule.onAuthStateChanged(auth, async (firebaseUser) => {
+                    if (firebaseUser) {
+                        try {
+                            const userProfile = await userService.fetchOrCreateUserProfile(firebaseUser);
+                            if (isMounted) setUser(userProfile);
+                        } catch (error) {
+                            console.error('Error fetching user profile:', error);
+                            if (isMounted) setUser(null);
+                        }
+                    } else if (isMounted) {
+                        setUser(null);
+                    }
+                    if (isMounted) setLoading(false);
+                });
+            } catch (error) {
+                console.error('Failed to initialize Firebase auth:', error);
+                if (isMounted) {
+                    setUser(null);
+                    setLoading(false);
+                }
+            }
+        };
+
+        initAuth();
+
+        return () => {
+            isMounted = false;
+            if (unsubscribe) unsubscribe();
+        };
     }, []);
 
     // Email/Password Login
     const login = async (email: string, password: string) => {
         setLoading(true);
         try {
-            await signInWithEmailAndPassword(auth, email, password);
+            const { auth, authModule } = await getAuthClient();
+            await authModule.signInWithEmailAndPassword(auth, email, password);
         } catch (error: unknown) {
             setLoading(false);
             const err = error as any;
@@ -79,7 +91,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const loginWithGoogle = async () => {
         setLoading(true);
         try {
-            await signInWithPopup(auth, googleProvider);
+            const { auth, googleProvider, authModule } = await getAuthClient();
+            await authModule.signInWithPopup(auth, googleProvider);
             // User state will be updated by onAuthStateChanged listener
         } catch (error: unknown) {
             setLoading(false);
@@ -93,13 +106,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const loginWithGithub = async () => {
         setLoading(true);
         try {
-            await signInWithPopup(auth, githubProvider);
+            const { auth, githubProvider, authModule } = await getAuthClient();
+            await authModule.signInWithPopup(auth, githubProvider);
             // User state will be updated by onAuthStateChanged listener
         } catch (error: unknown) {
             const err = error as any;
             if (err?.code === 'auth/account-exists-with-different-credential') {
                 const email = err?.customData?.email as string | undefined;
-                const pendingCred = GithubAuthProvider.credentialFromError(err);
+                const { auth, googleProvider, authModule } = await getAuthClient();
+                const pendingCred = authModule.GithubAuthProvider.credentialFromError(err);
 
                 if (!email) {
                     setLoading(false);
@@ -110,7 +125,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
                 let methods: string[] = [];
                 try {
-                    methods = await fetchSignInMethodsForEmail(auth, email);
+                    methods = await authModule.fetchSignInMethodsForEmail(auth, email);
                 } catch (lookupError: any) {
                     setLoading(false);
                     console.error('GitHub sign-in provider lookup error:', lookupError);
@@ -118,9 +133,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 }
 
                 if (methods.includes('google.com')) {
-                    const result = await signInWithPopup(auth, googleProvider);
+                    const result = await authModule.signInWithPopup(auth, googleProvider);
                     if (pendingCred) {
-                        await linkWithCredential(result.user, pendingCred);
+                        await authModule.linkWithCredential(result.user, pendingCred);
                     }
                     return;
                 }
@@ -154,7 +169,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const register = async (email: string, password: string, name: string, role: string = 'user') => {
         setLoading(true);
         try {
-            const result = await createUserWithEmailAndPassword(auth, email, password);
+            const { auth, authModule } = await getAuthClient();
+            const result = await authModule.createUserWithEmailAndPassword(auth, email, password);
 
             // Create user profile in Firestore via service
             const newUser = await userService.createUserProfile(result.user.uid, {
@@ -175,7 +191,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Logout
     const logout = async () => {
         try {
-            await signOut(auth);
+            const { auth, authModule } = await getAuthClient();
+            await authModule.signOut(auth);
         } catch (error: unknown) {
             const err = error as any;
             throw new Error(err.message || 'Logout failed');

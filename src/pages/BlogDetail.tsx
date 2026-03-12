@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Clock } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { getDb } from '../config/firebase';
 import { applySeoMeta } from '../utils/seo';
 import type { BlogPost } from '@/types';
 
@@ -17,6 +17,7 @@ export const BlogDetail = () => {
             if (!id) return;
 
             try {
+                const db = await getDb();
                 const blogDoc = await getDoc(doc(db, 'blogs', id));
                 const postDoc = blogDoc.exists() ? blogDoc : await getDoc(doc(db, 'posts', id));
 

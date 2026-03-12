@@ -37,9 +37,6 @@ function App() {
   const navigate = useNavigate();
   const [routeLoading, setRouteLoading] = useState(false);
   const [bootLoading, setBootLoading] = useState(true);
-  const [pageLoaded, setPageLoaded] = useState(
-    () => typeof document !== 'undefined' && document.readyState === 'complete'
-  );
   const initialPathRef = useRef(location.pathname);
   const routeRestoreAttemptedRef = useRef(false);
 
@@ -99,20 +96,9 @@ function App() {
     };
   }, []);
   useEffect(() => {
-    const timer = setTimeout(() => setBootLoading(false), 600);
+    const timer = setTimeout(() => setBootLoading(false), 150);
     return () => clearTimeout(timer);
   }, []);
-
-  useEffect(() => {
-    if (pageLoaded) return;
-
-    const handlePageLoad = () => setPageLoaded(true);
-    window.addEventListener('load', handlePageLoad);
-
-    return () => {
-      window.removeEventListener('load', handlePageLoad);
-    };
-  }, [pageLoaded]);
 
   useEffect(() => {
     if (initialPathRef.current === location.pathname) {
@@ -151,12 +137,12 @@ function App() {
     window.sessionStorage.setItem(LAST_ROUTE_STORAGE_KEY, currentFullPath);
   }, [location.pathname, location.search, location.hash]);
 
-  if (loading || !pageLoaded) {
+  if (loading) {
     return <AppLoader variant="full" />;
   }
 
   const homeRoute = !user
-    ? '/jobs'
+    ? '/landing'
     : !user.role
       ? '/select-role'
       : user.role === 'admin'

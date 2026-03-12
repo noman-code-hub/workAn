@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { getDb } from '../config/firebase';
 import { uploadResume, uploadImage } from './supabaseStorage';
 import type { User, UserRole } from '../types';
 import type { User as FirebaseUser } from 'firebase/auth';
@@ -59,6 +59,7 @@ const getFromLocal = (): Partial<User> | null => {
  * based on the Firebase Auth user data.
  */
 export const fetchOrCreateUserProfile = async (firebaseUser: FirebaseUser): Promise<User> => {
+    const db = await getDb();
     const userDocRef = doc(db, 'users', firebaseUser.uid);
     const isGithubLogin = isGithubProvider(firebaseUser);
     const fallbackRole: UserRole | undefined = isGithubLogin ? 'user' : undefined;
@@ -213,6 +214,7 @@ export const fetchOrCreateUserProfile = async (firebaseUser: FirebaseUser): Prom
  * Updates a user's profile in Firestore
  */
 export const updateUserProfile = async (userId: string, updates: Partial<User>) => {
+    const db = await getDb();
     const userDocRef = doc(db, 'users', userId);
     const firestoreUpdates: any = { ...updates };
 
@@ -243,6 +245,7 @@ export const updateUserProfile = async (userId: string, updates: Partial<User>) 
  * Creates a new user profile with specific initial data
  */
 export const createUserProfile = async (userId: string, data: { email: string; name: string; role?: UserRole }) => {
+    const db = await getDb();
     const userDocRef = doc(db, 'users', userId);
 
     const newUser: User = {

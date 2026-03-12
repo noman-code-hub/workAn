@@ -9,7 +9,7 @@ import {
     query,
     orderBy
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { getDb } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import {
     ChevronLeft,
@@ -52,6 +52,7 @@ export const JobApplicants = () => {
 
         // Fetch Job Details
         const fetchJob = async () => {
+            const db = await getDb();
             const jobDoc = await getDoc(doc(db, 'jobs', jobId));
             if (jobDoc.exists()) {
                 setJob({ id: jobDoc.id, ...jobDoc.data() } as Job);
@@ -60,26 +61,44 @@ export const JobApplicants = () => {
         fetchJob();
 
         // Fetch Applicants
-        const q = query(
-            collection(db, 'jobs', jobId, 'applicants'),
-            orderBy('appliedAt', 'desc')
-        );
+        let isMounted = true;
+        let unsubscribe = () => {};
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })) as Applicant[];
-            setApplicants(data);
-            setLoading(false);
+        const initApplicants = async () => {
+            const db = await getDb();
+            if (!isMounted) return;
+            const q = query(
+                collection(db, 'jobs', jobId, 'applicants'),
+                orderBy('appliedAt', 'desc')
+            );
+
+            unsubscribe = onSnapshot(q, (snapshot) => {
+                const data = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                })) as Applicant[];
+                if (isMounted) {
+                    setApplicants(data);
+                    setLoading(false);
+                }
+            });
+        };
+
+        initApplicants().catch((error) => {
+            console.error('Error loading applicants:', error);
+            if (isMounted) setLoading(false);
         });
 
-        return () => unsubscribe();
+        return () => {
+            isMounted = false;
+            unsubscribe();
+        };
     }, [jobId, user]);
 
     const handleUpdateStatus = async (applicantId: string, status: Applicant['status']) => {
         if (!jobId) return;
         try {
+            const db = await getDb();
             await updateDoc(doc(db, 'jobs', jobId, 'applicants', applicantId), {
                 status
             });

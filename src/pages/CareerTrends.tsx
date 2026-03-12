@@ -204,8 +204,6 @@ export const CareerTrends = () => {
       </section>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Manrope:wght@500;600;700&display=swap');
-
         .trends-pro {
           --tr-ease: cubic-bezier(0.22, 1, 0.36, 1);
           width: 100%;

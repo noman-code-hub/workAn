@@ -11,7 +11,7 @@ import {
     deleteDoc,
     where
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { getDb } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadImage } from '../services/supabaseStorage';
 import {
@@ -63,15 +63,31 @@ export const CommunityFeed = () => {
     const [loadingComments, setLoadingComments] = useState(false);
 
     useEffect(() => {
-        const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })) as Post[];
-            setPosts(data);
-        });
-        return () => unsubscribe();
+        let isMounted = true;
+        let unsubscribe = () => {};
+
+        const initPosts = async () => {
+            try {
+                const db = await getDb();
+                if (!isMounted) return;
+                const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
+                unsubscribe = onSnapshot(q, (snapshot) => {
+                    const data = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    })) as Post[];
+                    if (isMounted) setPosts(data);
+                });
+            } catch (error) {
+                console.error("Error loading posts:", error);
+            }
+        };
+
+        initPosts();
+        return () => {
+            isMounted = false;
+            unsubscribe();
+        };
     }, []);
 
     // Load comments when a post is expanded
@@ -81,23 +97,42 @@ export const CommunityFeed = () => {
             return;
         }
 
-        setLoadingComments(true);
-        const q = query(
-            collection(db, 'comments'),
-            where('postId', '==', expandedPostId),
-            orderBy('createdAt', 'asc')
-        );
+        let isMounted = true;
+        let unsubscribe = () => {};
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })) as Comment[];
-            setComments(data);
-            setLoadingComments(false);
-        });
+        const initComments = async () => {
+            setLoadingComments(true);
+            try {
+                const db = await getDb();
+                if (!isMounted) return;
+                const q = query(
+                    collection(db, 'comments'),
+                    where('postId', '==', expandedPostId),
+                    orderBy('createdAt', 'asc')
+                );
 
-        return () => unsubscribe();
+                unsubscribe = onSnapshot(q, (snapshot) => {
+                    const data = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    })) as Comment[];
+                    if (isMounted) {
+                        setComments(data);
+                        setLoadingComments(false);
+                    }
+                });
+            } catch (error) {
+                console.error("Error loading comments:", error);
+                if (isMounted) setLoadingComments(false);
+            }
+        };
+
+        initComments();
+
+        return () => {
+            isMounted = false;
+            unsubscribe();
+        };
     }, [expandedPostId]);
 
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -111,6 +146,7 @@ export const CommunityFeed = () => {
 
         setIsPosting(true);
         try {
+            const db = await getDb();
             let imageUrl = '';
             if (selectedImage) {
                 const result = await uploadImage(user.id, selectedImage, 'post');
@@ -142,6 +178,7 @@ export const CommunityFeed = () => {
     const handleLike = async (post: Post) => {
         if (!user) return;
 
+        const db = await getDb();
         const postRef = doc(db, 'posts', post.id);
         const hasLiked = post.likedBy?.includes(user.id);
 
@@ -160,6 +197,7 @@ export const CommunityFeed = () => {
     const handleDeletePost = async (postId: string) => {
         if (!window.confirm("Delete this post?")) return;
         try {
+            const db = await getDb();
             await deleteDoc(doc(db, 'posts', postId));
         } catch (error) {
             console.error("Error deleting post:", error);
@@ -171,6 +209,7 @@ export const CommunityFeed = () => {
         if (!newComment.trim() || !user) return;
 
         try {
+            const db = await getDb();
             await addDoc(collection(db, 'comments'), {
                 postId,
                 authorId: user.id,
@@ -198,6 +237,7 @@ export const CommunityFeed = () => {
     const handleDeleteComment = async (commentId: string, postId: string) => {
         if (!window.confirm("Delete this comment?")) return;
         try {
+            const db = await getDb();
             await deleteDoc(doc(db, 'comments', commentId));
 
             // Decrement comment count

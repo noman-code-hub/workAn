@@ -35,20 +35,38 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
+        let isMounted = true;
+        let unsubscribe = () => {};
+
         setLoading(true);
-        const unsubscribe = subscribeToPosts(
+        subscribeToPosts(
             { userId: (!user || isFeed) ? undefined : user.id, type },
             (postsData) => {
+                if (!isMounted) return;
                 setPosts(postsData);
                 setLoading(false);
             },
             (error) => {
                 console.error("Error fetching posts:", error);
-                setLoading(false);
+                if (isMounted) setLoading(false);
             }
-        );
+        )
+            .then((unsub) => {
+                if (!isMounted) {
+                    unsub();
+                    return;
+                }
+                unsubscribe = unsub;
+            })
+            .catch((error) => {
+                console.error("Error initializing post subscription:", error);
+                if (isMounted) setLoading(false);
+            });
 
-        return () => unsubscribe();
+        return () => {
+            isMounted = false;
+            unsubscribe();
+        };
     }, [user?.id, isFeed, type]);
 
     useEffect(() => {

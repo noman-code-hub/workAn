@@ -12,7 +12,7 @@ import {
     orderBy,
     deleteDoc
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { getDb } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import {
     Briefcase,
@@ -59,29 +59,34 @@ export const RecruiterDashboard = () => {
     useEffect(() => {
         if (!user) return;
 
-        let q;
-        if (user.role === 'admin') {
-            q = query(
-                collection(db, 'jobs'),
-                orderBy('createdAt', 'desc')
-            );
-        } else {
-            q = query(
-                collection(db, 'jobs'),
-                where('postedBy', '==', user.id),
-                orderBy('createdAt', 'desc')
-            );
-        }
+        let isMounted = true;
+        let unsubscribe = () => {};
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })) as RecruiterJob[];
-            setJobs(data);
+        const initJobs = async () => {
+            const db = await getDb();
+            if (!isMounted) return;
+
+            const q = user.role === 'admin'
+                ? query(collection(db, 'jobs'), orderBy('createdAt', 'desc'))
+                : query(collection(db, 'jobs'), where('postedBy', '==', user.id), orderBy('createdAt', 'desc'));
+
+            unsubscribe = onSnapshot(q, (snapshot) => {
+                const data = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                })) as RecruiterJob[];
+                if (isMounted) setJobs(data);
+            });
+        };
+
+        initJobs().catch((error) => {
+            console.error('Error loading recruiter jobs:', error);
         });
 
-        return () => unsubscribe();
+        return () => {
+            isMounted = false;
+            unsubscribe();
+        };
     }, [user]);
 
     const handleEdit = (job: RecruiterJob) => {
@@ -101,6 +106,7 @@ export const RecruiterDashboard = () => {
 
         setIsPosting(true);
         try {
+            const db = await getDb();
             if (editingJobId) {
                 const jobRef = doc(db, 'jobs', editingJobId);
                 await updateDoc(jobRef, {
@@ -137,6 +143,7 @@ export const RecruiterDashboard = () => {
         if (!window.confirm("Are you sure you want to delete this job listing? All applicant data for this job will remain in the system but the listing will be gone.")) return;
 
         try {
+            const db = await getDb();
             await deleteDoc(doc(db, 'jobs', jobId));
         } catch (error) {
             console.error("Error deleting job:", error);
