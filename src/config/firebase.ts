@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, GithubAuthProvider } from "firebase/auth";
 import {
     getFirestore,
     initializeFirestore,
@@ -35,6 +35,7 @@ const db = (() => {
 })();
 const storage = getStorage(app);
 const googleProvider = new GoogleAuthProvider();
+const githubProvider = new GithubAuthProvider();
 
 let analytics: any = null;
 
@@ -51,4 +52,4 @@ if (import.meta.env.PROD) {
     console.log("Analytics disabled (development mode)");
 }
 
-export { app, analytics, auth, db, storage, googleProvider };
+export { app, analytics, auth, db, storage, googleProvider, githubProvider };

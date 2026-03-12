@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useRoleBasedRedirect } from '../hooks/useRoleBasedRedirect';
-import { Eye, EyeOff, Mail, Lock, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, AlertCircle, Github } from 'lucide-react';
 import { BRAND } from '../config/brand';
 
 export const Login = () => {
@@ -11,7 +11,7 @@ export const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const { login, loginWithGoogle, user, loading: authLoading } = useAuth();
+    const { login, loginWithGoogle, loginWithGithub, user, loading: authLoading } = useAuth();
 
     // Auto-redirect when user logs in
     useRoleBasedRedirect(user, authLoading);
@@ -39,6 +39,19 @@ export const Login = () => {
             // Navigation will be handled by AuthContext after user data is loaded
         } catch (err: any) {
             setError(err.message || 'Google login failed.');
+            setLoading(false);
+        }
+    };
+
+    const handleGithubLogin = async () => {
+        setError('');
+        setLoading(true);
+
+        try {
+            await loginWithGithub();
+            // Navigation will be handled by AuthContext after user data is loaded
+        } catch (err: any) {
+            setError(err.message || 'GitHub login failed.');
             setLoading(false);
         }
     };
@@ -172,6 +185,16 @@ export const Login = () => {
                                 <path fill="#EA4335" d="M10 3.88c1.88 0 3.13.81 3.85 1.48l2.84-2.76C14.96.99 12.7 0 10 0 6.09 0 2.72 2.25 1.07 5.51l3.24 2.52C5.12 5.62 7.36 3.88 10 3.88z" />
                             </svg>
                             Continue with Google
+                        </button>
+
+                        <button
+                            type="button"
+                            className="btn-github"
+                            onClick={handleGithubLogin}
+                            disabled={loading}
+                        >
+                            <Github size={20} />
+                            Continue with GitHub
                         </button>
 
                         <div className="signup-link">
@@ -560,6 +583,35 @@ export const Login = () => {
                 }
 
                 .btn-google:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+
+                .btn-github {
+                    width: 100%;
+                    padding: 14px;
+                    margin-top: 12px;
+                    background: #0f172a;
+                    color: #ffffff;
+                    border: 1px solid #0f172a;
+                    border-radius: 12px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 12px;
+                    transition: all 0.2s;
+                }
+
+                .btn-github:hover:not(:disabled) {
+                    background: #111827;
+                    border-color: #111827;
+                    box-shadow: 0 10px 18px rgba(15, 23, 42, 0.18);
+                }
+
+                .btn-github:disabled {
                     opacity: 0.6;
                     cursor: not-allowed;
                 }

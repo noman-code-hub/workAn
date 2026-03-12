@@ -154,6 +154,8 @@ const DEFAULT_ALLOWED_ORIGINS = new Set<string>([
   "http://127.0.0.1:5175",
   "http://localhost:5176",
   "http://127.0.0.1:5176",
+  "https://workshour.com",
+  "https://www.workshour.com",
   `https://${FIREBASE_PROJECT_ID}.web.app`,
   `https://${FIREBASE_PROJECT_ID}.firebaseapp.com`,
   `https://${VERCEL_PROJECT_SLUG}.vercel.app`,

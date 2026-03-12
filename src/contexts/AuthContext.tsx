@@ -6,8 +6,11 @@ import {
     createUserWithEmailAndPassword,
     signOut,
     onAuthStateChanged,
+    fetchSignInMethodsForEmail,
+    linkWithCredential,
+    GithubAuthProvider,
 } from 'firebase/auth';
-import { auth, googleProvider } from '../config/firebase';
+import { auth, googleProvider, githubProvider } from '../config/firebase';
 import type { User, UserRole } from '../types';
 import * as userService from '../services/userService';
 
@@ -16,6 +19,7 @@ interface AuthContextType {
     loading: boolean;
     login: (email: string, password: string) => Promise<void>;
     loginWithGoogle: () => Promise<void>;
+    loginWithGithub: () => Promise<void>;
     register: (email: string, password: string, name: string, role?: string) => Promise<void>;
     logout: () => Promise<void>;
     updateProfile: (updates: Partial<User>) => Promise<void>;
@@ -85,6 +89,67 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
     };
 
+    // GitHub Sign-In
+    const loginWithGithub = async () => {
+        setLoading(true);
+        try {
+            await signInWithPopup(auth, githubProvider);
+            // User state will be updated by onAuthStateChanged listener
+        } catch (error: unknown) {
+            const err = error as any;
+            if (err?.code === 'auth/account-exists-with-different-credential') {
+                const email = err?.customData?.email as string | undefined;
+                const pendingCred = GithubAuthProvider.credentialFromError(err);
+
+                if (!email) {
+                    setLoading(false);
+                    throw new Error(
+                        'Your GitHub account did not return an email. Please add a public email in GitHub or sign in with the method you used before.'
+                    );
+                }
+
+                let methods: string[] = [];
+                try {
+                    methods = await fetchSignInMethodsForEmail(auth, email);
+                } catch (lookupError: any) {
+                    setLoading(false);
+                    console.error('GitHub sign-in provider lookup error:', lookupError);
+                    throw new Error('GitHub sign-in failed. Please try again.');
+                }
+
+                if (methods.includes('google.com')) {
+                    const result = await signInWithPopup(auth, googleProvider);
+                    if (pendingCred) {
+                        await linkWithCredential(result.user, pendingCred);
+                    }
+                    return;
+                }
+
+                setLoading(false);
+
+                if (methods.includes('password')) {
+                    throw new Error(
+                        'An account already exists with this email using password. Please sign in with email/password, then link GitHub in Settings.'
+                    );
+                }
+
+                if (methods.length === 0) {
+                    throw new Error(
+                        'An account already exists with this email, but no sign-in method was returned. Please sign in with the method you used before (Google or Email/Password), then link GitHub in Settings.'
+                    );
+                }
+
+                throw new Error(
+                    `An account already exists with a different sign-in method (${methods.join(', ')}). Please use that method first, then link GitHub in Settings.`
+                );
+            }
+
+            setLoading(false);
+            console.error('GitHub sign-in error:', err);
+            throw new Error(err.message || 'GitHub sign-in failed');
+        }
+    };
+
     // Register with Email/Password
     const register = async (email: string, password: string, name: string, role: string = 'user') => {
         setLoading(true);
@@ -136,6 +201,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         loading,
         login,
         loginWithGoogle,
+        loginWithGithub,
         register,
         logout,
         updateProfile,

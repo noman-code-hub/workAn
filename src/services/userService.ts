@@ -42,6 +42,9 @@ const resolvePhotoURL = (name: string, photoURL?: string | null) => {
     return buildDefaultAvatar(name);
 };
 
+const isGithubProvider = (firebaseUser: FirebaseUser) =>
+    firebaseUser.providerData?.some((provider) => provider.providerId === 'github.com');
+
 const saveToLocal = (user: User) => {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(user));
 };
@@ -57,6 +60,8 @@ const getFromLocal = (): Partial<User> | null => {
  */
 export const fetchOrCreateUserProfile = async (firebaseUser: FirebaseUser): Promise<User> => {
     const userDocRef = doc(db, 'users', firebaseUser.uid);
+    const isGithubLogin = isGithubProvider(firebaseUser);
+    const fallbackRole: UserRole | undefined = isGithubLogin ? 'user' : undefined;
 
     try {
         const userDoc = await getDoc(userDocRef);
@@ -72,7 +77,7 @@ export const fetchOrCreateUserProfile = async (firebaseUser: FirebaseUser): Prom
                 id: firebaseUser.uid,
                 email: firebaseUser.email || '',
                 name: resolvedName,
-                role: data.role || undefined, // Undefined if not set (redirect to selection)
+                role: data.role || fallbackRole, // Undefined if not set (redirect to selection)
                 photoURL: resolvePhotoURL(resolvedName, storedPhotoURL),
                 bannerURL: data.bannerURL || undefined,
                 country: data.country,
@@ -93,6 +98,10 @@ export const fetchOrCreateUserProfile = async (firebaseUser: FirebaseUser): Prom
                 Object.assign(profile, localData);
             }
 
+            if (!profile.role && fallbackRole) {
+                profile.role = fallbackRole;
+            }
+
             const hadStoredPhoto = Boolean(storedPhotoURL);
             const localPhoto = localData?.photoURL;
             const needsDefaultPhoto = !profile.photoURL;
@@ -101,6 +110,10 @@ export const fetchOrCreateUserProfile = async (firebaseUser: FirebaseUser): Prom
             }
 
             saveToLocal(profile);
+
+            if (!data.role && fallbackRole) {
+                void updateUserProfile(profile.id, { role: fallbackRole });
+            }
 
             if (!hadStoredPhoto && !localPhoto && needsDefaultPhoto) {
                 void updateUserProfile(profile.id, { photoURL: profile.photoURL });
@@ -116,7 +129,7 @@ export const fetchOrCreateUserProfile = async (firebaseUser: FirebaseUser): Prom
                 id: firebaseUser.uid,
                 email: firebaseUser.email || '',
                 name: resolvedName,
-                role: undefined, // No default role for new users (redirect to selection)
+                role: fallbackRole, // Default role for GitHub users
                 photoURL: resolvePhotoURL(resolvedName, firebaseUser.photoURL),
                 bannerURL: undefined,
                 country: undefined,
