@@ -5,7 +5,7 @@ import type { FirebaseStorage } from 'firebase/storage';
 
 const firebaseConfig = {
     apiKey: "AIzaSyB1LtzuqH1IT7eryd1oiFVKkxR578VdNCc",
-    authDomain: "workshour.com",
+    authDomain: "workan-fb4ef.firebaseapp.com",
     projectId: "workan-fb4ef",
     storageBucket: "workan-fb4ef.firebasestorage.app",
     messagingSenderId: "213795286088",

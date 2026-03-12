@@ -43,6 +43,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 const { auth, authModule } = await getAuthClient();
                 if (!isMounted) return;
 
+                try {
+                    await authModule.getRedirectResult(auth);
+                } catch (redirectError) {
+                    console.error('OAuth redirect sign-in error:', redirectError);
+                }
+
                 unsubscribe = authModule.onAuthStateChanged(auth, async (firebaseUser) => {
                     if (firebaseUser) {
                         try {
@@ -74,6 +80,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         };
     }, []);
 
+    const shouldFallbackToRedirect = (error: any) => {
+        const code = error?.code as string | undefined;
+        return code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment';
+    };
+
     // Email/Password Login
     const login = async (email: string, password: string) => {
         setLoading(true);
@@ -92,7 +103,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setLoading(true);
         try {
             const { auth, googleProvider, authModule } = await getAuthClient();
-            await authModule.signInWithPopup(auth, googleProvider);
+            try {
+                await authModule.signInWithPopup(auth, googleProvider);
+            } catch (popupError: any) {
+                if (shouldFallbackToRedirect(popupError)) {
+                    console.warn('Google popup blocked/unsupported, falling back to redirect.');
+                    await authModule.signInWithRedirect(auth, googleProvider);
+                    return;
+                }
+                throw popupError;
+            }
             // User state will be updated by onAuthStateChanged listener
         } catch (error: unknown) {
             setLoading(false);
@@ -107,7 +127,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setLoading(true);
         try {
             const { auth, githubProvider, authModule } = await getAuthClient();
-            await authModule.signInWithPopup(auth, githubProvider);
+            try {
+                await authModule.signInWithPopup(auth, githubProvider);
+            } catch (popupError: any) {
+                if (shouldFallbackToRedirect(popupError)) {
+                    console.warn('GitHub popup blocked/unsupported, falling back to redirect.');
+                    await authModule.signInWithRedirect(auth, githubProvider);
+                    return;
+                }
+                throw popupError;
+            }
             // User state will be updated by onAuthStateChanged listener
         } catch (error: unknown) {
             const err = error as any;
