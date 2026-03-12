@@ -263,6 +263,8 @@ export const AdminDashboard = () => {
                                                                     className="user-avatar"
                                                                     loading="lazy"
                                                                     decoding="async"
+                                                                    width={40}
+                                                                    height={40}
                                                                 />
                                                             ) : (
                                                                 <div className="user-avatar-fallback">

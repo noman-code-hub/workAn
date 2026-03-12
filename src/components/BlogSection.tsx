@@ -157,6 +157,8 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
                                             style={styles.avatarImg}
                                             loading="lazy"
                                             decoding="async"
+                                            width={48}
+                                            height={48}
                                         />
                                     ) : (
                                         user.name.charAt(0)
@@ -189,6 +191,8 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
                                         style={styles.previewImg}
                                         loading="lazy"
                                         decoding="async"
+                                        width={1200}
+                                        height={675}
                                     />
                                     <button onClick={() => setSelectedImage(null)} style={styles.removeImg}>×</button>
                                 </div>
@@ -228,6 +232,8 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
                                         style={styles.modernImage}
                                         loading="lazy"
                                         decoding="async"
+                                        width={1200}
+                                        height={675}
                                     />
                                 </div>
                             )}

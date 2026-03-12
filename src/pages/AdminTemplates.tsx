@@ -343,6 +343,8 @@ export const AdminTemplates = () => {
                                                 className="w-full h-full object-contain bg-white p-1"
                                                 loading="lazy"
                                                 decoding="async"
+                                                width={1280}
+                                                height={720}
                                             />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-gray-400">No Preview</div>

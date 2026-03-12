@@ -58,6 +58,8 @@ export const ProfileDropdown = ({ onViewProfile }: ProfileDropdownProps) => {
                         className="topbar-avatar"
                         loading="lazy"
                         decoding="async"
+                        width={40}
+                        height={40}
                     />
                 ) : (
                     <div className="topbar-avatar-fallback">
@@ -78,6 +80,8 @@ export const ProfileDropdown = ({ onViewProfile }: ProfileDropdownProps) => {
                                     className="dropdown-avatar"
                                     loading="lazy"
                                     decoding="async"
+                                    width={80}
+                                    height={80}
                                 />
                             ) : (
                                 <div className="dropdown-avatar-fallback">

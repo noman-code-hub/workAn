@@ -147,6 +147,8 @@ export const AICopilot = () => {
                       alt={user.name ? `${user.name} avatar` : 'User avatar'}
                       loading="lazy"
                       decoding="async"
+                      width={34}
+                      height={34}
                     />
                   ) : (
                     <User size={18} />

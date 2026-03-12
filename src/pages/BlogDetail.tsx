@@ -113,6 +113,8 @@ export const BlogDetail = () => {
                                 style={styles.featuredImage}
                                 loading="lazy"
                                 decoding="async"
+                                width={1200}
+                                height={675}
                             />
                         </div>
                     )}

@@ -280,6 +280,8 @@ export const Profile = () => {
                                         className="profile-avatar"
                                         loading="lazy"
                                         decoding="async"
+                                        width={160}
+                                        height={160}
                                     />
                                 ) : (
                                     <div className="profile-avatar-fallback">
@@ -572,6 +574,8 @@ export const Profile = () => {
                                                 className="modal-avatar-preview"
                                                 loading="lazy"
                                                 decoding="async"
+                                                width={100}
+                                                height={100}
                                             />
                                         ) : (
                                             <div className="modal-avatar-preview-fallback">{initial}</div>

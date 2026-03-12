@@ -244,6 +244,8 @@ export const CommunityFeed = () => {
                                     className="w-full h-full object-cover"
                                     loading="lazy"
                                     decoding="async"
+                                    width={48}
+                                    height={48}
                                 />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-black text-white font-bold">
@@ -267,6 +269,8 @@ export const CommunityFeed = () => {
                                 className="w-full"
                                 loading="lazy"
                                 decoding="async"
+                                width={1200}
+                                height={675}
                             />
                             <button
                                 onClick={() => setSelectedImage(null)}
@@ -319,6 +323,8 @@ export const CommunityFeed = () => {
                                                     className="w-full h-full object-cover"
                                                     loading="lazy"
                                                     decoding="async"
+                                                    width={40}
+                                                    height={40}
                                                 />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center bg-black text-white font-bold">
@@ -361,6 +367,8 @@ export const CommunityFeed = () => {
                                                 className="w-full h-auto"
                                                 loading="lazy"
                                                 decoding="async"
+                                                width={1200}
+                                                height={675}
                                             />
                                         </div>
                                     )}
@@ -401,6 +409,8 @@ export const CommunityFeed = () => {
                                                     className="w-full h-full object-cover"
                                                     loading="lazy"
                                                     decoding="async"
+                                                    width={32}
+                                                    height={32}
                                                 />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center bg-black text-white text-xs font-bold">
@@ -443,6 +453,8 @@ export const CommunityFeed = () => {
                                                                 className="w-full h-full object-cover"
                                                                 loading="lazy"
                                                                 decoding="async"
+                                                                width={32}
+                                                                height={32}
                                                             />
                                                         ) : (
                                                             <div className="w-full h-full flex items-center justify-center bg-black text-white text-xs font-bold">

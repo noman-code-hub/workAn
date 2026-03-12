@@ -1327,6 +1327,8 @@ export const Resume = () => {
                             alt={`${t.displayName} template`}
                             loading="lazy"
                             decoding="async"
+                            width={420}
+                            height={594}
                           />
                         ) : (
                           <div className="template-preview-placeholder">
@@ -1482,6 +1484,8 @@ export const Resume = () => {
                                         className="w-12 h-12 rounded-full object-cover border border-gray-200"
                                         loading="lazy"
                                         decoding="async"
+                                        width={48}
+                                        height={48}
                                       />
                                     )}
                                     <div className="text-sm text-gray-600">{contactPhotoName || 'Photo selected'}</div>

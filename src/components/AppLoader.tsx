@@ -1,6 +1,7 @@
 import { BRAND } from '../config/brand';
 
 const splashLogo = BRAND.logo.loader;
+const splashLogo2x = BRAND.logo.loader2x;
 
 type AppLoaderProps = {
   variant?: 'overlay' | 'full';
@@ -12,10 +13,14 @@ export const AppLoader = ({ variant = 'overlay' }: AppLoaderProps) => (
         <div className="loader-logo">
           <img
             src={splashLogo}
+            srcSet={`${splashLogo} 100w, ${splashLogo2x} 200w`}
+            sizes="100px"
             alt={`${BRAND.name} logo`}
             className="logo-image"
             loading="lazy"
             decoding="async"
+            width={100}
+            height={100}
           />
         </div>
         <div className="loader-dots" aria-hidden="true">

@@ -67,10 +67,14 @@ export const Login = () => {
                         <div className="brand-icon">
                             <img
                                 src={BRAND.logo.glyph}
+                                srcSet={`${BRAND.logo.glyph} 52w, ${BRAND.logo.glyph2x} 104w`}
+                                sizes="52px"
                                 alt={`${BRAND.name} logo`}
                                 className="brand-icon-img"
                                 loading="lazy"
                                 decoding="async"
+                                width={52}
+                                height={52}
                             />
                         </div>
                         <h1>{BRAND.name}</h1>

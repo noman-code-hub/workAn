@@ -134,6 +134,8 @@ export const Community = () => {
                                                 style={styles.avatar}
                                                 loading="lazy"
                                                 decoding="async"
+                                                width={72}
+                                                height={72}
                                             />
                                         ) : (
                                             <div style={styles.avatarPlaceholder}>{user.name.charAt(0)}</div>
@@ -322,6 +324,8 @@ export const Community = () => {
                                 style={styles.msgAvatarImg}
                                 loading="lazy"
                                 decoding="async"
+                                width={32}
+                                height={32}
                             />
                         ) : (
                             'U'
