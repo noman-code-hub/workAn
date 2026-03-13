@@ -1,17 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import {
-    collection,
-    addDoc,
-    onSnapshot,
-    serverTimestamp,
-    updateDoc,
-    doc,
-    query,
-    orderBy,
-    deleteDoc,
-    where
-} from 'firebase/firestore';
-import { getDb } from '../config/firebase';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadImage } from '../services/supabaseStorage';
 import {
@@ -32,7 +20,7 @@ interface Comment {
     authorName: string;
     authorPhoto?: string;
     content: string;
-    createdAt: any;
+    createdAt: string;
 }
 
 interface Post {
@@ -45,7 +33,7 @@ interface Post {
     likes: number;
     likedBy: string[];
     commentsCount: number;
-    createdAt: any;
+    createdAt: string;
 }
 
 export const CommunityFeed = () => {
@@ -64,29 +52,51 @@ export const CommunityFeed = () => {
 
     useEffect(() => {
         let isMounted = true;
-        let unsubscribe = () => {};
 
-        const initPosts = async () => {
+        if (!isSupabaseConfigured || !supabase) {
+            console.warn('Supabase is not configured. Community feed is disabled.');
+            return () => {};
+        }
+
+        const fetchPosts = async () => {
             try {
-                const db = await getDb();
+                const { data, error } = await supabase
+                    .from('posts')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
                 if (!isMounted) return;
-                const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
-                unsubscribe = onSnapshot(q, (snapshot) => {
-                    const data = snapshot.docs.map(doc => ({
-                        id: doc.id,
-                        ...doc.data()
-                    })) as Post[];
-                    if (isMounted) setPosts(data);
-                });
+
+                const mapped = (data || []).map((row: any) => ({
+                    id: row.id,
+                    authorId: row.author_id,
+                    authorName: row.author_name || 'Unknown User',
+                    authorPhoto: row.author_photo || '',
+                    content: row.content || '',
+                    imageUrl: row.image_url || '',
+                    likes: row.likes || 0,
+                    likedBy: row.liked_by || [],
+                    commentsCount: row.comments_count || 0,
+                    createdAt: row.created_at,
+                })) as Post[];
+
+                setPosts(mapped);
             } catch (error) {
-                console.error("Error loading posts:", error);
+                console.error('Error loading posts:', error);
             }
         };
 
-        initPosts();
+        void fetchPosts();
+
+        const channel = supabase
+            .channel('community-posts')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, fetchPosts)
+            .subscribe();
+
         return () => {
             isMounted = false;
-            unsubscribe();
+            void supabase.removeChannel(channel);
         };
     }, []);
 
@@ -98,40 +108,56 @@ export const CommunityFeed = () => {
         }
 
         let isMounted = true;
-        let unsubscribe = () => {};
 
-        const initComments = async () => {
+        if (!isSupabaseConfigured || !supabase) {
+            setLoadingComments(false);
+            return () => {};
+        }
+
+        const fetchComments = async () => {
             setLoadingComments(true);
             try {
-                const db = await getDb();
-                if (!isMounted) return;
-                const q = query(
-                    collection(db, 'comments'),
-                    where('postId', '==', expandedPostId),
-                    orderBy('createdAt', 'asc')
-                );
+                const { data, error } = await supabase
+                    .from('comments')
+                    .select('*')
+                    .eq('post_id', expandedPostId)
+                    .order('created_at', { ascending: true });
 
-                unsubscribe = onSnapshot(q, (snapshot) => {
-                    const data = snapshot.docs.map(doc => ({
-                        id: doc.id,
-                        ...doc.data()
-                    })) as Comment[];
-                    if (isMounted) {
-                        setComments(data);
-                        setLoadingComments(false);
-                    }
-                });
+                if (error) throw error;
+                if (!isMounted) return;
+
+                const mapped = (data || []).map((row: any) => ({
+                    id: row.id,
+                    postId: row.post_id,
+                    authorId: row.author_id,
+                    authorName: row.author_name || 'Unknown User',
+                    authorPhoto: row.author_photo || '',
+                    content: row.content || '',
+                    createdAt: row.created_at,
+                })) as Comment[];
+
+                setComments(mapped);
+                setLoadingComments(false);
             } catch (error) {
-                console.error("Error loading comments:", error);
+                console.error('Error loading comments:', error);
                 if (isMounted) setLoadingComments(false);
             }
         };
 
-        initComments();
+        void fetchComments();
+
+        const channel = supabase
+            .channel(`comments-${expandedPostId}`)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'comments', filter: `post_id=eq.${expandedPostId}` },
+                fetchComments
+            )
+            .subscribe();
 
         return () => {
             isMounted = false;
-            unsubscribe();
+            void supabase.removeChannel(channel);
         };
     }, [expandedPostId]);
 
@@ -146,30 +172,34 @@ export const CommunityFeed = () => {
 
         setIsPosting(true);
         try {
-            const db = await getDb();
+            if (!isSupabaseConfigured || !supabase) {
+                throw new Error('Supabase is not configured.');
+            }
+
             let imageUrl = '';
             if (selectedImage) {
                 const result = await uploadImage(user.id, selectedImage, 'post');
                 imageUrl = result.publicUrl;
             }
 
-            await addDoc(collection(db, 'posts'), {
-                authorId: user.id,
-                authorName: user.name,
-                authorPhoto: user.photoURL || '',
+            const { error } = await supabase.from('posts').insert({
+                author_id: user.id,
+                author_name: user.name,
+                author_photo: user.photoURL || '',
                 content,
-                imageUrl,
+                image_url: imageUrl,
                 likes: 0,
-                likedBy: [],
-                commentsCount: 0,
-                createdAt: serverTimestamp(),
+                liked_by: [],
+                comments_count: 0,
             });
+
+            if (error) throw error;
 
             setContent('');
             setSelectedImage(null);
         } catch (error) {
-            console.error("Error creating post:", error);
-            alert("Failed to post. Please try again.");
+            console.error('Error creating post:', error);
+            alert('Failed to post. Please try again.');
         } finally {
             setIsPosting(false);
         }
@@ -178,30 +208,35 @@ export const CommunityFeed = () => {
     const handleLike = async (post: Post) => {
         if (!user) return;
 
-        const db = await getDb();
-        const postRef = doc(db, 'posts', post.id);
+        if (!isSupabaseConfigured || !supabase) return;
+
         const hasLiked = post.likedBy?.includes(user.id);
+        const nextLikedBy = hasLiked
+            ? post.likedBy.filter((id) => id !== user.id)
+            : [...(post.likedBy || []), user.id];
 
         try {
-            await updateDoc(postRef, {
-                likedBy: hasLiked
-                    ? post.likedBy.filter(id => id !== user.id)
-                    : [...(post.likedBy || []), user.id],
-                likes: hasLiked ? Math.max(0, post.likes - 1) : post.likes + 1
-            });
+            const { error } = await supabase.from('posts').update({
+                liked_by: nextLikedBy,
+                likes: hasLiked ? Math.max(0, post.likes - 1) : post.likes + 1,
+            }).eq('id', post.id);
+            if (error) throw error;
         } catch (error) {
-            console.error("Error updating like:", error);
+            console.error('Error updating like:', error);
         }
     };
 
     const handleDeletePost = async (postId: string) => {
         if (!window.confirm("Delete this post?")) return;
         try {
-            const db = await getDb();
-            await deleteDoc(doc(db, 'posts', postId));
+            if (!isSupabaseConfigured || !supabase) {
+                throw new Error('Supabase is not configured.');
+            }
+            const { error } = await supabase.from('posts').delete().eq('id', postId);
+            if (error) throw error;
         } catch (error) {
-            console.error("Error deleting post:", error);
-            alert("Failed to delete post.");
+            console.error('Error deleting post:', error);
+            alert('Failed to delete post.');
         }
     };
 
@@ -209,47 +244,52 @@ export const CommunityFeed = () => {
         if (!newComment.trim() || !user) return;
 
         try {
-            const db = await getDb();
-            await addDoc(collection(db, 'comments'), {
-                postId,
-                authorId: user.id,
-                authorName: user.name,
-                authorPhoto: user.photoURL || '',
+            if (!isSupabaseConfigured || !supabase) {
+                throw new Error('Supabase is not configured.');
+            }
+
+            const { error } = await supabase.from('comments').insert({
+                post_id: postId,
+                author_id: user.id,
+                author_name: user.name,
+                author_photo: user.photoURL || '',
                 content: newComment,
-                createdAt: serverTimestamp()
             });
 
-            // Update comment count on post
-            const postRef = doc(db, 'posts', postId);
-            const post = posts.find(p => p.id === postId);
+            if (error) throw error;
+
+            const post = posts.find((p) => p.id === postId);
             if (post) {
-                await updateDoc(postRef, {
-                    commentsCount: (post.commentsCount || 0) + 1
-                });
+                await supabase
+                    .from('posts')
+                    .update({ comments_count: (post.commentsCount || 0) + 1 })
+                    .eq('id', postId);
             }
 
             setNewComment('');
         } catch (error) {
-            console.error("Error adding comment:", error);
+            console.error('Error adding comment:', error);
         }
     };
 
     const handleDeleteComment = async (commentId: string, postId: string) => {
         if (!window.confirm("Delete this comment?")) return;
         try {
-            const db = await getDb();
-            await deleteDoc(doc(db, 'comments', commentId));
+            if (!isSupabaseConfigured || !supabase) {
+                throw new Error('Supabase is not configured.');
+            }
+            const { error } = await supabase.from('comments').delete().eq('id', commentId);
+            if (error) throw error;
 
-            // Decrement comment count
-            const postRef = doc(db, 'posts', postId);
-            const post = posts.find(p => p.id === postId);
+            const post = posts.find((p) => p.id === postId);
             if (post) {
-                await updateDoc(postRef, {
-                    commentsCount: Math.max(0, (post.commentsCount || 0) - 1)
-                });
+                await supabase
+                    .from('posts')
+                    .update({ comments_count: Math.max(0, (post.commentsCount || 0) - 1) })
+                    .eq('id', postId);
             }
         } catch (error) {
-            console.error("Error deleting comment:", error);
+            console.error('Error deleting comment:', error);
         }
     };
 
@@ -377,8 +417,8 @@ export const CommunityFeed = () => {
                                                 {post.authorName}
                                             </h3>
                                             <div className="font-mono text-[10px] uppercase text-gray-500 mt-1">
-                                                {post.createdAt?.seconds
-                                                    ? formatDistanceToNow(new Date(post.createdAt.seconds * 1000), { addSuffix: true })
+                                                {post.createdAt
+                                                    ? formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })
                                                     : 'Just now'}
                                             </div>
                                         </div>
@@ -507,8 +547,8 @@ export const CommunityFeed = () => {
                                                             <div>
                                                                 <span className="font-serif text-sm font-bold border-b border-black">{comment.authorName}</span>
                                                                 <span className="font-mono text-[10px] uppercase text-gray-500 ml-3">
-                                                                    {comment.createdAt?.seconds
-                                                                        ? formatDistanceToNow(new Date(comment.createdAt.seconds * 1000), { addSuffix: true })
+                                                                    {comment.createdAt
+                                                                        ? formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })
                                                                         : 'Just now'}
                                                                 </span>
                                                             </div>

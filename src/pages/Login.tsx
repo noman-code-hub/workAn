@@ -10,8 +10,9 @@ export const Login = () => {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
+    const [notice, setNotice] = useState('');
     const [loading, setLoading] = useState(false);
-    const { login, loginWithGoogle, loginWithGithub, user, loading: authLoading } = useAuth();
+    const { login, loginWithGoogle, loginWithGithub, resetPassword, user, loading: authLoading } = useAuth();
 
     // Auto-redirect when user logs in
     useRoleBasedRedirect(user, authLoading);
@@ -19,6 +20,7 @@ export const Login = () => {
     const handleEmailLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+        setNotice('');
         setLoading(true);
 
         try {
@@ -32,6 +34,7 @@ export const Login = () => {
 
     const handleGoogleLogin = async () => {
         setError('');
+        setNotice('');
         setLoading(true);
 
         try {
@@ -45,6 +48,7 @@ export const Login = () => {
 
     const handleGithubLogin = async () => {
         setError('');
+        setNotice('');
         setLoading(true);
 
         try {
@@ -52,6 +56,23 @@ export const Login = () => {
             // Navigation will be handled by AuthContext after user data is loaded
         } catch (err: any) {
             setError(err.message || 'GitHub login failed.');
+            setLoading(false);
+        }
+    };
+
+    const handleResetPassword = async () => {
+        setError('');
+        setNotice('');
+        const targetEmail = email || window.prompt('Enter your email to reset your password');
+        if (!targetEmail) return;
+
+        setLoading(true);
+        try {
+            await resetPassword(targetEmail);
+            setNotice('Password reset email sent. Check your inbox and spam folder.');
+        } catch (err: any) {
+            setError(err.message || 'Failed to send reset email.');
+        } finally {
             setLoading(false);
         }
     };
@@ -119,6 +140,12 @@ export const Login = () => {
                                 <span>{error}</span>
                             </div>
                         )}
+                        {notice && (
+                            <div className="info-message">
+                                <AlertCircle size={18} />
+                                <span>{notice}</span>
+                            </div>
+                        )}
 
                         <form onSubmit={handleEmailLogin}>
                             <div className="form-group">
@@ -164,7 +191,14 @@ export const Login = () => {
                                     <input type="checkbox" />
                                     <span>Remember me</span>
                                 </label>
-                                <a href="#" className="forgot-password">Forgot password?</a>
+                                <button
+                                    type="button"
+                                    className="forgot-password"
+                                    onClick={handleResetPassword}
+                                    disabled={loading}
+                                >
+                                    Forgot password?
+                                </button>
                             </div>
 
                             <button type="submit" className="btn-primary" disabled={loading}>
@@ -419,6 +453,18 @@ export const Login = () => {
                     font-size: 14px;
                 }
 
+                .info-message {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    background: #dbeafe;
+                    color: #1d4ed8;
+                    padding: 12px 16px;
+                    border-radius: 8px;
+                    margin-bottom: 20px;
+                    font-size: 14px;
+                }
+
                 .form-group {
                     margin-bottom: 20px;
                 }
@@ -507,6 +553,10 @@ export const Login = () => {
                     color: #17c9b0;
                     text-decoration: none;
                     font-weight: 600;
+                    background: none;
+                    border: none;
+                    padding: 0;
+                    cursor: pointer;
                 }
 
                 .forgot-password:hover {

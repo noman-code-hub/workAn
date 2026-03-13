@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Clock } from 'lucide-react';
-import { doc, getDoc } from 'firebase/firestore';
-import { getDb } from '../config/firebase';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { applySeoMeta } from '../utils/seo';
 import type { BlogPost } from '@/types';
 
@@ -17,36 +16,47 @@ export const BlogDetail = () => {
             if (!id) return;
 
             try {
-                const db = await getDb();
-                const blogDoc = await getDoc(doc(db, 'blogs', id));
-                const postDoc = blogDoc.exists() ? blogDoc : await getDoc(doc(db, 'posts', id));
+                if (!isSupabaseConfigured || !supabase) {
+                    throw new Error('Supabase is not configured.');
+                }
 
-                if (postDoc.exists()) {
-                    const data = postDoc.data();
-                    const title = data.title ? `${data.title} | Workshour` : 'Career Insights | Workshour';
+                const blogResult = await supabase.from('blogs').select('*').eq('id', id).maybeSingle();
+                const postResult = blogResult.data ? blogResult : await supabase.from('posts').select('*').eq('id', id).maybeSingle();
+
+                if (postResult.error) throw postResult.error;
+                if (postResult.data) {
+                    const data: any = postResult.data;
+                    const isBlog = Boolean(blogResult.data);
+                    const titleValue = data.title || '';
+                    const title = titleValue ? `${titleValue} | Workshour` : 'Career Insights | Workshour';
                     const description = typeof data.content === 'string'
                         ? data.content.replace(/\s+/g, ' ').slice(0, 160)
                         : '';
-                    const image = data.imageURL || data.imageUrl || '';
+                    const image = data.image_url || '';
                     applySeoMeta(
                         title,
                         description,
-                        `/blog/${postDoc.id}`,
+                        `/blog/${data.id}`,
                         {
                             ogType: 'article',
                             image: image || undefined,
-                            keywords: data.title ? `${data.title}, career insights, workshour` : undefined,
+                            keywords: titleValue ? `${titleValue}, career insights, workshour` : undefined,
                         }
                     );
+
                     setPost({
-                        id: postDoc.id,
-                        ...data,
-                        userId: data.userId || data.authorId || '',
-                        authorAvatar: data.authorAvatar || data.authorPhoto || '',
-                        imageURL: data.imageURL || data.imageUrl || '',
-                        type: data.type === 'blog' ? 'blog' : 'community',
-                        createdAt: data.createdAt?.toDate?.() || (data.createdAt ? new Date(data.createdAt) : new Date()),
-                        updatedAt: data.updatedAt?.toDate?.() || (data.updatedAt ? new Date(data.updatedAt) : (data.createdAt?.toDate?.() || new Date()))
+                        id: data.id,
+                        userId: data.user_id || data.author_id || '',
+                        authorName: data.author_name || 'Unknown User',
+                        authorAvatar: data.author_avatar || data.author_photo || '',
+                        title: data.title || '',
+                        content: data.content || '',
+                        imageURL: data.image_url || '',
+                        likes: data.likes || 0,
+                        commentsCount: data.comments_count || 0,
+                        type: isBlog ? (data.type === 'blog' ? 'blog' : 'community') : 'community',
+                        createdAt: data.created_at ? new Date(data.created_at) : new Date(),
+                        updatedAt: data.updated_at ? new Date(data.updated_at) : (data.created_at ? new Date(data.created_at) : new Date()),
                     } as BlogPost);
                 }
             } catch (error) {

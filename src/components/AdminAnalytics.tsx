@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot, query } from 'firebase/firestore';
-import { getDb } from '../config/firebase';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import type { User } from '../types';
 import { Users, Briefcase, FileText, MessageCircle } from 'lucide-react';
 import { subscribeToPosts } from '../services/postService';
@@ -21,12 +20,28 @@ export const AdminAnalytics = ({ users }: AdminAnalyticsProps) => {
 
         const initJobs = async () => {
             try {
-                const db = await getDb();
-                if (!isMounted) return;
-                const jobsQuery = query(collection(db, 'jobs'));
-                unsubscribeJobs = onSnapshot(jobsQuery, (snapshot) => {
-                    if (isMounted) setJobCount(snapshot.size);
-                });
+                if (!isSupabaseConfigured || !supabase) {
+                    throw new Error('Supabase is not configured.');
+                }
+
+                const fetchCount = async () => {
+                    const { count, error } = await supabase
+                        .from('jobs')
+                        .select('id', { count: 'exact', head: true });
+                    if (error) throw error;
+                    if (isMounted) setJobCount(count || 0);
+                };
+
+                await fetchCount();
+
+                const channel = supabase
+                    .channel('jobs-count')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, fetchCount)
+                    .subscribe();
+
+                unsubscribeJobs = () => {
+                    void supabase.removeChannel(channel);
+                };
             } catch (error) {
                 console.error('Failed to load jobs count:', error);
                 if (isMounted) setLoading(false);

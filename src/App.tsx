@@ -11,6 +11,7 @@ const LAST_ROUTE_STORAGE_KEY = 'careerpilot:last-route';
 const LandingPage = lazy(() => import('./pages/LandingPage').then((m) => ({ default: m.LandingPage })));
 const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
 const Register = lazy(() => import('./pages/Register').then((m) => ({ default: m.Register })));
+const ResetPassword = lazy(() => import('./pages/ResetPassword').then((m) => ({ default: m.ResetPassword })));
 const SelectRole = lazy(() => import('./pages/SelectRole').then((m) => ({ default: m.SelectRole })));
 const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
@@ -137,9 +138,9 @@ function App() {
     window.sessionStorage.setItem(LAST_ROUTE_STORAGE_KEY, currentFullPath);
   }, [location.pathname, location.search, location.hash]);
 
-  if (loading) {
-    return <AppLoader variant="full" />;
-  }
+  // if (loading) {
+  //   return <AppLoader variant="full" />;
+  // }
 
   const homeRoute = !user
     ? '/landing'
@@ -154,13 +155,14 @@ function App() {
   return (
     <>
       <SeoManager />
-      {(bootLoading || routeLoading) && <AppLoader variant="overlay" />}
-      <Suspense fallback={<AppLoader variant="overlay" />}>
+      {/* {(bootLoading || routeLoading) && <AppLoader variant="overlay" />} */}
+      <Suspense fallback={null}>
         <Routes>
           <Route path="/" element={<Navigate to={homeRoute} replace />} />
           <Route path="/landing" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/select-role" element={<SelectRole />} />
 
           {/* App Routes with Flat Layout (No Sidebar) */}

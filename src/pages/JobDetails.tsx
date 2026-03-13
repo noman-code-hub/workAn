@@ -11,15 +11,7 @@ import {
   Bookmark,
   BookmarkPlus,
 } from 'lucide-react';
-import {
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  serverTimestamp,
-  increment
-} from 'firebase/firestore';
-import { getDb } from '../config/firebase';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Job } from '../types';
 import { JobLogo } from '../components/JobLogo';
@@ -90,26 +82,34 @@ export const JobDetails = () => {
   const fetchJobDetails = async () => {
     if (!id) return;
     try {
-      const db = await getDb();
-      // Check Firestore for internal jobs
-      const jobDoc = await getDoc(doc(db, 'jobs', id));
-      if (jobDoc.exists()) {
-        const data = jobDoc.data();
+      if (!isSupabaseConfigured || !supabase) {
+        throw new Error('Supabase is not configured.');
+      }
+
+      const { data, error } = await supabase.from('jobs').select('*').eq('id', id).maybeSingle();
+      if (error) throw error;
+
+      if (data) {
         setJob({
-          id: jobDoc.id,
+          id: data.id,
           title: data.title,
           company: data.company,
           description: data.description,
           location: data.location,
-          salary: typeof data.salary === 'string'
-            ? { min: parseInt(data.salary) || 0, max: parseInt(data.salary) || 0, currency: 'PKR' }
-            : data.salary,
+          salary: {
+            min: data.salary_min || 0,
+            max: data.salary_max || 0,
+            currency: data.salary_currency || 'USD',
+          },
+          salaryText: data.salary_text || undefined,
           type: data.type || 'full-time',
           requirements: data.requirements || [],
           skills: data.skills || [],
           tags: data.tags || [],
-          postedDate: data.createdAt?.toDate() || new Date(),
-          postedBy: data.postedBy
+          postedDate: data.created_at ? new Date(data.created_at) : new Date(),
+          postedBy: data.posted_by,
+          applicantsCount: data.applicants_count || 0,
+          applyUrl: data.apply_url || undefined,
         } as Job);
       }
       setLoading(false);
@@ -130,40 +130,49 @@ export const JobDetails = () => {
 
     setApplyingId(job.id);
     try {
-      const db = await getDb();
-      // Check if it's an internal job (has postedBy)
-      if (job.postedBy) {
-        const applicantRef = doc(db, 'jobs', job.id, 'applicants', user.id);
-        const applicantDoc = await getDoc(applicantRef);
+      if (!isSupabaseConfigured || !supabase) {
+        throw new Error('Supabase is not configured.');
+      }
 
-        if (applicantDoc.exists()) {
-          alert("You have already applied for this job.");
+      if (job.postedBy) {
+        const { data: existing, error: existingError } = await supabase
+          .from('job_applicants')
+          .select('job_id')
+          .eq('job_id', job.id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (existingError) throw existingError;
+
+        if (existing) {
+          alert('You have already applied for this job.');
           setHasApplied(true);
         } else {
-          await setDoc(applicantRef, {
-            userId: user.id,
+          const { error: insertError } = await supabase.from('job_applicants').insert({
+            job_id: job.id,
+            user_id: user.id,
             name: user.name,
             email: user.email,
-            resumeUrl: user.resumeURL || '',
-            appliedAt: serverTimestamp(),
-            status: 'pending'
+            resume_url: user.resumeURL || '',
+            status: 'pending',
           });
 
-          // Increment applicant count
-          await updateDoc(doc(db, 'jobs', job.id), {
-            applicantsCount: increment(1)
-          });
+          if (insertError) throw insertError;
 
-          alert("Application submitted successfully!");
+          await supabase
+            .from('jobs')
+            .update({ applicants_count: (job.applicantsCount || 0) + 1 })
+            .eq('id', job.id);
+
+          alert('Application submitted successfully!');
           setHasApplied(true);
         }
       } else {
-        // External job
         const url = await getApplyLink(job);
         window.open(url, '_blank');
       }
     } catch (error) {
-      console.error("Error applying for job:", error);
+      console.error('Error applying for job:', error);
       window.open(job.applyUrl || '#', '_blank');
     } finally {
       setApplyingId(null);
@@ -171,6 +180,12 @@ export const JobDetails = () => {
   };
 
   const formatSalary = (job: Job) => {
+    if (job.salaryText && (!job.salary.min && !job.salary.max)) {
+      return job.salaryText;
+    }
+    if (!job.salary.min && !job.salary.max) {
+      return 'Negotiable';
+    }
     return `$${(job.salary.min / 1000).toFixed(0)}k - $${(job.salary.max / 1000).toFixed(0)}k`;
   };
 

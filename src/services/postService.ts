@@ -1,48 +1,74 @@
-import { collection, addDoc, query, where, getDocs, deleteDoc, doc, onSnapshot, updateDoc } from 'firebase/firestore';
-import { getDb } from '../config/firebase';
-import { uploadImage } from './supabaseStorage';
 import type { User, BlogPost } from '../types';
+import { uploadImage } from './supabaseStorage';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
-const BLOGS_COLLECTION = 'blogs';
-const LEGACY_POSTS_COLLECTION = 'posts';
+const BLOGS_TABLE = 'blogs';
+const POSTS_TABLE = 'posts';
 
-const toDate = (value: unknown): Date => {
-    if (value && typeof value === 'object' && 'toDate' in value && typeof (value as { toDate?: unknown }).toDate === 'function') {
-        return (value as { toDate: () => Date }).toDate();
+const getSupabaseClient = () => {
+    if (!isSupabaseConfigured || !supabase) {
+        throw new Error('Supabase is not configured.');
     }
-
-    if (value instanceof Date) {
-        return value;
-    }
-
-    if (typeof value === 'string' || typeof value === 'number') {
-        const date = new Date(value);
-        if (!Number.isNaN(date.getTime())) {
-            return date;
-        }
-    }
-
-    return new Date();
+    return supabase;
 };
 
-const normalizePost = (id: string, data: Record<string, unknown>): BlogPost => {
-    const type = data.type === 'blog' ? 'blog' : 'community';
-
-    return {
-        id,
-        userId: (typeof data.userId === 'string' && data.userId) || (typeof data.authorId === 'string' ? data.authorId : ''),
-        authorName: (typeof data.authorName === 'string' && data.authorName) ? data.authorName : 'Unknown User',
-        authorAvatar: (typeof data.authorAvatar === 'string' && data.authorAvatar) || (typeof data.authorPhoto === 'string' ? data.authorPhoto : ''),
-        title: typeof data.title === 'string' ? data.title : '',
-        content: typeof data.content === 'string' ? data.content : '',
-        imageURL: (typeof data.imageURL === 'string' && data.imageURL) || (typeof data.imageUrl === 'string' ? data.imageUrl : ''),
-        likes: typeof data.likes === 'number' ? data.likes : 0,
-        commentsCount: typeof data.commentsCount === 'number' ? data.commentsCount : 0,
-        type,
-        createdAt: toDate(data.createdAt),
-        updatedAt: toDate(data.updatedAt ?? data.createdAt),
-    };
+type BlogRow = {
+    id: string;
+    user_id: string | null;
+    author_name: string | null;
+    author_avatar: string | null;
+    title: string | null;
+    content: string | null;
+    image_url: string | null;
+    likes: number | null;
+    comments_count: number | null;
+    type: string | null;
+    created_at: string;
+    updated_at: string | null;
 };
+
+type PostRow = {
+    id: string;
+    author_id: string | null;
+    author_name: string | null;
+    author_photo: string | null;
+    content: string | null;
+    image_url: string | null;
+    likes: number | null;
+    comments_count: number | null;
+    created_at: string;
+    updated_at: string | null;
+};
+
+const normalizeBlogRow = (row: BlogRow): BlogPost => ({
+    id: row.id,
+    userId: row.user_id || '',
+    authorName: row.author_name || 'Unknown User',
+    authorAvatar: row.author_avatar || '',
+    title: row.title || '',
+    content: row.content || '',
+    imageURL: row.image_url || '',
+    likes: row.likes || 0,
+    commentsCount: row.comments_count || 0,
+    type: row.type === 'blog' ? 'blog' : 'community',
+    createdAt: row.created_at ? new Date(row.created_at) : new Date(),
+    updatedAt: row.updated_at ? new Date(row.updated_at) : row.created_at ? new Date(row.created_at) : new Date(),
+});
+
+const normalizePostRow = (row: PostRow): BlogPost => ({
+    id: row.id,
+    userId: row.author_id || '',
+    authorName: row.author_name || 'Unknown User',
+    authorAvatar: row.author_photo || '',
+    title: '',
+    content: row.content || '',
+    imageURL: row.image_url || '',
+    likes: row.likes || 0,
+    commentsCount: row.comments_count || 0,
+    type: 'community',
+    createdAt: row.created_at ? new Date(row.created_at) : new Date(),
+    updatedAt: row.updated_at ? new Date(row.updated_at) : row.created_at ? new Date(row.created_at) : new Date(),
+});
 
 const matchesType = (post: BlogPost, type?: 'blog' | 'community'): boolean => {
     if (!type) return true;
@@ -50,7 +76,14 @@ const matchesType = (post: BlogPost, type?: 'blog' | 'community'): boolean => {
     return post.type !== 'blog';
 };
 
-export const createPost = async (user: User, title: string, content: string, imageFile?: File, type: 'blog' | 'community' = 'community'): Promise<BlogPost> => {
+export const createPost = async (
+    user: User,
+    title: string,
+    content: string,
+    imageFile?: File,
+    type: 'blog' | 'community' = 'community'
+): Promise<BlogPost> => {
+    const client = getSupabaseClient();
     let imageURL = '';
 
     if (imageFile) {
@@ -58,88 +91,79 @@ export const createPost = async (user: User, title: string, content: string, ima
         imageURL = result.publicUrl;
     }
 
-    const db = await getDb();
-    const now = new Date();
-    const newPostData = {
-        userId: user.id,
-        authorName: user.name,
-        authorAvatar: user.photoURL || '',
-        title: title,
-        content: content,
-        imageURL: imageURL,
+    const payload = {
+        user_id: user.id,
+        author_name: user.name,
+        author_avatar: user.photoURL || '',
+        title,
+        content,
+        image_url: imageURL,
         likes: 0,
-        commentsCount: 0,
-        type: type,
-        createdAt: now,
-        updatedAt: now,
+        comments_count: 0,
+        type,
     };
 
-    const docRef = await addDoc(collection(db, BLOGS_COLLECTION), newPostData);
+    const { data, error } = await client.from(BLOGS_TABLE).insert(payload).select('*').single<BlogRow>();
+    if (error || !data) {
+        throw error || new Error('Failed to create post');
+    }
 
-    return {
-        id: docRef.id,
-        ...newPostData,
-    } as BlogPost;
+    return normalizeBlogRow(data);
 };
 
 export const getUserPosts = async (userId: string, type?: 'blog' | 'community'): Promise<BlogPost[]> => {
     try {
-        const db = await getDb();
-        const blogsQuery = query(collection(db, BLOGS_COLLECTION), where('userId', '==', userId));
-        const legacyQuery = query(collection(db, LEGACY_POSTS_COLLECTION), where('authorId', '==', userId));
-        const [blogsResult, legacyResult] = await Promise.allSettled([getDocs(blogsQuery), getDocs(legacyQuery)]);
+        const client = getSupabaseClient();
+        const [blogsResult, legacyResult] = await Promise.allSettled([
+            client.from(BLOGS_TABLE).select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+            client.from(POSTS_TABLE).select('*').eq('author_id', userId).order('created_at', { ascending: false }),
+        ]);
 
         const posts = [
-            ...(blogsResult.status === 'fulfilled'
-                ? blogsResult.value.docs.map((snapshotDoc) => normalizePost(snapshotDoc.id, snapshotDoc.data() as Record<string, unknown>))
+            ...(blogsResult.status === 'fulfilled' && !blogsResult.value.error
+                ? blogsResult.value.data.map((row) => normalizeBlogRow(row as BlogRow))
                 : []),
-            ...(legacyResult.status === 'fulfilled'
-                ? legacyResult.value.docs.map((snapshotDoc) => normalizePost(snapshotDoc.id, snapshotDoc.data() as Record<string, unknown>))
+            ...(legacyResult.status === 'fulfilled' && !legacyResult.value.error
+                ? legacyResult.value.data.map((row) => normalizePostRow(row as PostRow))
                 : []),
-        ]
-            .filter((post) => matchesType(post, type));
+        ].filter((post) => matchesType(post, type));
 
         return posts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     } catch (error) {
-        console.error("Error fetching posts:", error);
+        console.error('Error fetching posts:', error);
         return [];
     }
 };
 
 export const getAllPosts = async (type?: 'blog' | 'community'): Promise<BlogPost[]> => {
     try {
-        const db = await getDb();
+        const client = getSupabaseClient();
         const [blogsResult, legacyResult] = await Promise.allSettled([
-            getDocs(query(collection(db, BLOGS_COLLECTION))),
-            getDocs(query(collection(db, LEGACY_POSTS_COLLECTION))),
+            client.from(BLOGS_TABLE).select('*').order('created_at', { ascending: false }),
+            client.from(POSTS_TABLE).select('*').order('created_at', { ascending: false }),
         ]);
 
         const posts = [
-            ...(blogsResult.status === 'fulfilled'
-                ? blogsResult.value.docs.map((snapshotDoc) => normalizePost(snapshotDoc.id, snapshotDoc.data() as Record<string, unknown>))
+            ...(blogsResult.status === 'fulfilled' && !blogsResult.value.error
+                ? blogsResult.value.data.map((row) => normalizeBlogRow(row as BlogRow))
                 : []),
-            ...(legacyResult.status === 'fulfilled'
-                ? legacyResult.value.docs.map((snapshotDoc) => normalizePost(snapshotDoc.id, snapshotDoc.data() as Record<string, unknown>))
+            ...(legacyResult.status === 'fulfilled' && !legacyResult.value.error
+                ? legacyResult.value.data.map((row) => normalizePostRow(row as PostRow))
                 : []),
-        ]
-            .filter((post) => matchesType(post, type));
+        ].filter((post) => matchesType(post, type));
 
         return posts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     } catch (error) {
-        const code = (error as { code?: string })?.code;
-        if (code === 'permission-denied') {
-            return [];
-        }
-        console.error("Error fetching all posts:", error);
+        console.error('Error fetching all posts:', error);
         return [];
     }
 };
 
 export const deletePost = async (postId: string): Promise<void> => {
-    const db = await getDb();
+    const client = getSupabaseClient();
     await Promise.allSettled([
-        deleteDoc(doc(db, BLOGS_COLLECTION, postId)),
-        deleteDoc(doc(db, LEGACY_POSTS_COLLECTION, postId)),
+        client.from(BLOGS_TABLE).delete().eq('id', postId),
+        client.from(POSTS_TABLE).delete().eq('id', postId),
     ]);
 };
 
@@ -147,15 +171,17 @@ export const updatePost = async (
     postId: string,
     updates: Partial<Pick<BlogPost, 'title' | 'content' | 'imageURL' | 'type'>>
 ): Promise<void> => {
-    const db = await getDb();
-    const payload = {
-        ...updates,
-        updatedAt: new Date(),
-    };
+    const client = getSupabaseClient();
+    const payload: Record<string, unknown> = {};
+
+    if (updates.title !== undefined) payload.title = updates.title;
+    if (updates.content !== undefined) payload.content = updates.content;
+    if (updates.imageURL !== undefined) payload.image_url = updates.imageURL;
+    if (updates.type !== undefined) payload.type = updates.type;
 
     await Promise.allSettled([
-        updateDoc(doc(db, BLOGS_COLLECTION, postId), payload),
-        updateDoc(doc(db, LEGACY_POSTS_COLLECTION, postId), payload),
+        client.from(BLOGS_TABLE).update(payload).eq('id', postId),
+        client.from(POSTS_TABLE).update(payload).eq('id', postId),
     ]);
 };
 
@@ -164,49 +190,32 @@ export const subscribeToPosts = async (
     onChange: (posts: BlogPost[]) => void,
     onError?: (error: Error) => void
 ): Promise<() => void> => {
-    const db = await getDb();
-    let blogPosts: BlogPost[] = [];
-    let legacyPosts: BlogPost[] = [];
+    if (!isSupabaseConfigured || !supabase) {
+        onChange([]);
+        return () => {};
+    }
 
-    const emit = () => {
-        const merged = [...blogPosts, ...legacyPosts]
-            .filter((post) => matchesType(post, options.type))
-            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-        onChange(merged);
+    const client = supabase;
+
+    const fetchPosts = async () => {
+        try {
+            const posts = await getAllPosts(options.type);
+            const filtered = options.userId ? posts.filter((post) => post.userId === options.userId) : posts;
+            onChange(filtered);
+        } catch (error) {
+            if (onError) onError(error as Error);
+        }
     };
 
-    const blogsQuery = options.userId
-        ? query(collection(db, BLOGS_COLLECTION), where('userId', '==', options.userId))
-        : query(collection(db, BLOGS_COLLECTION));
+    await fetchPosts();
 
-    const legacyQuery = options.userId
-        ? query(collection(db, LEGACY_POSTS_COLLECTION), where('authorId', '==', options.userId))
-        : query(collection(db, LEGACY_POSTS_COLLECTION));
-
-    const unsubscribeBlogs = onSnapshot(
-        blogsQuery,
-        (snapshot) => {
-            blogPosts = snapshot.docs.map((snapshotDoc) => normalizePost(snapshotDoc.id, snapshotDoc.data() as Record<string, unknown>));
-            emit();
-        },
-        (error) => {
-            if (onError) onError(error as Error);
-        }
-    );
-
-    const unsubscribeLegacy = onSnapshot(
-        legacyQuery,
-        (snapshot) => {
-            legacyPosts = snapshot.docs.map((snapshotDoc) => normalizePost(snapshotDoc.id, snapshotDoc.data() as Record<string, unknown>));
-            emit();
-        },
-        (error) => {
-            if (onError) onError(error as Error);
-        }
-    );
+    const channel = client
+        .channel('posts-feed')
+        .on('postgres_changes', { event: '*', schema: 'public', table: BLOGS_TABLE }, fetchPosts)
+        .on('postgres_changes', { event: '*', schema: 'public', table: POSTS_TABLE }, fetchPosts)
+        .subscribe();
 
     return () => {
-        unsubscribeBlogs();
-        unsubscribeLegacy();
+        void client.removeChannel(channel);
     };
 };

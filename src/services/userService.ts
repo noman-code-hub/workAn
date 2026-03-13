@@ -1,8 +1,7 @@
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { getDb } from '../config/firebase';
-import { uploadResume, uploadImage } from './supabaseStorage';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { User, UserRole } from '../types';
-import type { User as FirebaseUser } from 'firebase/auth';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { uploadResume, uploadImage } from './supabaseStorage';
 
 const LOCAL_STORAGE_KEY = 'hirevo_user_profile';
 
@@ -42,8 +41,12 @@ const resolvePhotoURL = (name: string, photoURL?: string | null) => {
     return buildDefaultAvatar(name);
 };
 
-const isGithubProvider = (firebaseUser: FirebaseUser) =>
-    firebaseUser.providerData?.some((provider) => provider.providerId === 'github.com');
+const getSupabaseClient = () => {
+    if (!isSupabaseConfigured || !supabase) {
+        throw new Error('Supabase is not configured.');
+    }
+    return supabase;
+};
 
 const saveToLocal = (user: User) => {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(user));
@@ -54,141 +57,175 @@ const getFromLocal = (): Partial<User> | null => {
     return data ? JSON.parse(data) : null;
 };
 
+const isGithubProvider = (supabaseUser: SupabaseUser) =>
+    supabaseUser.app_metadata?.provider === 'github' ||
+    supabaseUser.identities?.some((provider) => provider.provider === 'github');
+
+const getSupabaseProfileHints = (supabaseUser: SupabaseUser) => {
+    const metadata = (supabaseUser.user_metadata || {}) as Record<string, any>;
+    const rawName =
+        (typeof metadata.full_name === 'string' && metadata.full_name) ||
+        (typeof metadata.name === 'string' && metadata.name) ||
+        (typeof metadata.user_name === 'string' && metadata.user_name) ||
+        '';
+    const name = rawName || supabaseUser.email?.split('@')[0] || 'User';
+    const photoURL =
+        (typeof metadata.avatar_url === 'string' && metadata.avatar_url) ||
+        (typeof metadata.picture === 'string' && metadata.picture) ||
+        (typeof metadata.profile_image_url === 'string' && metadata.profile_image_url) ||
+        undefined;
+    const role = (metadata.role as UserRole | undefined) || undefined;
+    return { name, photoURL, role };
+};
+
+type UserRow = {
+    id: string;
+    email: string;
+    name: string;
+    role: string | null;
+    photo_url: string | null;
+    banner_url: string | null;
+    country: string | null;
+    profession: string | null;
+    skills: string[] | null;
+    resume_url: string | null;
+    interview_readiness_score: number | null;
+    subscription: string | null;
+    credits: number | null;
+    about: string | null;
+    analytics: Record<string, any> | null;
+    created_at: string;
+    updated_at: string;
+};
+
+const mapRowToUser = (row: UserRow): User => {
+    const resolvedName = row.name || 'User';
+    const resolvedPhoto = resolvePhotoURL(resolvedName, row.photo_url);
+    return {
+        id: row.id,
+        email: row.email || '',
+        name: resolvedName,
+        role: (row.role as UserRole | null) || undefined,
+        photoURL: resolvedPhoto,
+        bannerURL: row.banner_url || undefined,
+        country: row.country || undefined,
+        profession: row.profession || undefined,
+        skills: row.skills || [],
+        resumeURL: row.resume_url || undefined,
+        interviewReadinessScore: row.interview_readiness_score || undefined,
+        subscription: (row.subscription as 'free' | 'premium') || 'free',
+        credits: typeof row.credits === 'number' ? row.credits : 10,
+        createdAt: row.created_at ? new Date(row.created_at) : new Date(),
+        updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
+        about: row.about || undefined,
+        analytics: row.analytics || undefined,
+    };
+};
+
 /**
- * Fetches an existing user profile from Firestore or creates a new one
- * based on the Firebase Auth user data.
+ * Fetches an existing user profile from Supabase or creates a new one
+ * based on the Supabase Auth user data.
  */
-export const fetchOrCreateUserProfile = async (firebaseUser: FirebaseUser): Promise<User> => {
-    const db = await getDb();
-    const userDocRef = doc(db, 'users', firebaseUser.uid);
-    const isGithubLogin = isGithubProvider(firebaseUser);
+export const fetchOrCreateUserProfile = async (supabaseUser: SupabaseUser): Promise<User> => {
+    const client = getSupabaseClient();
+    const isGithubLogin = isGithubProvider(supabaseUser);
     const fallbackRole: UserRole | undefined = isGithubLogin ? 'user' : undefined;
+    const { name: hintedName, photoURL: hintedPhotoURL, role: hintedRole } = getSupabaseProfileHints(supabaseUser);
 
     try {
-        const userDoc = await getDoc(userDocRef);
+        const { data, error } = await client
+            .from('users')
+            .select('*')
+            .eq('id', supabaseUser.id)
+            .maybeSingle<UserRow>();
 
-        if (userDoc.exists()) {
-            // User profile exists, return it
-            const data = userDoc.data();
+        if (error) throw error;
+
+        if (data) {
+            const profile = mapRowToUser(data);
             const localData = getFromLocal();
-            const resolvedName = data.name || firebaseUser.displayName || 'User';
-            const storedPhotoURL = data.photoURL || firebaseUser.photoURL || undefined;
-
-            const profile: User = {
-                id: firebaseUser.uid,
-                email: firebaseUser.email || '',
-                name: resolvedName,
-                role: data.role || fallbackRole, // Undefined if not set (redirect to selection)
-                photoURL: resolvePhotoURL(resolvedName, storedPhotoURL),
-                bannerURL: data.bannerURL || undefined,
-                country: data.country,
-                profession: data.profession,
-                skills: data.skills || [],
-                resumeURL: data.resumeURL,
-                interviewReadinessScore: data.interviewReadinessScore,
-                subscription: data.subscription || 'free',
-                credits: data.credits || 10,
-                createdAt: data.createdAt?.toDate() || new Date(),
-                updatedAt: data.updatedAt?.toDate() || new Date(),
-                about: data.about || undefined,
-                analytics: data.analytics || undefined,
-            };
-
-            // Merge with local data if it's for the same user
             if (localData && localData.id === profile.id) {
-                Object.assign(profile, localData);
+                const { role, id, email, ...safeLocal } = localData;
+                Object.assign(profile, safeLocal);
             }
 
             if (!profile.role && fallbackRole) {
                 profile.role = fallbackRole;
             }
 
-            const hadStoredPhoto = Boolean(storedPhotoURL);
-            const localPhoto = localData?.photoURL;
-            const needsDefaultPhoto = !profile.photoURL;
-            if (needsDefaultPhoto) {
-                profile.photoURL = buildDefaultAvatar(profile.name);
+            if (!data.photo_url && !localData?.photoURL) {
+                const defaultPhoto = buildDefaultAvatar(profile.name);
+                profile.photoURL = defaultPhoto;
+                void updateUserProfile(profile.id, { photoURL: defaultPhoto });
             }
 
             saveToLocal(profile);
-
-            if (!data.role && fallbackRole) {
-                void updateUserProfile(profile.id, { role: fallbackRole });
-            }
-
-            if (!hadStoredPhoto && !localPhoto && needsDefaultPhoto) {
-                void updateUserProfile(profile.id, { photoURL: profile.photoURL });
-            }
-
             return profile;
-        } else {
-            // User doesn't exist - create new user profile in Firestore
-            console.log('📝 Creating new user profile in Firestore for:', firebaseUser.uid);
-            const resolvedName = firebaseUser.displayName || 'User';
-
-            const newUser: User = {
-                id: firebaseUser.uid,
-                email: firebaseUser.email || '',
-                name: resolvedName,
-                role: fallbackRole, // Default role for GitHub users
-                photoURL: resolvePhotoURL(resolvedName, firebaseUser.photoURL),
-                bannerURL: undefined,
-                country: undefined,
-                profession: undefined,
-                skills: [],
-                resumeURL: undefined,
-                interviewReadinessScore: undefined,
-                subscription: 'free',
-                credits: 10,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                analytics: undefined,
-            };
-
-            // Check local data
-            const localData = getFromLocal();
-            if (localData && localData.id === newUser.id) {
-                Object.assign(newUser, localData);
-            }
-
-            // ✅ SAVE TO FIRESTORE
-            try {
-                await setDoc(userDocRef, {
-                    email: newUser.email,
-                    name: newUser.name,
-                    role: newUser.role || null,
-                    photoURL: newUser.photoURL || null,
-                    bannerURL: newUser.bannerURL || null,
-                    country: newUser.country || null,
-                    profession: newUser.profession || null,
-                    skills: newUser.skills,
-                    resumeURL: newUser.resumeURL || null,
-                    interviewReadinessScore: newUser.interviewReadinessScore || null,
-                    subscription: newUser.subscription,
-                    credits: newUser.credits,
-                    createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp(),
-                    analytics: null,
-                });
-                console.log('✅ New user profile created in Firestore successfully!');
-            } catch (firestoreError) {
-                console.error('❌ Failed to create user in Firestore:', firestoreError);
-            }
-
-            saveToLocal(newUser);
-            return newUser;
         }
-    } catch (error) {
-        console.warn('Error accessing Firestore. Falling back to LocalStorage/Auth data.', error);
+
+        const resolvedName = hintedName || 'User';
+        const resolvedRole = hintedRole || fallbackRole;
+        const newUser: User = {
+            id: supabaseUser.id,
+            email: supabaseUser.email || '',
+            name: resolvedName,
+            role: resolvedRole,
+            photoURL: resolvePhotoURL(resolvedName, hintedPhotoURL),
+            bannerURL: undefined,
+            country: undefined,
+            profession: undefined,
+            skills: [],
+            resumeURL: undefined,
+            interviewReadinessScore: undefined,
+            subscription: 'free',
+            credits: 10,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            analytics: undefined,
+        };
 
         const localData = getFromLocal();
-        const resolvedName = firebaseUser.displayName || 'User';
+        if (localData && localData.id === newUser.id) {
+            const { role, id, email, ...safeLocal } = localData;
+            Object.assign(newUser, safeLocal);
+        }
+
+        const insertPayload = {
+            id: newUser.id,
+            email: newUser.email,
+            name: newUser.name,
+            role: newUser.role || null,
+            photo_url: newUser.photoURL || null,
+            banner_url: newUser.bannerURL || null,
+            country: newUser.country || null,
+            profession: newUser.profession || null,
+            skills: newUser.skills,
+            resume_url: newUser.resumeURL || null,
+            interview_readiness_score: newUser.interviewReadinessScore || null,
+            subscription: newUser.subscription,
+            credits: newUser.credits,
+            about: newUser.about || null,
+            analytics: newUser.analytics || null,
+        };
+
+        const { error: insertError } = await client.from('users').insert(insertPayload);
+        if (insertError) {
+            console.error('Failed to create user profile in Supabase:', insertError);
+        }
+
+        saveToLocal(newUser);
+        return newUser;
+    } catch (error) {
+        console.warn('Error accessing Supabase. Falling back to LocalStorage/Auth data.', error);
+
+        const localData = getFromLocal();
+        const resolvedName = hintedName || 'User';
         const transientUser: User = {
-            id: firebaseUser.uid,
-            email: firebaseUser.email || '',
+            id: supabaseUser.id,
+            email: supabaseUser.email || '',
             name: resolvedName,
-            role: 'user', // Default role for transient users
-            photoURL: resolvePhotoURL(resolvedName, firebaseUser.photoURL),
+            role: 'user',
+            photoURL: resolvePhotoURL(resolvedName, hintedPhotoURL),
             bannerURL: undefined,
             country: undefined,
             profession: undefined,
@@ -202,7 +239,8 @@ export const fetchOrCreateUserProfile = async (firebaseUser: FirebaseUser): Prom
         };
 
         if (localData && localData.id === transientUser.id) {
-            Object.assign(transientUser, localData);
+            const { role, id, email, ...safeLocal } = localData;
+            Object.assign(transientUser, safeLocal);
         }
 
         saveToLocal(transientUser);
@@ -211,32 +249,38 @@ export const fetchOrCreateUserProfile = async (firebaseUser: FirebaseUser): Prom
 };
 
 /**
- * Updates a user's profile in Firestore
+ * Updates a user's profile in Supabase
  */
 export const updateUserProfile = async (userId: string, updates: Partial<User>) => {
-    const db = await getDb();
-    const userDocRef = doc(db, 'users', userId);
-    const firestoreUpdates: any = { ...updates };
+    const client = getSupabaseClient();
+    const dbUpdates: Record<string, any> = {};
 
-    Object.keys(firestoreUpdates).forEach(key => {
-        if (firestoreUpdates[key] === undefined) {
-            delete firestoreUpdates[key];
+    if (updates.email !== undefined) dbUpdates.email = updates.email;
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.role !== undefined) dbUpdates.role = updates.role;
+    if (updates.photoURL !== undefined) dbUpdates.photo_url = updates.photoURL;
+    if (updates.bannerURL !== undefined) dbUpdates.banner_url = updates.bannerURL;
+    if (updates.country !== undefined) dbUpdates.country = updates.country;
+    if (updates.profession !== undefined) dbUpdates.profession = updates.profession;
+    if (updates.skills !== undefined) dbUpdates.skills = updates.skills;
+    if (updates.resumeURL !== undefined) dbUpdates.resume_url = updates.resumeURL;
+    if (updates.interviewReadinessScore !== undefined) dbUpdates.interview_readiness_score = updates.interviewReadinessScore;
+    if (updates.subscription !== undefined) dbUpdates.subscription = updates.subscription;
+    if (updates.credits !== undefined) dbUpdates.credits = updates.credits;
+    if (updates.about !== undefined) dbUpdates.about = updates.about;
+    if (updates.analytics !== undefined) dbUpdates.analytics = updates.analytics;
+
+    if (Object.keys(dbUpdates).length > 0) {
+        const { error } = await client.from('users').update(dbUpdates).eq('id', userId);
+        if (error) {
+            console.warn('Supabase update failed, but local state will persist.', error);
         }
-    });
-
-    firestoreUpdates.updatedAt = serverTimestamp();
-
-    try {
-        await setDoc(userDocRef, firestoreUpdates, { merge: true });
-    } catch (e) {
-        console.warn("Firestore update failed, but local state will persist.", e);
     }
 
     const currentLocal = getFromLocal();
     if (currentLocal && currentLocal.id === userId) {
         saveToLocal({ ...currentLocal, ...updates } as User);
     } else {
-        // @ts-ignore
         saveToLocal({ id: userId, ...updates } as User);
     }
 };
@@ -245,14 +289,13 @@ export const updateUserProfile = async (userId: string, updates: Partial<User>) 
  * Creates a new user profile with specific initial data
  */
 export const createUserProfile = async (userId: string, data: { email: string; name: string; role?: UserRole }) => {
-    const db = await getDb();
-    const userDocRef = doc(db, 'users', userId);
+    const client = getSupabaseClient();
 
     const newUser: User = {
         id: userId,
         email: data.email,
         name: data.name,
-        role: data.role, // Role provided or undefined
+        role: data.role,
         photoURL: resolvePhotoURL(data.name, undefined),
         country: undefined,
         profession: undefined,
@@ -266,27 +309,26 @@ export const createUserProfile = async (userId: string, data: { email: string; n
         analytics: undefined,
     };
 
-    try {
-        await setDoc(userDocRef, {
-            email: newUser.email,
-            name: newUser.name,
-            role: newUser.role || null,
-            photoURL: newUser.photoURL || null,
-            bannerURL: null,
-            country: null,
-            profession: null,
-            skills: [],
-            resumeURL: null,
-            interviewReadinessScore: null,
-            subscription: 'free',
-            credits: 10,
-            about: null,
-            analytics: null,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-        });
-    } catch (error) {
-        console.error("Error creating user profile in Firestore:", error);
+    const { error } = await client.from('users').insert({
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+        role: newUser.role || null,
+        photo_url: newUser.photoURL || null,
+        banner_url: null,
+        country: null,
+        profession: null,
+        skills: [],
+        resume_url: null,
+        interview_readiness_score: null,
+        subscription: 'free',
+        credits: 10,
+        about: null,
+        analytics: null,
+    });
+
+    if (error) {
+        console.error('Error creating user profile in Supabase:', error);
     }
 
     saveToLocal(newUser);
@@ -294,7 +336,7 @@ export const createUserProfile = async (userId: string, data: { email: string; n
 };
 
 /**
- * Uploads a file to Supabase Storage and updates Firestore
+ * Uploads a file to Supabase Storage and updates Supabase profile
  * Handles: 'avatars', 'banners', 'resumes'
  */
 export const uploadFile = async (userId: string, file: File, path: 'avatars' | 'banners' | 'resumes'): Promise<string> => {
@@ -306,10 +348,8 @@ export const uploadFile = async (userId: string, file: File, path: 'avatars' | '
             result = await uploadResume(userId, file);
             await updateUserProfile(userId, { resumeURL: result.publicUrl });
         } else {
-            // Avatars and Banners
             result = await uploadImage(userId, file, path);
 
-            // Update the specific field based on path
             const updates: Partial<User> = {};
             if (path === 'avatars') updates.photoURL = result.publicUrl;
             if (path === 'banners') updates.bannerURL = result.publicUrl;
@@ -317,13 +357,11 @@ export const uploadFile = async (userId: string, file: File, path: 'avatars' | '
             await updateUserProfile(userId, updates);
         }
 
-        console.log(`✅ ${path} uploaded and URL saved to Firestore`);
+        console.log(`✅ ${path} uploaded and URL saved to Supabase`);
         return result.publicUrl;
-
     } catch (error: any) {
         console.error(`❌ ${path} upload to Supabase failed:`, error);
 
-        // Fallback to Base64 (only for images) if upload fails
         if (path !== 'resumes') {
             console.warn('Falling back to Base64 for local display');
             return new Promise((resolve, reject) => {

@@ -1,15 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-    collection,
-    onSnapshot,
-    doc,
-    getDoc,
-    updateDoc,
-    query,
-    orderBy
-} from 'firebase/firestore';
-import { getDb } from '../config/firebase';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import {
     ChevronLeft,
@@ -29,7 +20,7 @@ interface Applicant {
     name: string;
     email: string;
     resumeUrl: string;
-    appliedAt: any;
+    appliedAt: string;
     status: 'pending' | 'shortlisted' | 'rejected';
 }
 
@@ -52,10 +43,14 @@ export const JobApplicants = () => {
 
         // Fetch Job Details
         const fetchJob = async () => {
-            const db = await getDb();
-            const jobDoc = await getDoc(doc(db, 'jobs', jobId));
-            if (jobDoc.exists()) {
-                setJob({ id: jobDoc.id, ...jobDoc.data() } as Job);
+            if (!isSupabaseConfigured || !supabase) return;
+            const { data, error } = await supabase.from('jobs').select('id, title, company').eq('id', jobId).maybeSingle();
+            if (error) {
+                console.error('Error loading job:', error);
+                return;
+            }
+            if (data) {
+                setJob({ id: data.id, title: data.title, company: data.company } as Job);
             }
         };
         fetchJob();
@@ -65,23 +60,50 @@ export const JobApplicants = () => {
         let unsubscribe = () => {};
 
         const initApplicants = async () => {
-            const db = await getDb();
-            if (!isMounted) return;
-            const q = query(
-                collection(db, 'jobs', jobId, 'applicants'),
-                orderBy('appliedAt', 'desc')
-            );
+            if (!isSupabaseConfigured || !supabase) {
+                setLoading(false);
+                return;
+            }
 
-            unsubscribe = onSnapshot(q, (snapshot) => {
-                const data = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
+            const fetchApplicants = async () => {
+                const { data, error } = await supabase
+                    .from('job_applicants')
+                    .select('*')
+                    .eq('job_id', jobId)
+                    .order('applied_at', { ascending: false });
+
+                if (error) throw error;
+
+                const mapped = (data || []).map((row: any) => ({
+                    id: `${row.job_id}:${row.user_id}`,
+                    userId: row.user_id,
+                    name: row.name,
+                    email: row.email,
+                    resumeUrl: row.resume_url || '',
+                    appliedAt: row.applied_at,
+                    status: row.status || 'pending',
                 })) as Applicant[];
+
                 if (isMounted) {
-                    setApplicants(data);
+                    setApplicants(mapped);
                     setLoading(false);
                 }
-            });
+            };
+
+            await fetchApplicants();
+
+            const channel = supabase
+                .channel(`job-applicants-${jobId}`)
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'job_applicants', filter: `job_id=eq.${jobId}` },
+                    fetchApplicants
+                )
+                .subscribe();
+
+            unsubscribe = () => {
+                void supabase.removeChannel(channel);
+            };
         };
 
         initApplicants().catch((error) => {
@@ -95,13 +117,18 @@ export const JobApplicants = () => {
         };
     }, [jobId, user]);
 
-    const handleUpdateStatus = async (applicantId: string, status: Applicant['status']) => {
+    const handleUpdateStatus = async (applicantUserId: string, status: Applicant['status']) => {
         if (!jobId) return;
         try {
-            const db = await getDb();
-            await updateDoc(doc(db, 'jobs', jobId, 'applicants', applicantId), {
-                status
-            });
+            if (!isSupabaseConfigured || !supabase) {
+                throw new Error('Supabase is not configured.');
+            }
+            const { error } = await supabase
+                .from('job_applicants')
+                .update({ status })
+                .eq('job_id', jobId)
+                .eq('user_id', applicantUserId);
+            if (error) throw error;
         } catch (error) {
             console.error("Error updating status:", error);
             alert("Failed to update applicant status.");
@@ -162,8 +189,8 @@ export const JobApplicants = () => {
                                                 <div className="flex items-center gap-4 mt-2">
                                                     <span className="font-mono text-xs text-gray-500 flex items-center gap-1">
                                                         <Clock size={12} />
-                                                        Applied {applicant.appliedAt?.seconds
-                                                            ? formatDistanceToNow(new Date(applicant.appliedAt.seconds * 1000), { addSuffix: true })
+                                                        Applied {applicant.appliedAt
+                                                            ? formatDistanceToNow(new Date(applicant.appliedAt), { addSuffix: true })
                                                             : 'Just now'}
                                                     </span>
                                                     <span className={`font-mono text-[10px] uppercase font-bold px-2 py-0.5 border border-black ${applicant.status === 'shortlisted' ? 'bg-green-100 text-green-800' :
@@ -196,7 +223,7 @@ export const JobApplicants = () => {
 
                                     <div className="mt-8 flex gap-4 border-t border-black pt-6">
                                         <button
-                                            onClick={() => handleUpdateStatus(applicant.id, 'shortlisted')}
+                                            onClick={() => handleUpdateStatus(applicant.userId, 'shortlisted')}
                                             className={`flex-1 border-2 border-black p-3 font-mono text-xs uppercase font-bold transition-all flex items-center justify-center gap-2 ${applicant.status === 'shortlisted'
                                                     ? 'bg-green-700 text-white shadow-none'
                                                     : 'bg-white text-black shadow-[2px_2px_0px_0px_#000000] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px]'
@@ -205,7 +232,7 @@ export const JobApplicants = () => {
                                             <CheckCircle size={16} /> Shortlist
                                         </button>
                                         <button
-                                            onClick={() => handleUpdateStatus(applicant.id, 'rejected')}
+                                            onClick={() => handleUpdateStatus(applicant.userId, 'rejected')}
                                             className={`flex-1 border-2 border-black p-3 font-mono text-xs uppercase font-bold transition-all flex items-center justify-center gap-2 ${applicant.status === 'rejected'
                                                     ? 'bg-red-700 text-white shadow-none'
                                                     : 'bg-white text-black shadow-[2px_2px_0px_0px_#000000] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px]'

@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { getAuthClient } from '../config/firebase';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { User, UserRole } from '../types';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import * as userService from '../services/userService';
 
 interface AuthContextType {
@@ -11,6 +12,7 @@ interface AuthContextType {
     loginWithGoogle: () => Promise<void>;
     loginWithGithub: () => Promise<void>;
     register: (email: string, password: string, name: string, role?: string) => Promise<void>;
+    resetPassword: (email: string) => Promise<void>;
     logout: () => Promise<void>;
     updateProfile: (updates: Partial<User>) => Promise<void>;
 }
@@ -33,64 +35,83 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
 
-    // Listen to Firebase auth state changes
+    const syncUser = async (supabaseUser: SupabaseUser | null, isMounted: () => boolean) => {
+        if (!supabaseUser) {
+            if (isMounted()) {
+                setUser(null);
+                setLoading(false);
+            }
+            return;
+        }
+
+        try {
+            const userProfile = await userService.fetchOrCreateUserProfile(supabaseUser);
+            if (isMounted()) setUser(userProfile);
+        } catch (error) {
+            console.error('Error fetching user profile:', error);
+            if (isMounted()) setUser(null);
+        } finally {
+            if (isMounted()) setLoading(false);
+        }
+    };
+
+    // Listen to Supabase auth state changes
     useEffect(() => {
-        let isMounted = true;
+        let mounted = true;
         let unsubscribe: (() => void) | undefined;
 
+        const isMounted = () => mounted;
+
         const initAuth = async () => {
-            try {
-                const { auth, authModule } = await getAuthClient();
-                if (!isMounted) return;
-
-                try {
-                    await authModule.getRedirectResult(auth);
-                } catch (redirectError) {
-                    console.error('OAuth redirect sign-in error:', redirectError);
-                }
-
-                unsubscribe = authModule.onAuthStateChanged(auth, async (firebaseUser) => {
-                    if (firebaseUser) {
-                        try {
-                            const userProfile = await userService.fetchOrCreateUserProfile(firebaseUser);
-                            if (isMounted) setUser(userProfile);
-                        } catch (error) {
-                            console.error('Error fetching user profile:', error);
-                            if (isMounted) setUser(null);
-                        }
-                    } else if (isMounted) {
-                        setUser(null);
-                    }
-                    if (isMounted) setLoading(false);
-                });
-            } catch (error) {
-                console.error('Failed to initialize Firebase auth:', error);
-                if (isMounted) {
-                    setUser(null);
-                    setLoading(false);
-                }
+            if (!isSupabaseConfigured || !supabase) {
+                console.warn('Supabase auth is not configured.');
+                if (isMounted()) setLoading(false);
+                return;
             }
+
+            const { data, error } = await supabase.auth.getSession();
+            if (error) {
+                console.error('Failed to get Supabase session:', error);
+            }
+
+            if (!isMounted()) return;
+            await syncUser(data?.session?.user ?? null, isMounted);
+
+            const { data: subscriptionData } = supabase.auth.onAuthStateChange(async (_event, session) => {
+                if (!isMounted()) return;
+                await syncUser(session?.user ?? null, isMounted);
+            });
+
+            unsubscribe = subscriptionData?.subscription?.unsubscribe;
         };
 
-        initAuth();
+        void initAuth();
 
         return () => {
-            isMounted = false;
+            mounted = false;
             if (unsubscribe) unsubscribe();
         };
     }, []);
 
-    const shouldFallbackToRedirect = (error: any) => {
-        const code = error?.code as string | undefined;
-        return code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment';
+    const requireSupabase = () => {
+        if (!isSupabaseConfigured || !supabase) {
+            throw new Error('Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+        }
+        return supabase;
+    };
+
+    const normalizeRole = (role?: string): UserRole | undefined => {
+        if (role === 'admin' || role === 'recruiter' || role === 'user') return role;
+        return undefined;
     };
 
     // Email/Password Login
     const login = async (email: string, password: string) => {
         setLoading(true);
         try {
-            const { auth, authModule } = await getAuthClient();
-            await authModule.signInWithEmailAndPassword(auth, email, password);
+            const client = requireSupabase();
+            const { error } = await client.auth.signInWithPassword({ email, password });
+            if (error) throw error;
         } catch (error: unknown) {
             setLoading(false);
             const err = error as any;
@@ -102,18 +123,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const loginWithGoogle = async () => {
         setLoading(true);
         try {
-            const { auth, googleProvider, authModule } = await getAuthClient();
-            try {
-                await authModule.signInWithPopup(auth, googleProvider);
-            } catch (popupError: any) {
-                if (shouldFallbackToRedirect(popupError)) {
-                    console.warn('Google popup blocked/unsupported, falling back to redirect.');
-                    await authModule.signInWithRedirect(auth, googleProvider);
-                    return;
-                }
-                throw popupError;
-            }
-            // User state will be updated by onAuthStateChanged listener
+            const client = requireSupabase();
+            const { error } = await client.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: `${window.location.origin}/login`,
+                },
+            });
+            if (error) throw error;
         } catch (error: unknown) {
             setLoading(false);
             const err = error as any;
@@ -126,69 +143,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const loginWithGithub = async () => {
         setLoading(true);
         try {
-            const { auth, githubProvider, authModule } = await getAuthClient();
-            try {
-                await authModule.signInWithPopup(auth, githubProvider);
-            } catch (popupError: any) {
-                if (shouldFallbackToRedirect(popupError)) {
-                    console.warn('GitHub popup blocked/unsupported, falling back to redirect.');
-                    await authModule.signInWithRedirect(auth, githubProvider);
-                    return;
-                }
-                throw popupError;
-            }
-            // User state will be updated by onAuthStateChanged listener
+            const client = requireSupabase();
+            const { error } = await client.auth.signInWithOAuth({
+                provider: 'github',
+                options: {
+                    redirectTo: `${window.location.origin}/login`,
+                },
+            });
+            if (error) throw error;
         } catch (error: unknown) {
-            const err = error as any;
-            if (err?.code === 'auth/account-exists-with-different-credential') {
-                const email = err?.customData?.email as string | undefined;
-                const { auth, googleProvider, authModule } = await getAuthClient();
-                const pendingCred = authModule.GithubAuthProvider.credentialFromError(err);
-
-                if (!email) {
-                    setLoading(false);
-                    throw new Error(
-                        'Your GitHub account did not return an email. Please add a public email in GitHub or sign in with the method you used before.'
-                    );
-                }
-
-                let methods: string[] = [];
-                try {
-                    methods = await authModule.fetchSignInMethodsForEmail(auth, email);
-                } catch (lookupError: any) {
-                    setLoading(false);
-                    console.error('GitHub sign-in provider lookup error:', lookupError);
-                    throw new Error('GitHub sign-in failed. Please try again.');
-                }
-
-                if (methods.includes('google.com')) {
-                    const result = await authModule.signInWithPopup(auth, googleProvider);
-                    if (pendingCred) {
-                        await authModule.linkWithCredential(result.user, pendingCred);
-                    }
-                    return;
-                }
-
-                setLoading(false);
-
-                if (methods.includes('password')) {
-                    throw new Error(
-                        'An account already exists with this email using password. Please sign in with email/password, then link GitHub in Settings.'
-                    );
-                }
-
-                if (methods.length === 0) {
-                    throw new Error(
-                        'An account already exists with this email, but no sign-in method was returned. Please sign in with the method you used before (Google or Email/Password), then link GitHub in Settings.'
-                    );
-                }
-
-                throw new Error(
-                    `An account already exists with a different sign-in method (${methods.join(', ')}). Please use that method first, then link GitHub in Settings.`
-                );
-            }
-
             setLoading(false);
+            const err = error as any;
             console.error('GitHub sign-in error:', err);
             throw new Error(err.message || 'GitHub sign-in failed');
         }
@@ -198,18 +163,25 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const register = async (email: string, password: string, name: string, role: string = 'user') => {
         setLoading(true);
         try {
-            const { auth, authModule } = await getAuthClient();
-            const result = await authModule.createUserWithEmailAndPassword(auth, email, password);
-
-            // Create user profile in Firestore via service
-            const newUser = await userService.createUserProfile(result.user.uid, {
-                email: result.user.email || email,
-                name: name,
-                role: role as UserRole // explicit role assignment
+            const client = requireSupabase();
+            const normalizedRole = normalizeRole(role);
+            const { data, error } = await client.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        full_name: name,
+                        role: normalizedRole || 'user',
+                    },
+                },
             });
 
-            // Update local state immediately
-            setUser(newUser);
+            if (error) throw error;
+
+            // If email confirmation is required, no session will be created.
+            if (!data.session) {
+                setLoading(false);
+            }
         } catch (error: unknown) {
             setLoading(false);
             const err = error as any;
@@ -217,11 +189,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
     };
 
+    // Password reset
+    const resetPassword = async (email: string) => {
+        setLoading(true);
+        try {
+            const client = requireSupabase();
+            const { error } = await client.auth.resetPasswordForEmail(email, {
+                redirectTo: `${window.location.origin}/reset-password`,
+            });
+            if (error) throw error;
+            setLoading(false);
+        } catch (error: unknown) {
+            setLoading(false);
+            const err = error as any;
+            throw new Error(err.message || 'Password reset failed');
+        }
+    };
+
     // Logout
     const logout = async () => {
         try {
-            const { auth, authModule } = await getAuthClient();
-            await authModule.signOut(auth);
+            const client = requireSupabase();
+            const { error } = await client.auth.signOut();
+            if (error) throw error;
         } catch (error: unknown) {
             const err = error as any;
             throw new Error(err.message || 'Logout failed');
@@ -249,6 +239,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         loginWithGoogle,
         loginWithGithub,
         register,
+        resetPassword,
         logout,
         updateProfile,
     };

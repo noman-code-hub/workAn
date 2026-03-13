@@ -89,6 +89,7 @@ export interface Job {
         max: number;
         currency: string;
     };
+    salaryText?: string;
     description: string;
     requirements: string[];
     skills: string[];

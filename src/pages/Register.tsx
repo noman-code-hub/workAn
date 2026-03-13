@@ -29,6 +29,7 @@ export const Register = () => {
             await register(email, password, name, selectedRole);
         } catch (err: any) {
             setError(err.message || 'Registration failed. Please try again.');
+        } finally {
             setLoading(false);
         }
     };

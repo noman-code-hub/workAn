@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
-import { getDb } from '../config/firebase';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { User, UserRole } from '../types';
 import { Users, Shield, Briefcase, Search, Filter, BarChart2, MessageCircle, FileText } from 'lucide-react';
@@ -23,27 +22,50 @@ export const AdminDashboard = () => {
 
         const initUsers = async () => {
             try {
-                const db = await getDb();
-                if (!isMounted) return;
-                unsubscribe = onSnapshot(
-                    collection(db, 'users'),
-                    (snapshot) => {
-                        const usersList = snapshot.docs.map(doc => ({
-                            ...doc.data(),
-                            id: doc.id,
-                            createdAt: doc.data().createdAt?.toDate() || new Date(),
-                            updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-                        })) as User[];
-                        if (isMounted) {
-                            setUsers(usersList);
-                            setLoading(false);
-                        }
-                    },
-                    (error) => {
-                        console.error('Error fetching users:', error);
-                        if (isMounted) setLoading(false);
+                if (!isSupabaseConfigured || !supabase) {
+                    throw new Error('Supabase is not configured.');
+                }
+
+                const fetchUsers = async () => {
+                    const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false });
+                    if (error) throw error;
+
+                    const usersList = (data || []).map((row: any) => ({
+                        id: row.id,
+                        email: row.email || '',
+                        name: row.name || 'User',
+                        role: row.role || undefined,
+                        photoURL: row.photo_url || undefined,
+                        bannerURL: row.banner_url || undefined,
+                        country: row.country || undefined,
+                        profession: row.profession || undefined,
+                        skills: row.skills || [],
+                        resumeURL: row.resume_url || undefined,
+                        interviewReadinessScore: row.interview_readiness_score || undefined,
+                        subscription: row.subscription || 'free',
+                        credits: typeof row.credits === 'number' ? row.credits : 10,
+                        createdAt: row.created_at ? new Date(row.created_at) : new Date(),
+                        updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
+                        about: row.about || undefined,
+                        analytics: row.analytics || undefined,
+                    })) as User[];
+
+                    if (isMounted) {
+                        setUsers(usersList);
+                        setLoading(false);
                     }
-                );
+                };
+
+                await fetchUsers();
+
+                const channel = supabase
+                    .channel('users-admin')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, fetchUsers)
+                    .subscribe();
+
+                unsubscribe = () => {
+                    void supabase.removeChannel(channel);
+                };
             } catch (error) {
                 console.error('Error initializing users listener:', error);
                 if (isMounted) setLoading(false);
@@ -72,12 +94,11 @@ export const AdminDashboard = () => {
 
         try {
             setUpdating(userId);
-            const db = await getDb();
-            const userDocRef = doc(db, 'users', userId);
-            await updateDoc(userDocRef, {
-                role: newRole,
-                updatedAt: new Date()
-            });
+            if (!isSupabaseConfigured || !supabase) {
+                throw new Error('Supabase is not configured.');
+            }
+            const { error } = await supabase.from('users').update({ role: newRole }).eq('id', userId);
+            if (error) throw error;
             // No need to update local state manually, onSnapshot will handle it
         } catch (error) {
             console.error('Error updating user role:', error);

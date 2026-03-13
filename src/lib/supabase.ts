@@ -11,5 +11,11 @@ if (!isSupabaseConfigured) {
 }
 
 export const supabase: SupabaseClient | null = isSupabaseConfigured
-    ? createClient(supabaseUrl, supabaseKey)
+    ? createClient(supabaseUrl, supabaseKey, {
+        auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+        },
+    })
     : null;

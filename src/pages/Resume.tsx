@@ -9,11 +9,12 @@ import { AppLoader } from '../components/AppLoader';
 
 const RESUME_VIEW_STORAGE_KEY = 'careerpilot:resume-view';
 const RESUME_UPLOAD_TIMEOUT_MS = Number(import.meta.env.VITE_RESUME_UPLOAD_TIMEOUT_MS || 90000);
+const A4_HEIGHT_PX = Math.round(297 * (96 / 25.4));
 
 export const Resume = () => {
   const { user } = useAuth();
 
-  // Resume Builder state (resume.io style)
+  // Resume Builder state
   const [contactName, setContactName] = useState(user?.name || "");
   const [contactRole, setContactRole] = useState(user?.profession || "");
   const [contactEmail, setContactEmail] = useState(user?.email || "");
@@ -55,11 +56,13 @@ export const Resume = () => {
   const [previewSize, setPreviewSize] = useState({ width: 800, height: 1100 });
   const [templateStep, setTemplateStep] = useState<'choose' | 'edit'>('choose');
   const [uploadingResume, setUploadingResume] = useState(false);
+  const [isFillingDemo, setIsFillingDemo] = useState(false);
 
   const [activeTemplateFilter, setActiveTemplateFilter] = useState('All templates');
   const [showMobilePreview, setShowMobilePreview] = useState(false);
   const resumeViewRestoreRef = useRef(false);
   const [initialResumeReady, setInitialResumeReady] = useState(false);
+  const [previewPage, setPreviewPage] = useState(0);
 
   const {
     templates,
@@ -104,8 +107,155 @@ export const Resume = () => {
   const filteredTemplates = useMemo(() => {
     const withThumbnails = templates.filter((t) => !!t.thumbnailUrl);
     if (activeTemplateFilter === 'All templates') return withThumbnails;
-    return withThumbnails;
+
+    const filterKey = activeTemplateFilter.toLowerCase();
+    const matches = (template: (typeof templates)[number]) => {
+      const haystack = `${template.displayName} ${template.name}`.toLowerCase();
+      switch (filterKey) {
+        case 'simple':
+          return /simple|minimal|clean|basic/.test(haystack);
+        case 'word':
+          return /word|doc|docx/.test(haystack);
+        case 'picture':
+          return /photo|picture|image|profile/.test(haystack);
+        case 'ats':
+          return /ats/.test(haystack);
+        case 'two-column':
+          return /two[-\\s]?column|2[-\\s]?column|double/.test(haystack);
+        case 'google docs':
+          return /google|gdocs|docs/.test(haystack);
+        default:
+          return haystack.includes(filterKey);
+      }
+    };
+
+    return withThumbnails.filter(matches);
   }, [activeTemplateFilter, templates]);
+
+  const totalPreviewPages = useMemo(() => {
+    const pages = Math.ceil(previewSize.height / A4_HEIGHT_PX);
+    return Math.max(1, pages);
+  }, [previewSize.height]);
+
+  const clampedPreviewPage = Math.min(previewPage, totalPreviewPages - 1);
+  const scaledPageHeight = Math.round(A4_HEIGHT_PX * previewScale);
+
+  const demoSamples = useMemo(() => ([
+    {
+      name: 'Noman Khan',
+      role: 'Full-Stack Developer',
+      email: 'noman.dev@gmail.com',
+      phone: '+92 300 1234567',
+      location: 'Lahore, Pakistan',
+      summary:
+        'Full-stack developer with 4+ years building React, Node.js, and Supabase apps. Delivered 20+ features, improved load time by 35%, and shipped scalable UI systems.',
+      skills: 'React, TypeScript, Node.js, Supabase, PostgreSQL, Tailwind, REST APIs, CI/CD',
+      projects: [
+        'Workshour – Job platform with Supabase auth, analytics, and resume builder',
+        'Hiring CRM – Candidate pipeline with role-based access and audit logs',
+      ],
+      experience: [
+        {
+          role: 'Full-Stack Engineer',
+          company: 'Hirevo',
+          dates: 'Jan 2023 - Present',
+          details: 'Built hiring workflows and resume tooling. Optimized API performance by 40%.',
+        },
+        {
+          role: 'Frontend Developer',
+          company: 'Techstack Labs',
+          dates: 'Aug 2021 - Dec 2022',
+          details: 'Led UI migration to React + TypeScript. Implemented design system.',
+        },
+      ],
+      education: [
+        {
+          degree: 'BS Computer Science',
+          school: 'University of Lahore',
+          dates: '2017 - 2021',
+          details: 'Focused on software engineering and databases.',
+        },
+      ],
+      custom: [
+        { label: 'Certifications', value: 'AWS Cloud Practitioner' },
+        { label: 'Languages', value: 'English, Urdu' },
+      ],
+    },
+    {
+      name: 'Aisha Noor',
+      role: 'Product Designer',
+      email: 'aisha.noor@gmail.com',
+      phone: '+92 311 555 1990',
+      location: 'Karachi, Pakistan',
+      summary:
+        'Product designer focused on clean UX and business outcomes. Shipped 3 design systems and improved conversion by 18% across onboarding flows.',
+      skills: 'Figma, UX Research, Design Systems, Prototyping, Accessibility, Brand',
+      projects: [
+        'Onboarding revamp for fintech app',
+        'Design system for multi-brand platform',
+      ],
+      experience: [
+        {
+          role: 'Senior Product Designer',
+          company: 'Fintechly',
+          dates: 'Mar 2022 - Present',
+          details: 'Led end-to-end product design and user research.',
+        },
+      ],
+      education: [
+        {
+          degree: 'BDes Visual Communication',
+          school: 'IBA Karachi',
+          dates: '2016 - 2020',
+          details: 'Graduated with distinction.',
+        },
+      ],
+      custom: [
+        { label: 'Portfolio', value: 'behance.net/aishanoor' },
+      ],
+    },
+  ]), []);
+
+  const fillWithDemoData = useCallback(() => {
+    setIsFillingDemo(true);
+    const sample = demoSamples[Math.floor(Math.random() * demoSamples.length)];
+
+    setContactName(sample.name);
+    setContactRole(sample.role);
+    setContactEmail(sample.email);
+    setContactPhone(sample.phone);
+    setContactLocation(sample.location);
+    setSummaryText(sample.summary);
+    setSkillsText(sample.skills);
+    setProjectsText(sample.projects.join('\n'));
+    setExperienceItems(
+      sample.experience.map((item, index) => ({
+        id: `exp-demo-${index + 1}`,
+        company: item.company,
+        role: item.role,
+        dates: item.dates,
+        details: item.details,
+      }))
+    );
+    setEducationItems(
+      sample.education.map((item, index) => ({
+        id: `edu-demo-${index + 1}`,
+        school: item.school,
+        degree: item.degree,
+        dates: item.dates,
+        details: item.details,
+      }))
+    );
+    setCustomDetails(
+      sample.custom.map((item, index) => ({
+        id: `custom-demo-${index + 1}`,
+        label: item.label,
+        value: item.value,
+      }))
+    );
+    setGenerateError(null);
+    setIsFillingDemo(false);
+  }, [demoSamples]);
 
   const isTemplateSelection = templateStep === 'choose' || !selectedTemplate;
 
@@ -456,7 +606,7 @@ export const Resume = () => {
 
     const experienceText = experienceItemsView
       .map((item) => {
-        const header = [item.role, item.company].filter(Boolean).join(' — ');
+        const header = [item.role, item.company].filter(Boolean).join(' - ');
         const lines = [header, item.dates, formatBullets(item.bullets)].filter(Boolean);
         return lines.join('\n');
       })
@@ -465,7 +615,7 @@ export const Resume = () => {
 
     const educationText = educationItemsView
       .map((item) => {
-        const header = [item.degree, item.school].filter(Boolean).join(' — ');
+        const header = [item.degree, item.school].filter(Boolean).join(' - ');
         const lines = [header, item.dates, formatBullets(item.bullets)].filter(Boolean);
         return lines.join('\n');
       })
@@ -605,6 +755,27 @@ export const Resume = () => {
     }
   }, [activeSectionId, availableSections, templateStep]);
 
+  const isStepMode = templateStep === 'edit';
+  const stepSections = useMemo(
+    () => sectionOrder.filter((id) => availableSections.includes(id)),
+    [sectionOrder, availableSections]
+  );
+  const currentStepIndex = Math.max(0, stepSections.indexOf(activeSectionId || stepSections[0]));
+  const currentStepId = stepSections[currentStepIndex];
+  const totalSteps = stepSections.length || 1;
+
+  const goNextStep = () => {
+    if (currentStepIndex < stepSections.length - 1) {
+      setActiveSectionId(stepSections[currentStepIndex + 1]);
+    }
+  };
+
+  const goPrevStep = () => {
+    if (currentStepIndex > 0) {
+      setActiveSectionId(stepSections[currentStepIndex - 1]);
+    }
+  };
+
   const updatePreviewScale = useCallback(() => {
     const frame = previewFrameRef.current;
     const iframe = previewIframeRef.current;
@@ -634,9 +805,17 @@ export const Resume = () => {
     const frameRect = frame.getBoundingClientRect();
     if (!frameRect.width || !frameRect.height) return;
 
-    const widthScale = frameRect.width / contentWidth;
-    const heightScale = frameRect.height / contentHeight;
-    const nextScale = Math.max(0.1, Math.min(widthScale, heightScale, 1));
+    const styles = window.getComputedStyle(frame);
+    const paddingX = parseFloat(styles.paddingLeft || '0') + parseFloat(styles.paddingRight || '0');
+    const paddingY = parseFloat(styles.paddingTop || '0') + parseFloat(styles.paddingBottom || '0');
+
+    const availableWidth = Math.max(0, frameRect.width - paddingX);
+    const availableHeight = Math.max(0, frameRect.height - paddingY);
+
+    const widthScale = availableWidth / contentWidth;
+    const heightScale = availableHeight / contentHeight;
+    const useWidthOnly = window.innerWidth <= 768 && !showMobilePreview;
+    const nextScale = Math.max(0.1, Math.min(useWidthOnly ? widthScale : Math.min(widthScale, heightScale), 1));
 
     setPreviewSize({ width: contentWidth, height: contentHeight });
     setPreviewScale(nextScale);
@@ -684,6 +863,11 @@ export const Resume = () => {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleMobileGenerate = async () => {
+    setShowMobilePreview(true);
+    await handleGenerateResume();
   };
 
   const handleTemplateSelect = (name: string) => {
@@ -748,7 +932,7 @@ export const Resume = () => {
     }
 
     return undefined;
-  }, []);
+  }, [showMobilePreview]);
 
   const toStringValue = (value: unknown) => {
     if (typeof value === 'string') return value.trim();
@@ -1156,18 +1340,40 @@ export const Resume = () => {
 
   const previewHtml = generatedHTML || livePreviewHtml || templatePreviewHtml;
   const scaledPreviewWidth = Math.round(previewSize.width * previewScale);
-  const scaledPreviewHeight = Math.round(previewSize.height * previewScale);
 
   useEffect(() => {
     previewFontsReadyRef.current = false;
   }, [previewHtml]);
 
   useEffect(() => {
+    setPreviewPage(0);
+  }, [previewHtml, totalPreviewPages]);
+
+  useEffect(() => {
     if (!previewHtml) return;
     const iframe = previewIframeRef.current;
     if (!iframe) return;
 
-    const handleLoad = () => updatePreviewScale();
+    let resizeObserver: ResizeObserver | null = null;
+    const handleLoad = () => {
+      updatePreviewScale();
+
+      const doc = iframe.contentDocument;
+      if (!doc) return;
+
+      const target = doc.documentElement || doc.body;
+      if (target && 'ResizeObserver' in window) {
+        resizeObserver = new ResizeObserver(() => updatePreviewScale());
+        resizeObserver.observe(target);
+      }
+
+      const images = Array.from(doc.images || []);
+      images.forEach((img) => {
+        if (img.complete) return;
+        img.addEventListener('load', updatePreviewScale, { once: true });
+        img.addEventListener('error', updatePreviewScale, { once: true });
+      });
+    };
     iframe.addEventListener('load', handleLoad);
 
     if (iframe.contentDocument?.readyState === 'complete') {
@@ -1176,6 +1382,9 @@ export const Resume = () => {
 
     return () => {
       iframe.removeEventListener('load', handleLoad);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
     };
   }, [previewHtml, updatePreviewScale]);
 
@@ -1306,7 +1515,9 @@ export const Resume = () => {
               <div className="template-state template-error">{templateError}</div>
             ) : filteredTemplates.length === 0 ? (
               <div className="template-state">
-                No templates available. Upload HTML files to the resume_templates bucket.
+                {activeTemplateFilter === 'All templates'
+                  ? 'No templates available. Upload HTML files to the resume_templates bucket.'
+                  : `No templates match "${activeTemplateFilter}". Try a different filter.`}
               </div>
             ) : (
               <div className="template-compact-grid">
@@ -1343,7 +1554,23 @@ export const Resume = () => {
             )}
           </section>
         ) : (
-          <div className="card ai-generator-section mt-8">
+          <>
+            <div className="resume-topbar">
+              <div className="resume-topbar-left">
+                <div className="resume-topbar-title">Resume Editor</div>
+                <div className="resume-topbar-subtitle">{selectedTemplateLabel}</div>
+              </div>
+              <div className="resume-topbar-center">
+                <button type="button" className="resume-topbar-tab is-active">Edit</button>
+                <button type="button" className="resume-topbar-tab" disabled>Customize</button>
+              </div>
+              <div className="resume-topbar-right">
+                <button type="button" className="resume-topbar-download" onClick={handleDownloadPDF}>
+                  Download
+                </button>
+              </div>
+            </div>
+            <div className="card ai-generator-section mt-8">
             <div className="card-header border-b pb-4 mb-6">
               <Zap size={24} className="text-primary" />
               <h2 className="text-2xl font-bold">Resume Builder</h2>
@@ -1357,11 +1584,19 @@ export const Resume = () => {
               <div className="text-sm text-gray-600">
                 Selected Template: <span className="font-semibold text-gray-800">{selectedTemplateLabel}</span>
               </div>
-              <div className="resume-toolbar-actions">
-                <button
-                  type="button"
-                  onClick={handleGenerateResume}
-                  className="resume-action-btn primary"
+                <div className="resume-toolbar-actions">
+                  <button
+                    type="button"
+                    className="resume-action-btn ghost"
+                    onClick={fillWithDemoData}
+                    disabled={isFillingDemo}
+                  >
+                    {isFillingDemo ? 'Filling...' : 'Fill Sample Data'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleGenerateResume}
+                    className="resume-action-btn primary"
                   disabled={generating}
                 >
                   {generating ? 'Refreshing...' : 'Refresh Preview'}
@@ -1384,6 +1619,42 @@ export const Resume = () => {
 
             <div className="resume-builder-grid">
               <div className="builder-panel">
+                {isStepMode && currentStepId && (
+                  <div className="step-header">
+                    <div className="step-header-title">
+                      <span className="step-count">Step {currentStepIndex + 1} of {totalSteps}</span>
+                      <h3>{{
+                        contact: 'Contact',
+                        summary: 'Professional Summary',
+                        experience: 'Work Experience',
+                        projects: 'Projects',
+                        education: 'Education',
+                        skills: 'Skills',
+                        custom: 'Custom Details',
+                        additional: 'Additional Information',
+                        extra: 'Other Fields',
+                      }[currentStepId] || 'Section'}</h3>
+                    </div>
+                    <div className="step-header-actions">
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={goPrevStep}
+                        disabled={currentStepIndex === 0}
+                      >
+                        Back
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={goNextStep}
+                        disabled={currentStepIndex >= totalSteps - 1}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-5">
                   {sectionOrder.map((sectionId) => {
                     const sectionTitles: Record<string, string> = {
@@ -1488,7 +1759,7 @@ export const Resume = () => {
                                         height={48}
                                       />
                                     )}
-                                    <div className="text-sm text-gray-600">{contactPhotoName || 'Photo selected'}</div>
+                                    <div className="text-sm text-gray-600">{contactPhotoName || 'No photo selected'}</div>
                                     <button
                                       type="button"
                                       className="text-xs text-red-600 hover:text-red-700 ml-auto"
@@ -1719,6 +1990,7 @@ export const Resume = () => {
 
                     const isUnlocked = unlockedSections.includes(sectionId);
                     if (!isUnlocked) return null;
+                    if (isStepMode && sectionId !== currentStepId) return null;
                     const isExpanded = activeSectionId === sectionId;
                     const isComplete = sectionCompletion[sectionId];
 
@@ -1751,9 +2023,9 @@ export const Resume = () => {
                                 <button
                                   type="button"
                                   className="btn btn-primary btn-sm section-next-btn"
-                                  onClick={() => setActiveSectionId(nextSectionId)}
+                                  onClick={() => (isStepMode ? goNextStep() : setActiveSectionId(nextSectionId))}
                                 >
-                                  Next: {nextSectionTitle}
+                                  {isStepMode ? 'Next Step' : `Next: ${nextSectionTitle}`}
                                 </button>
                               </div>
                             )}
@@ -1775,7 +2047,7 @@ export const Resume = () => {
                 <div className="mt-6 md:hidden">
                   <button
                     type="button"
-                    onClick={() => setShowMobilePreview(true)}
+                    onClick={handleMobileGenerate}
                     className="w-full btn btn-primary py-3 font-bold text-lg shadow-lg"
                   >
                     Generate Resume & Preview
@@ -1795,7 +2067,28 @@ export const Resume = () => {
                     </button>
                     <h3 className="text-lg font-semibold">Live Preview</h3>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="preview-controls">
+                    <div className="preview-pager">
+                      <button
+                        type="button"
+                        className="preview-pager-btn"
+                        onClick={() => setPreviewPage((p) => Math.max(0, p - 1))}
+                        disabled={clampedPreviewPage === 0}
+                      >
+                        ‹
+                      </button>
+                      <span className="preview-pager-text">
+                        {clampedPreviewPage + 1} / {totalPreviewPages}
+                      </span>
+                      <button
+                        type="button"
+                        className="preview-pager-btn"
+                        onClick={() => setPreviewPage((p) => Math.min(totalPreviewPages - 1, p + 1))}
+                        disabled={clampedPreviewPage >= totalPreviewPages - 1}
+                      >
+                        ›
+                      </button>
+                    </div>
                     <button
                       onClick={handleDownloadPDF}
                       className="bg-green-600 text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-green-700 transition flex items-center gap-2 shadow-md"
@@ -1807,12 +2100,18 @@ export const Resume = () => {
                 </div>
 
                 <div className="builder-preview-frame" ref={previewFrameRef}>
+                  {showMobilePreview && generating && (
+                    <div className="mobile-preview-loading" role="status" aria-live="polite">
+                      <div className="loading-spinner" />
+                      <div className="loading-text">Generating your resume...</div>
+                    </div>
+                  )}
                   {previewHtml ? (
                     <div
                       className="preview-frame-inner"
                       style={{
                         width: `${scaledPreviewWidth}px`,
-                        height: `${scaledPreviewHeight}px`,
+                        height: `${scaledPageHeight}px`,
                       }}
                     >
                       <div
@@ -1824,21 +2123,32 @@ export const Resume = () => {
                           transformOrigin: 'top left',
                         }}
                       >
-                        <iframe
-                          id="generated-resume"
-                          ref={previewIframeRef}
-                          title="Generated resume"
-                          srcDoc={previewHtml}
-                          scrolling="no"
+                        <div
+                          className="preview-page-shift"
                           style={{
-                            width: `${previewSize.width}px`,
-                            height: `${previewSize.height}px`,
-                            border: '0',
-                            display: 'block',
-                            background: '#ffffff',
+                            transform: `translateY(-${clampedPreviewPage * A4_HEIGHT_PX}px)`,
                           }}
-                        />
+                        >
+                          <iframe
+                            id="generated-resume"
+                            ref={previewIframeRef}
+                            title="Generated resume"
+                            srcDoc={previewHtml}
+                            scrolling="no"
+                            style={{
+                              width: `${previewSize.width}px`,
+                              height: `${previewSize.height}px`,
+                              border: '0',
+                              display: 'block',
+                              background: '#ffffff',
+                            }}
+                          />
+                        </div>
                       </div>
+                    </div>
+                  ) : generateError ? (
+                    <div className="text-sm text-red-600 p-6 text-center">
+                      {generateError}
                     </div>
                   ) : (
                     <div className="text-sm text-gray-500 p-6 text-center">
@@ -1849,6 +2159,7 @@ export const Resume = () => {
               </div>
             </div>
           </div>
+          </>
         )}
       </div>
 
@@ -1963,8 +2274,84 @@ export const Resume = () => {
           display: flex;
           flex-direction: column;
           gap: var(--spacing-xl);
-          padding: 0 24px 24px;
+          padding: 0 24px 32px;
           flex: 1;
+          min-height: calc(100vh - 220px);
+        }
+
+        .resume-topbar {
+          display: grid;
+          grid-template-columns: 1fr auto 1fr;
+          align-items: center;
+          gap: 16px;
+          padding: 10px 16px;
+          margin: 12px 24px 0;
+          border: 1px solid #e2e8f0;
+          border-radius: 14px;
+          background: #ffffff;
+          box-shadow: 0 10px 22px -18px rgba(15, 23, 42, 0.35);
+        }
+
+        .resume-topbar-left {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .resume-topbar-title {
+          font-size: 1rem;
+          font-weight: 700;
+          color: #0f172a;
+        }
+
+        .resume-topbar-subtitle {
+          font-size: 0.85rem;
+          color: #64748b;
+        }
+
+        .resume-topbar-center {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          justify-content: center;
+        }
+
+        .resume-topbar-tab {
+          border: 1px solid #e2e8f0;
+          background: #f8fafc;
+          color: #64748b;
+          padding: 6px 14px;
+          border-radius: 999px;
+          font-size: 0.85rem;
+          font-weight: 600;
+          cursor: default;
+        }
+
+        .resume-topbar-tab.is-active {
+          background: #0f172a;
+          color: #ffffff;
+          border-color: #0f172a;
+        }
+
+        .resume-topbar-right {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        .resume-topbar-download {
+          background: #2563eb;
+          color: #ffffff;
+          border: none;
+          padding: 8px 14px;
+          border-radius: 10px;
+          font-weight: 700;
+          font-size: 0.85rem;
+          cursor: pointer;
+          box-shadow: 0 10px 20px -14px rgba(37, 99, 235, 0.8);
+        }
+
+        .resume-topbar-download:hover {
+          background: #1d4ed8;
         }
 
         .resume-page:not(.is-template-mode) .resume-content {
@@ -2557,7 +2944,7 @@ export const Resume = () => {
 
         .resume-builder-grid {
           display: grid;
-          grid-template-columns: 1.2fr 0.8fr;
+          grid-template-columns: minmax(420px, 1.1fr) minmax(360px, 0.9fr);
           gap: var(--spacing-xl);
           align-items: stretch;
           flex: 1;
@@ -2570,7 +2957,40 @@ export const Resume = () => {
           height: 100%;
           min-width: 0;
           overflow: auto;
-          padding-right: 6px;
+          padding-right: 10px;
+        }
+
+        .step-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 12px 14px;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          background: #f8fafc;
+          position: sticky;
+          top: 0;
+          z-index: 2;
+        }
+
+        .step-header-title {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .step-count {
+          font-size: 0.75rem;
+          color: #64748b;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .step-header-actions {
+          display: flex;
+          gap: 8px;
         }
 
         .builder-section {
@@ -2660,6 +3080,8 @@ export const Resume = () => {
           height: 100%;
           min-width: 0;
           min-height: 0;
+          position: sticky;
+          top: 96px;
         }
 
         .builder-preview-header {
@@ -2669,9 +3091,54 @@ export const Resume = () => {
           gap: var(--spacing-md);
         }
 
+        .preview-controls {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .preview-pager {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 8px;
+          border-radius: 999px;
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+          font-weight: 600;
+          font-size: 0.8rem;
+          color: #0f172a;
+        }
+
+        .preview-pager-btn {
+          width: 26px;
+          height: 26px;
+          border-radius: 999px;
+          border: none;
+          background: #e2e8f0;
+          color: #0f172a;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .preview-pager-btn:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+
+        .preview-pager-text {
+          min-width: 56px;
+          text-align: center;
+        }
+
+        .preview-page-shift {
+          will-change: transform;
+        }
+
         .builder-preview-frame {
-          overflow: auto;
-          background: transparent;
+          overflow: hidden;
+          background: linear-gradient(180deg, #f8fafc, #eef2f7);
           position: relative;
           flex: 1;
           min-height: 0;
@@ -2679,6 +3146,37 @@ export const Resume = () => {
           display: flex;
           align-items: flex-start;
           justify-content: center;
+          padding: 0;
+          box-sizing: border-box;
+          border-radius: 16px;
+          border: 1px solid #e2e8f0;
+        }
+
+        .mobile-preview-loading {
+          position: absolute;
+          inset: 0;
+          z-index: 6;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          background: rgba(255, 255, 255, 0.92);
+          color: #0f172a;
+          font-weight: 600;
+        }
+
+        .mobile-preview-loading .loading-spinner {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          border: 4px solid rgba(15, 118, 110, 0.2);
+          border-top-color: #0f766e;
+          animation: spin 0.9s linear infinite;
+        }
+
+        .mobile-preview-loading .loading-text {
+          font-size: 0.95rem;
         }
 
         .preview-frame-inner {
@@ -2688,8 +3186,8 @@ export const Resume = () => {
           overflow: hidden;
           position: relative;
           box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
-          max-width: 100%;
-          max-height: 100%;
+          max-width: none;
+          max-height: none;
         }
 
         .preview-frame-content {
@@ -2697,6 +3195,17 @@ export const Resume = () => {
         }
 
         @media (max-width: 768px) {
+          .resume-topbar {
+            grid-template-columns: 1fr;
+            margin: 10px 14px 0;
+            justify-items: start;
+          }
+
+          .resume-topbar-center,
+          .resume-topbar-right {
+            justify-content: flex-start;
+          }
+
           .page-header {
             flex-direction: column;
             gap: var(--spacing-md);
@@ -2756,6 +3265,25 @@ export const Resume = () => {
           /* When preview is visible, hide main page scrolling */
           body.preview-active {
             overflow: hidden;
+          }
+
+          body.preview-active .builder-panel {
+            display: none;
+          }
+
+          body.preview-active .builder-preview {
+            display: flex;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 60;
+            background: #fff;
+          }
+
+          body.preview-active .builder-preview-frame {
+            height: calc(100vh - 64px);
           }
 
           .resume-content {
@@ -3333,6 +3861,10 @@ export const Resume = () => {
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
         .animate-fadeIn {
           animation: fadeIn 0.5s ease-out forwards;

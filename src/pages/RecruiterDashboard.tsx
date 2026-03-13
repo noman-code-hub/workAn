@@ -1,18 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-    collection,
-    addDoc,
-    onSnapshot,
-    serverTimestamp,
-    updateDoc,
-    doc,
-    query,
-    where,
-    orderBy,
-    deleteDoc
-} from 'firebase/firestore';
-import { getDb } from '../config/firebase';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import {
     Briefcase,
@@ -35,9 +23,8 @@ interface RecruiterJob {
     location: string;
     salary: string;
     postedBy: string;
-    postedByName: string;
     applicantsCount: number;
-    createdAt: any;
+    createdAt: string;
 }
 
 export const RecruiterDashboard = () => {
@@ -63,20 +50,47 @@ export const RecruiterDashboard = () => {
         let unsubscribe = () => {};
 
         const initJobs = async () => {
-            const db = await getDb();
-            if (!isMounted) return;
+            if (!isSupabaseConfigured || !supabase) {
+                throw new Error('Supabase is not configured.');
+            }
 
-            const q = user.role === 'admin'
-                ? query(collection(db, 'jobs'), orderBy('createdAt', 'desc'))
-                : query(collection(db, 'jobs'), where('postedBy', '==', user.id), orderBy('createdAt', 'desc'));
+            const fetchJobs = async () => {
+                const query = supabase
+                    .from('jobs')
+                    .select('*')
+                    .order('created_at', { ascending: false });
 
-            unsubscribe = onSnapshot(q, (snapshot) => {
-                const data = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
+                const { data, error } = user.role === 'admin'
+                    ? await query
+                    : await query.eq('posted_by', user.id);
+
+                if (error) throw error;
+
+                const mapped = (data || []).map((row: any) => ({
+                    id: row.id,
+                    title: row.title,
+                    company: row.company,
+                    description: row.description || '',
+                    location: row.location || '',
+                    salary: row.salary_text || '',
+                    postedBy: row.posted_by,
+                    applicantsCount: row.applicants_count || 0,
+                    createdAt: row.created_at,
                 })) as RecruiterJob[];
-                if (isMounted) setJobs(data);
-            });
+
+                if (isMounted) setJobs(mapped);
+            };
+
+            await fetchJobs();
+
+            const channel = supabase
+                .channel('recruiter-jobs')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, fetchJobs)
+                .subscribe();
+
+            unsubscribe = () => {
+                void supabase.removeChannel(channel);
+            };
         };
 
         initJobs().catch((error) => {
@@ -106,22 +120,33 @@ export const RecruiterDashboard = () => {
 
         setIsPosting(true);
         try {
-            const db = await getDb();
+            if (!isSupabaseConfigured || !supabase) {
+                throw new Error('Supabase is not configured.');
+            }
+
             if (editingJobId) {
-                const jobRef = doc(db, 'jobs', editingJobId);
-                await updateDoc(jobRef, {
-                    ...form,
-                    updatedAt: serverTimestamp(),
-                });
+                const { error } = await supabase.from('jobs').update({
+                    title: form.title,
+                    company: form.company,
+                    description: form.description,
+                    location: form.location,
+                    salary_text: form.salary,
+                }).eq('id', editingJobId);
+
+                if (error) throw error;
                 setEditingJobId(null);
             } else {
-                await addDoc(collection(db, 'jobs'), {
-                    ...form,
-                    postedBy: user.id,
-                    postedByName: user.name,
-                    applicantsCount: 0,
-                    createdAt: serverTimestamp(),
+                const { error } = await supabase.from('jobs').insert({
+                    title: form.title,
+                    company: form.company,
+                    description: form.description,
+                    location: form.location,
+                    salary_text: form.salary,
+                    posted_by: user.id,
+                    applicants_count: 0,
                 });
+
+                if (error) throw error;
             }
 
             setForm({
@@ -143,11 +168,14 @@ export const RecruiterDashboard = () => {
         if (!window.confirm("Are you sure you want to delete this job listing? All applicant data for this job will remain in the system but the listing will be gone.")) return;
 
         try {
-            const db = await getDb();
-            await deleteDoc(doc(db, 'jobs', jobId));
+            if (!isSupabaseConfigured || !supabase) {
+                throw new Error('Supabase is not configured.');
+            }
+            const { error } = await supabase.from('jobs').delete().eq('id', jobId);
+            if (error) throw error;
         } catch (error) {
-            console.error("Error deleting job:", error);
-            alert("Failed to delete job.");
+            console.error('Error deleting job:', error);
+            alert('Failed to delete job.');
         }
     };
 
@@ -308,8 +336,8 @@ export const RecruiterDashboard = () => {
                                                 <div className="listing-meta">
                                                     <span className="badge badge-primary">{job.company}</span>
                                                     <span className="listing-time">
-                                                        Posted {job.createdAt?.seconds
-                                                            ? formatDistanceToNow(new Date(job.createdAt.seconds * 1000), { addSuffix: true })
+                                                        Posted {job.createdAt
+                                                            ? formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })
                                                             : 'Just now'}
                                                     </span>
                                                 </div>
