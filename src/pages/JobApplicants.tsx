@@ -44,7 +44,8 @@ export const JobApplicants = () => {
         // Fetch Job Details
         const fetchJob = async () => {
             if (!isSupabaseConfigured || !supabase) return;
-            const { data, error } = await supabase.from('jobs').select('id, title, company').eq('id', jobId).maybeSingle();
+            const sb = supabase;
+            const { data, error } = await sb.from('jobs').select('id, title, company').eq('id', jobId).maybeSingle();
             if (error) {
                 console.error('Error loading job:', error);
                 return;
@@ -64,9 +65,10 @@ export const JobApplicants = () => {
                 setLoading(false);
                 return;
             }
+            const sb = supabase;
 
             const fetchApplicants = async () => {
-                const { data, error } = await supabase
+                const { data, error } = await sb
                     .from('job_applicants')
                     .select('*')
                     .eq('job_id', jobId)
@@ -92,7 +94,7 @@ export const JobApplicants = () => {
 
             await fetchApplicants();
 
-            const channel = supabase
+            const channel = sb
                 .channel(`job-applicants-${jobId}`)
                 .on(
                     'postgres_changes',
@@ -102,7 +104,7 @@ export const JobApplicants = () => {
                 .subscribe();
 
             unsubscribe = () => {
-                void supabase.removeChannel(channel);
+                void sb.removeChannel(channel);
             };
         };
 

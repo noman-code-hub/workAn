@@ -53,9 +53,10 @@ export const RecruiterDashboard = () => {
             if (!isSupabaseConfigured || !supabase) {
                 throw new Error('Supabase is not configured.');
             }
+            const sb = supabase;
 
             const fetchJobs = async () => {
-                const query = supabase
+                const query = sb
                     .from('jobs')
                     .select('*')
                     .order('created_at', { ascending: false });
@@ -83,13 +84,13 @@ export const RecruiterDashboard = () => {
 
             await fetchJobs();
 
-            const channel = supabase
+            const channel = sb
                 .channel('recruiter-jobs')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, fetchJobs)
                 .subscribe();
 
             unsubscribe = () => {
-                void supabase.removeChannel(channel);
+                void sb.removeChannel(channel);
             };
         };
 

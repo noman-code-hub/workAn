@@ -1,11 +1,13 @@
 import { Analytics } from '@vercel/analytics/react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef } from 'react';
 import { Layout } from './components/Layout';
 import { RoleGuard } from './components/RoleGuard';
-import { AppLoader } from './components/AppLoader';
 import { SeoManager } from './components/SeoManager';
+import { AppLoader } from './components/AppLoader';
 import { useAuth } from './contexts/AuthContext';
+import { ResumeEditorLayout } from './components/ResumeEditorLayout';
+import { useParams } from 'react-router-dom';
 
 const LAST_ROUTE_STORAGE_KEY = 'careerpilot:last-route';
 const LandingPage = lazy(() => import('./pages/LandingPage').then((m) => ({ default: m.LandingPage })));
@@ -24,6 +26,7 @@ const JobSearchTool = lazy(() => import('./pages/JobSearchTool').then((m) => ({ 
 const JobSearchDetails = lazy(() => import('./pages/JobSearchDetails').then((m) => ({ default: m.JobSearchDetails })));
 const SeoJobsPage = lazy(() => import('./pages/SeoJobsPage').then((m) => ({ default: m.SeoJobsPage })));
 const Resume = lazy(() => import('./pages/Resume').then((m) => ({ default: m.Resume })));
+const ResumeTemplates = lazy(() => import('./pages/ResumeTemplates').then((m) => ({ default: m.ResumeTemplates })));
 const CareerTrends = lazy(() => import('./pages/CareerTrends').then((m) => ({ default: m.CareerTrends })));
 const AICopilot = lazy(() => import('./pages/AICopilot').then((m) => ({ default: m.AICopilot })));
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
@@ -32,12 +35,16 @@ const Community = lazy(() => import('./pages/Community').then((m) => ({ default:
 const BlogDetail = lazy(() => import('./pages/BlogDetail').then((m) => ({ default: m.BlogDetail })));
 const JobApplicants = lazy(() => import('./pages/JobApplicants').then((m) => ({ default: m.JobApplicants })));
 
+const LegacyResumeEditorRedirect = () => {
+  const { templateId } = useParams();
+  const to = useMemo(() => `/resume-editor/${templateId || ''}`, [templateId]);
+  return <Navigate to={to} replace />;
+};
+
 function App() {
   const { user, loading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [routeLoading, setRouteLoading] = useState(false);
-  const [bootLoading, setBootLoading] = useState(true);
   const initialPathRef = useRef(location.pathname);
   const routeRestoreAttemptedRef = useRef(false);
 
@@ -97,18 +104,9 @@ function App() {
     };
   }, []);
   useEffect(() => {
-    const timer = setTimeout(() => setBootLoading(false), 150);
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
     if (initialPathRef.current === location.pathname) {
       initialPathRef.current = '';
-      return;
     }
-    setRouteLoading(true);
-    const timer = setTimeout(() => setRouteLoading(false), 450);
-    return () => clearTimeout(timer);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -156,7 +154,7 @@ function App() {
     <>
       <SeoManager />
       {/* {(bootLoading || routeLoading) && <AppLoader variant="overlay" />} */}
-      <Suspense fallback={null}>
+      <Suspense fallback={<AppLoader variant="full" />}>
         <Routes>
           <Route path="/" element={<Navigate to={homeRoute} replace />} />
           <Route path="/landing" element={<LandingPage />} />
@@ -178,7 +176,8 @@ function App() {
             <Route path="/truck-driver-jobs-usa" element={<SeoJobsPage />} />
             <Route path="/nurse-jobs-usa" element={<SeoJobsPage />} />
             <Route path="/government-jobs-usa" element={<SeoJobsPage />} />
-            <Route path="/resume" element={<Resume />} />
+            <Route path="/resume" element={<Navigate to="/resume/templates" replace />} />
+            <Route path="/resume/templates" element={<ResumeTemplates />} />
             <Route path="/trends" element={<CareerTrends />} />
             <Route path="/ai-copilot" element={<AICopilot />} />
             <Route path="/settings" element={<Settings />} />
@@ -224,6 +223,18 @@ function App() {
               }
             />
           </Route>
+
+          <Route
+            path="/resume-editor/:templateId"
+            element={
+              <ResumeEditorLayout>
+                <Resume />
+              </ResumeEditorLayout>
+            }
+          />
+
+          {/* Back-compat redirect */}
+          <Route path="/resume/editor/:templateId" element={<LegacyResumeEditorRedirect />} />
 
           {/* Redirect any unknown routes to home */}
           <Route path="*" element={<Navigate to="/" />} />

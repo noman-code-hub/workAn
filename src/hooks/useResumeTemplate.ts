@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import type { User } from '../types';
 import {
@@ -30,6 +30,7 @@ export const useResumeTemplate = (user?: User | null) => {
   const [templateLoading, setTemplateLoading] = useState(false);
   const [templateError, setTemplateError] = useState<string | null>(null);
   const supabaseClient = isSupabaseConfigured ? supabase : null;
+  const loadIdRef = useRef(0);
 
   const getDefaultValueForField = useCallback((field: string) => {
     const normalized = normalizeFieldKey(field);
@@ -70,12 +71,14 @@ export const useResumeTemplate = (user?: User | null) => {
       return;
     }
 
+    const loadId = ++loadIdRef.current;
     setTemplatePreviewLoading(true);
     setTemplateError(null);
     setTemplatePreviewHtml(null);
 
     const { data } = supabaseClient.storage.from('resume_templates').getPublicUrl(templateName);
     if (!data?.publicUrl) {
+      if (loadIdRef.current !== loadId) return;
       console.error('Error getting template URL');
       setTemplateError('Failed to load selected template. Please try again.');
       setTemplatePreviewLoading(false);
@@ -91,17 +94,21 @@ export const useResumeTemplate = (user?: User | null) => {
       // Clean up stray template-literal artifacts that can render as "`n" in HTML.
       html = html.replace(/`n/g, '\n');
       html = ensureBaseTag(html, buildBaseHref(templateUrl));
+      if (loadIdRef.current !== loadId) return;
       setTemplatePreviewHtml(html);
       setTemplateSourceHtml(html);
       populateTemplateFields(html);
     } catch (e) {
+      if (loadIdRef.current !== loadId) return;
       console.error('Template preview error:', e);
       setTemplateError('Failed to load selected template. Please try again.');
       setTemplatePreviewHtml(null);
       setTemplateSourceHtml(null);
       setTemplateFields([]);
     } finally {
-      setTemplatePreviewLoading(false);
+      if (loadIdRef.current === loadId) {
+        setTemplatePreviewLoading(false);
+      }
     }
   }, [populateTemplateFields, supabaseClient]);
 
@@ -202,12 +209,11 @@ export const useResumeTemplate = (user?: User | null) => {
         })(),
       }));
 
-      const visibleTemplates = mapped.filter((template) => template.thumbnailUrl);
+      // Keep all templates for editor routes, even if thumbnails are missing.
+      setTemplates(mapped);
 
-      setTemplates(visibleTemplates);
-
-      if (visibleTemplates.length > 0) {
-        selectTemplate(visibleTemplates[0].name);
+      if (mapped.length > 0) {
+        selectTemplate(mapped[0].name);
       } else {
         setSelectedTemplate('');
         setTemplatePreviewHtml(null);

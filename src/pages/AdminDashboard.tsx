@@ -25,9 +25,10 @@ export const AdminDashboard = () => {
                 if (!isSupabaseConfigured || !supabase) {
                     throw new Error('Supabase is not configured.');
                 }
+                const sb = supabase;
 
                 const fetchUsers = async () => {
-                    const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false });
+                    const { data, error } = await sb.from('users').select('*').order('created_at', { ascending: false });
                     if (error) throw error;
 
                     const usersList = (data || []).map((row: any) => ({
@@ -58,13 +59,13 @@ export const AdminDashboard = () => {
 
                 await fetchUsers();
 
-                const channel = supabase
+                const channel = sb
                     .channel('users-admin')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, fetchUsers)
                     .subscribe();
 
                 unsubscribe = () => {
-                    void supabase.removeChannel(channel);
+                    void sb.removeChannel(channel);
                 };
             } catch (error) {
                 console.error('Error initializing users listener:', error);

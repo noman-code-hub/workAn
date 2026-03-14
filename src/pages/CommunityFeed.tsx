@@ -57,10 +57,11 @@ export const CommunityFeed = () => {
             console.warn('Supabase is not configured. Community feed is disabled.');
             return () => {};
         }
+        const sb = supabase;
 
         const fetchPosts = async () => {
             try {
-                const { data, error } = await supabase
+                const { data, error } = await sb
                     .from('posts')
                     .select('*')
                     .order('created_at', { ascending: false });
@@ -89,14 +90,14 @@ export const CommunityFeed = () => {
 
         void fetchPosts();
 
-        const channel = supabase
+        const channel = sb
             .channel('community-posts')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, fetchPosts)
             .subscribe();
 
         return () => {
             isMounted = false;
-            void supabase.removeChannel(channel);
+            void sb.removeChannel(channel);
         };
     }, []);
 
@@ -113,11 +114,12 @@ export const CommunityFeed = () => {
             setLoadingComments(false);
             return () => {};
         }
+        const sb = supabase;
 
         const fetchComments = async () => {
             setLoadingComments(true);
             try {
-                const { data, error } = await supabase
+                const { data, error } = await sb
                     .from('comments')
                     .select('*')
                     .eq('post_id', expandedPostId)
@@ -146,7 +148,7 @@ export const CommunityFeed = () => {
 
         void fetchComments();
 
-        const channel = supabase
+        const channel = sb
             .channel(`comments-${expandedPostId}`)
             .on(
                 'postgres_changes',
@@ -157,7 +159,7 @@ export const CommunityFeed = () => {
 
         return () => {
             isMounted = false;
-            void supabase.removeChannel(channel);
+            void sb.removeChannel(channel);
         };
     }, [expandedPostId]);
 

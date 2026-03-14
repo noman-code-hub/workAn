@@ -1,18 +1,29 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Download, AlertCircle, Zap } from 'lucide-react';
+import { AlertCircle, Pencil, Settings, Trash2, Zap } from 'lucide-react';
 import axios, { type AxiosResponse } from 'axios';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
 import { normalizeFieldKey, renderTemplateWithSchema } from '../services/resumeTemplateRenderer';
 import { API_BASE, apiUrl } from '../config/api';
 import { AppLoader } from '../components/AppLoader';
+import { RichTextEditor } from '../components/RichTextEditor';
 
 const RESUME_VIEW_STORAGE_KEY = 'careerpilot:resume-view';
 const RESUME_UPLOAD_TIMEOUT_MS = Number(import.meta.env.VITE_RESUME_UPLOAD_TIMEOUT_MS || 90000);
-const A4_HEIGHT_PX = Math.round(297 * (96 / 25.4));
+const PAGE_SIZES = {
+  a4: { label: 'A4', width: 794, height: 1123 },
+  letter: { label: 'Letter', width: 816, height: 1056 },
+} as const;
+type PreviewPageSize = keyof typeof PAGE_SIZES;
+const PAGE_MARGIN_PX = 72;
+const PAGE_GAP_PX = 24;
 
 export const Resume = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { templateId } = useParams();
+  const isEditorRoute = Boolean(templateId);
 
   // Resume Builder state
   const [contactName, setContactName] = useState(user?.name || "");
@@ -45,24 +56,33 @@ export const Resume = () => {
   const [draggingSection, setDraggingSection] = useState<string | null>(null);
   const [activeSectionId, setActiveSectionId] = useState<string | null>('contact');
   const [unlockedSections, setUnlockedSections] = useState<string[]>([]);
-  const [generatedHTML, setGeneratedHTML] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
-  const previewFrameRef = useRef<HTMLDivElement | null>(null);
-  const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
   const resumeUploadInputRef = useRef<HTMLInputElement | null>(null);
-  const previewFontsReadyRef = useRef(false);
-  const [previewScale, setPreviewScale] = useState(1);
-  const [previewSize, setPreviewSize] = useState({ width: 800, height: 1100 });
+  const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const previewCardRef = useRef<HTMLDivElement | null>(null);
+  const previewShellRef = useRef<HTMLDivElement | null>(null);
+  const previewBodyRef = useRef<HTMLDivElement | null>(null);
+  const [previewPage, setPreviewPage] = useState(1);
+  const [previewPageCount, setPreviewPageCount] = useState(1);
+  const [previewPageSizeMode, setPreviewPageSizeMode] = useState<'auto' | PreviewPageSize>('auto');
+  const [autoDetectedPageSize, setAutoDetectedPageSize] = useState<PreviewPageSize>('a4');
+  const previewContentHeightRef = useRef<number>(PAGE_SIZES.a4.height);
+  const previewScaleRef = useRef(1);
+  const autoDetectLockedRef = useRef(false);
   const [templateStep, setTemplateStep] = useState<'choose' | 'edit'>('choose');
   const [uploadingResume, setUploadingResume] = useState(false);
   const [isFillingDemo, setIsFillingDemo] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
+  const undoStackRef = useRef<string[]>([]);
+  const redoStackRef = useRef<string[]>([]);
+  const historyTimerRef = useRef<number | null>(null);
+  const autosaveTimerRef = useRef<number | null>(null);
+  const isApplyingHistoryRef = useRef(false);
+  const restoreKeyRef = useRef<string | null>(null);
 
   const [activeTemplateFilter, setActiveTemplateFilter] = useState('All templates');
-  const [showMobilePreview, setShowMobilePreview] = useState(false);
   const resumeViewRestoreRef = useRef(false);
   const [initialResumeReady, setInitialResumeReady] = useState(false);
-  const [previewPage, setPreviewPage] = useState(0);
 
   const {
     templates,
@@ -75,6 +95,8 @@ export const Resume = () => {
     templateFieldValues,
     templateSourceHtml,
     selectTemplate,
+    updateField,
+    refreshTemplates,
   } = useResumeTemplate(user);
 
   const getTemplateFieldValue = (key: string) => {
@@ -84,10 +106,27 @@ export const Resume = () => {
     return match ? templateFieldValues[match] : '';
   };
 
+  const setTemplateFieldValue = useCallback((key: string, value: string) => {
+    updateField(key, value);
+  }, [updateField]);
+
   const templateFieldSet = useMemo(
     () => new Set(templateFields.map((field) => normalizeFieldKey(field))),
     [templateFields]
   );
+
+  const contactNameParts = useMemo(() => {
+    const parts = contactName.trim().split(/\s+/).filter(Boolean);
+    return {
+      first: parts[0] || '',
+      last: parts.slice(1).join(' '),
+    };
+  }, [contactName]);
+
+  const updateContactNameParts = useCallback((first: string, last: string) => {
+    const next = [first.trim(), last.trim()].filter(Boolean).join(' ');
+    setContactName(next);
+  }, []);
 
   const selectedTemplateLabel = useMemo(() => {
     const match = templates.find((t) => t.name === selectedTemplate);
@@ -105,8 +144,8 @@ export const Resume = () => {
   ];
 
   const filteredTemplates = useMemo(() => {
-    const withThumbnails = templates.filter((t) => !!t.thumbnailUrl);
-    if (activeTemplateFilter === 'All templates') return withThumbnails;
+    if (templates.length === 0) return [];
+    if (activeTemplateFilter === 'All templates') return templates;
 
     const filterKey = activeTemplateFilter.toLowerCase();
     const matches = (template: (typeof templates)[number]) => {
@@ -129,16 +168,34 @@ export const Resume = () => {
       }
     };
 
-    return withThumbnails.filter(matches);
+    return templates.filter(matches);
   }, [activeTemplateFilter, templates]);
 
-  const totalPreviewPages = useMemo(() => {
-    const pages = Math.ceil(previewSize.height / A4_HEIGHT_PX);
-    return Math.max(1, pages);
-  }, [previewSize.height]);
+  const resolvedPageSize: PreviewPageSize =
+    previewPageSizeMode === 'auto' ? autoDetectedPageSize : previewPageSizeMode;
+  const activePageSize = PAGE_SIZES[resolvedPageSize];
+  const pageSizeOptions: Array<'auto' | PreviewPageSize> = ['auto', 'a4', 'letter'];
 
-  const clampedPreviewPage = Math.min(previewPage, totalPreviewPages - 1);
-  const scaledPageHeight = Math.round(A4_HEIGHT_PX * previewScale);
+  const slugifyTemplate = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/\.html$/i, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '');
+
+  const findTemplateBySlug = useCallback(
+    (slug?: string | null) => {
+      if (!slug) return null;
+      const normalized = slugifyTemplate(slug);
+      const directMatch = templates.find((t) => slugifyTemplate(t.name) === normalized);
+      if (directMatch) return directMatch;
+      return templates.find((t) => {
+        const base = t.name.split('/').pop() || t.name;
+        return slugifyTemplate(base) === normalized || slugifyTemplate(t.displayName) === normalized;
+      }) || null;
+    },
+    [templates]
+  );
 
   const demoSamples = useMemo(() => ([
     {
@@ -257,7 +314,7 @@ export const Resume = () => {
     setIsFillingDemo(false);
   }, [demoSamples]);
 
-  const isTemplateSelection = templateStep === 'choose' || !selectedTemplate;
+  const isTemplateSelection = !isEditorRoute && (templateStep === 'choose' || !selectedTemplate);
 
   useEffect(() => {
     if (resumeViewRestoreRef.current || templates.length === 0) return;
@@ -560,6 +617,9 @@ export const Resume = () => {
 
     const photoValue = contactPhotoUrl.trim()
       || (templateFieldValues.photo_url || '').toString().trim();
+    const countryValue = (templateFieldValues.country || templateFieldValues.Country || '').toString().trim();
+    const cityValue = (templateFieldValues.city || '').toString().trim();
+    const addressValue = (templateFieldValues.address || '').toString().trim();
 
     const skills = parseCommaOrNewline(skillsText);
     const projects = parseNewline(projectsText);
@@ -643,9 +703,9 @@ export const Resume = () => {
       phone: contactPhone,
       mobile: contactPhone,
       location: contactLocation,
-      address: contactLocation,
-      city: contactLocation,
-      country: contactLocation,
+      address: addressValue || contactLocation,
+      city: cityValue || contactLocation,
+      country: countryValue || contactLocation,
       photo_url: photoValue,
       summary: summaryText,
       profile: summaryText,
@@ -756,6 +816,8 @@ export const Resume = () => {
   }, [activeSectionId, availableSections, templateStep]);
 
   const isStepMode = templateStep === 'edit';
+  const showStepChrome = true;
+  const showProgressCard = !isEditorRoute;
   const stepSections = useMemo(
     () => sectionOrder.filter((id) => availableSections.includes(id)),
     [sectionOrder, availableSections]
@@ -774,100 +836,6 @@ export const Resume = () => {
     if (currentStepIndex > 0) {
       setActiveSectionId(stepSections[currentStepIndex - 1]);
     }
-  };
-
-  const updatePreviewScale = useCallback(() => {
-    const frame = previewFrameRef.current;
-    const iframe = previewIframeRef.current;
-    if (!frame || !iframe) return;
-    const doc = iframe.contentDocument;
-    if (!doc) return;
-
-    const html = doc.documentElement;
-    const body = doc.body;
-    if (!html || !body) return;
-
-    const contentWidth = Math.max(
-      html.scrollWidth,
-      body.scrollWidth,
-      html.getBoundingClientRect().width,
-      body.getBoundingClientRect().width
-    );
-    const contentHeight = Math.max(
-      html.scrollHeight,
-      body.scrollHeight,
-      html.getBoundingClientRect().height,
-      body.getBoundingClientRect().height
-    );
-
-    if (!contentWidth || !contentHeight) return;
-
-    const frameRect = frame.getBoundingClientRect();
-    if (!frameRect.width || !frameRect.height) return;
-
-    const styles = window.getComputedStyle(frame);
-    const paddingX = parseFloat(styles.paddingLeft || '0') + parseFloat(styles.paddingRight || '0');
-    const paddingY = parseFloat(styles.paddingTop || '0') + parseFloat(styles.paddingBottom || '0');
-
-    const availableWidth = Math.max(0, frameRect.width - paddingX);
-    const availableHeight = Math.max(0, frameRect.height - paddingY);
-
-    const widthScale = availableWidth / contentWidth;
-    const heightScale = availableHeight / contentHeight;
-    const useWidthOnly = window.innerWidth <= 768 && !showMobilePreview;
-    const nextScale = Math.max(0.1, Math.min(useWidthOnly ? widthScale : Math.min(widthScale, heightScale), 1));
-
-    setPreviewSize({ width: contentWidth, height: contentHeight });
-    setPreviewScale(nextScale);
-
-    if (doc.fonts && !previewFontsReadyRef.current) {
-      previewFontsReadyRef.current = true;
-      doc.fonts.ready
-        .then(() => {
-          requestAnimationFrame(updatePreviewScale);
-        })
-        .catch(() => undefined);
-    }
-  }, []);
-
-
-
-  const handleGenerateResume = async () => {
-    if (!selectedTemplate || !templateSourceHtml) {
-      setGenerateError("Please select a template.");
-      return;
-    }
-    const requiredFields = [
-      { label: 'Full Name', value: contactName, isVisible: showNameField },
-      { label: 'Target Role', value: contactRole, isVisible: showRoleField },
-    ];
-    const missing = requiredFields.filter(
-      (field) => field.isVisible && !field.value.trim()
-    );
-    if (missing.length > 0) {
-      setGenerateError(`Please fill ${missing.map((field) => field.label).join(' and ')}.`);
-      return;
-    }
-
-    setGenerating(true);
-    setGenerateError(null);
-
-    const resumeData = buildResumeView();
-
-    try {
-      const rendered = renderTemplateWithSchema(templateSourceHtml, resumeData);
-      setGeneratedHTML(rendered);
-    } catch (error: any) {
-      console.error("Generation error:", error);
-      setGenerateError(error.message || "Failed to generate resume. Please try again.");
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const handleMobileGenerate = async () => {
-    setShowMobilePreview(true);
-    await handleGenerateResume();
   };
 
   const handleTemplateSelect = (name: string) => {
@@ -893,6 +861,286 @@ export const Resume = () => {
   const handleCreateResumeClick = useCallback(() => {
     ensureEditModeReady();
   }, [ensureEditModeReady]);
+
+  const applyPreviewPagination = useCallback(() => {
+    const frame = previewFrameRef.current;
+    const doc = frame?.contentDocument;
+    if (!doc) return;
+    const body = doc.body;
+    if (!body) return;
+
+    const pageKey = `${resolvedPageSize}-${activePageSize.width}x${activePageSize.height}`;
+    if (body.dataset.paginated === pageKey) return;
+
+    const originalHtml = body.dataset.originalHtml ?? body.innerHTML;
+    body.dataset.originalHtml = originalHtml;
+    body.dataset.paginated = pageKey;
+
+    const styleId = 'resume-preview-pagination-style';
+    let styleTag = doc.getElementById(styleId) as HTMLStyleElement | null;
+    const styleContent = `
+      html, body {
+        height: auto !important;
+        min-height: auto !important;
+        overflow: visible !important;
+      }
+      body {
+        margin: 0;
+        padding: 24px 0;
+        background: #e5e7eb;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+      }
+      .resume-preview-viewport {
+        width: ${activePageSize.width}px;
+        height: ${activePageSize.height}px;
+        overflow: hidden;
+      }
+      .resume-preview-pages {
+        display: flex;
+        flex-direction: row;
+        gap: ${PAGE_GAP_PX}px;
+        align-items: center;
+        width: max-content;
+        transition: transform 240ms ease;
+        will-change: transform;
+      }
+      .resume-preview-page {
+        width: ${activePageSize.width}px;
+        min-height: ${activePageSize.height}px;
+        height: ${activePageSize.height}px;
+        background: #ffffff;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+        box-sizing: border-box;
+        overflow: hidden;
+        display: flex;
+        flex: 0 0 auto;
+      }
+      .resume-preview-page-content {
+        width: 100%;
+        height: 100%;
+        padding: ${PAGE_MARGIN_PX}px;
+        box-sizing: border-box;
+        overflow: hidden;
+      }
+      .resume-preview-page-content > * {
+        box-sizing: border-box;
+      }
+    `.trim();
+
+    if (!styleTag) {
+      styleTag = doc.createElement('style');
+      styleTag.id = styleId;
+      doc.head.appendChild(styleTag);
+    }
+    styleTag.textContent = styleContent;
+
+    const measureWrapper = doc.createElement('div');
+    measureWrapper.style.position = 'absolute';
+    measureWrapper.style.visibility = 'hidden';
+    measureWrapper.style.width = `${activePageSize.width}px`;
+    measureWrapper.style.left = '-99999px';
+    measureWrapper.style.top = '0';
+    measureWrapper.innerHTML = originalHtml;
+    body.appendChild(measureWrapper);
+    const measuredWidth = measureWrapper.scrollWidth || measureWrapper.offsetWidth || activePageSize.width;
+    const measuredHeight = measureWrapper.scrollHeight || measureWrapper.offsetHeight || activePageSize.height;
+    body.removeChild(measureWrapper);
+    body.dataset.measureWidth = String(measuredWidth);
+    body.dataset.measureHeight = String(measuredHeight);
+
+    const temp = doc.createElement('div');
+    temp.innerHTML = originalHtml;
+
+    const candidateRoots = Array.from(temp.children).filter(
+      (el) => !['SCRIPT', 'STYLE'].includes(el.tagName)
+    ) as HTMLElement[];
+    const rootTemplate = candidateRoots.length === 1 ? candidateRoots[0] : null;
+    const sectionNodes = rootTemplate
+      ? Array.from(rootTemplate.childNodes)
+      : Array.from(temp.childNodes);
+
+    const pagesWrapper = doc.createElement('div');
+    pagesWrapper.className = 'resume-preview-pages';
+
+    const viewport = doc.createElement('div');
+    viewport.className = 'resume-preview-viewport';
+    viewport.appendChild(pagesWrapper);
+
+    body.innerHTML = '';
+    body.appendChild(viewport);
+
+    const createPage = () => {
+      const page = doc.createElement('div');
+      page.className = 'resume-preview-page';
+      const content = doc.createElement('div');
+      content.className = 'resume-preview-page-content';
+      page.appendChild(content);
+      pagesWrapper.appendChild(page);
+      return content;
+    };
+
+    let currentPage = createPage();
+    let currentShell: HTMLElement | null = null;
+
+    const createPageShell = () => {
+      if (!rootTemplate) return null;
+      const shell = rootTemplate.cloneNode(false) as HTMLElement;
+      currentPage.appendChild(shell);
+      return shell;
+    };
+
+    currentShell = createPageShell();
+
+    const isContentEmpty = (content: HTMLElement) => {
+      const text = (content.textContent || '').trim();
+      if (text.length > 0) return false;
+      return content.querySelector('*') === null;
+    };
+
+    const nodes = sectionNodes.filter((node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return (node.textContent || '').trim().length > 0;
+      }
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const el = node as Element;
+        if (['SCRIPT', 'STYLE'].includes(el.tagName)) return false;
+      }
+      return true;
+    });
+
+    nodes.forEach((node) => {
+      const target = currentShell ?? currentPage;
+      target.appendChild(node);
+      if (currentPage.scrollHeight <= currentPage.clientHeight) return;
+
+      target.removeChild(node);
+
+      if (!isContentEmpty(target)) {
+        currentPage = createPage();
+        currentShell = createPageShell();
+      }
+      (currentShell ?? currentPage).appendChild(node);
+      if (currentPage.scrollHeight > currentPage.clientHeight) {
+        // Section is taller than a page; allow overflow within this page.
+      }
+    });
+
+    Array.from(pagesWrapper.children).forEach((page) => {
+      const content = page.querySelector('.resume-preview-page-content') as HTMLElement | null;
+      if (content && isContentEmpty(content)) {
+        page.remove();
+      }
+    });
+    if (pagesWrapper.children.length === 0) {
+      createPage();
+    }
+    pagesWrapper.style.transform = 'translateX(0px)';
+  }, [activePageSize.height, activePageSize.width, resolvedPageSize]);
+
+  const updatePreviewPaging = useCallback(() => {
+    const pageHeight = activePageSize.height;
+    const frame = previewFrameRef.current;
+    const pages = frame?.contentDocument?.querySelector('.resume-preview-pages');
+    const count = pages
+      ? Math.max(1, pages.children.length)
+      : Math.max(1, Math.ceil((previewContentHeightRef.current || pageHeight) / pageHeight));
+    setPreviewPageCount(count);
+    setPreviewPage((prev) => Math.min(Math.max(prev, 1), count));
+  }, [activePageSize.height]);
+
+  const updatePreviewFrameSize = useCallback(() => {
+    const frame = previewFrameRef.current;
+    const shell = previewShellRef.current;
+    const card = previewCardRef.current;
+    if (!frame) return;
+    const pageWidth = activePageSize.width;
+    const pageHeight = activePageSize.height;
+    frame.style.width = `${pageWidth}px`;
+    frame.style.height = `${pageHeight}px`;
+    const doc = frame.contentDocument;
+    if (!doc) return;
+    const body = doc.body;
+    const measuredWidth = Number(body.dataset.measureWidth || pageWidth) || pageWidth;
+    const measuredHeight = Number(body.dataset.measureHeight || pageHeight) || pageHeight;
+    const height = pageHeight;
+    const width = pageWidth;
+    if (previewPageSizeMode === 'auto' && !autoDetectLockedRef.current && width > 0) {
+      const ratio = measuredHeight / measuredWidth;
+      const a4Ratio = PAGE_SIZES.a4.height / PAGE_SIZES.a4.width;
+      const letterRatio = PAGE_SIZES.letter.height / PAGE_SIZES.letter.width;
+      const detected = Math.abs(ratio - a4Ratio) <= Math.abs(ratio - letterRatio) ? 'a4' : 'letter';
+      if (detected !== autoDetectedPageSize) {
+        setAutoDetectedPageSize(detected);
+      }
+      autoDetectLockedRef.current = true;
+    }
+    let scale = 1;
+    if (card) {
+      const padding = 40;
+      const availableWidth = Math.max(0, card.clientWidth - padding);
+      const scaleX = availableWidth > 0 ? availableWidth / width : 1;
+      const nextScale = Math.min(1, scaleX);
+      if (Number.isFinite(nextScale) && nextScale > 0) {
+        scale = nextScale;
+        card.style.setProperty('--preview-scale', scale.toFixed(3));
+      }
+    }
+    const safeScale = scale > 0 ? scale : 1;
+    previewScaleRef.current = safeScale;
+    const pages = doc.querySelector('.resume-preview-pages');
+    const pageCount = pages
+      ? Math.max(
+          1,
+          Array.from(pages.children).filter((page) =>
+            (page.querySelector('.resume-preview-page-content')?.textContent || '').trim().length > 0
+            || page.querySelector('.resume-preview-page-content')?.querySelector('*')
+          ).length
+        )
+      : 1;
+    previewContentHeightRef.current = pageCount * activePageSize.height;
+    frame.style.height = `${height}px`;
+    frame.style.width = `${width}px`;
+    if (shell) {
+      shell.style.setProperty('--preview-shell-height', `${height * safeScale}px`);
+      shell.style.setProperty('--preview-shell-width', `${width * safeScale}px`);
+    }
+    updatePreviewPaging();
+  }, [
+    activePageSize.height,
+    activePageSize.width,
+    autoDetectedPageSize,
+    previewPageSizeMode,
+    updatePreviewPaging,
+  ]);
+
+  const syncPreviewPagePosition = useCallback((targetPage: number) => {
+    const frame = previewFrameRef.current;
+    const doc = frame?.contentDocument;
+    if (!doc) return;
+    const pagesWrapper = doc.querySelector('.resume-preview-pages') as HTMLElement | null;
+    if (!pagesWrapper) return;
+    const pageWidth = activePageSize.width;
+    const maxPage = Math.max(1, Math.ceil((previewContentHeightRef.current || activePageSize.height) / activePageSize.height));
+    const clamped = Math.min(maxPage, Math.max(1, targetPage));
+    pagesWrapper.style.transform = `translateX(-${(clamped - 1) * (pageWidth + PAGE_GAP_PX)}px)`;
+  }, [activePageSize.height, activePageSize.width]);
+
+  const scrollPreviewToPage = useCallback((targetPage: number) => {
+    const pageHeight = activePageSize.height;
+    const maxPage = Math.max(1, Math.ceil((previewContentHeightRef.current || pageHeight) / pageHeight));
+    const clamped = Math.min(maxPage, Math.max(1, targetPage));
+    setPreviewPage(clamped);
+    syncPreviewPagePosition(clamped);
+  }, [activePageSize.height, syncPreviewPagePosition]);
+
+  const handlePreviewLoad = useCallback(() => {
+    applyPreviewPagination();
+    requestAnimationFrame(() => {
+      updatePreviewFrameSize();
+    });
+  }, [applyPreviewPagination, updatePreviewFrameSize]);
 
   const normalizeImportKey = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, '');
   const humanizeFileName = (name: string) =>
@@ -932,7 +1180,7 @@ export const Resume = () => {
     }
 
     return undefined;
-  }, [showMobilePreview]);
+  }, []);
 
   const toStringValue = (value: unknown) => {
     if (typeof value === 'string') return value.trim();
@@ -1113,9 +1361,9 @@ export const Resume = () => {
   }, [ensureEditModeReady, findFirstByKeys]);
 
   const handleDownloadPDF = async () => {
-    const html = generatedHTML || (templateSourceHtml
+    const html = templateSourceHtml
       ? renderTemplateWithSchema(templateSourceHtml, buildResumeView())
-      : null);
+      : null;
     if (!html) return;
     const filenameBase = contactName
       || getTemplateFieldValue('name')
@@ -1328,73 +1576,292 @@ export const Resume = () => {
     }
   };
 
-  const livePreviewHtml = useMemo(() => {
-    if (!templateSourceHtml) return null;
-    try {
-      return renderTemplateWithSchema(templateSourceHtml, buildResumeView());
-    } catch (error) {
-      console.error('Preview render failed:', error);
-      return null;
+  const previewHtml = useMemo(() => {
+    if (templateSourceHtml) {
+      try {
+        return renderTemplateWithSchema(templateSourceHtml, buildResumeView());
+      } catch (error) {
+        console.error('Preview render failed:', error);
+        return templatePreviewHtml;
+      }
     }
-  }, [buildResumeView, templateSourceHtml]);
-
-  const previewHtml = generatedHTML || livePreviewHtml || templatePreviewHtml;
-  const scaledPreviewWidth = Math.round(previewSize.width * previewScale);
-
-  useEffect(() => {
-    previewFontsReadyRef.current = false;
-  }, [previewHtml]);
-
-  useEffect(() => {
-    setPreviewPage(0);
-  }, [previewHtml, totalPreviewPages]);
+    return templatePreviewHtml;
+  }, [buildResumeView, templatePreviewHtml, templateSourceHtml]);
 
   useEffect(() => {
     if (!previewHtml) return;
-    const iframe = previewIframeRef.current;
-    if (!iframe) return;
-
-    let resizeObserver: ResizeObserver | null = null;
-    const handleLoad = () => {
-      updatePreviewScale();
-
-      const doc = iframe.contentDocument;
-      if (!doc) return;
-
-      const target = doc.documentElement || doc.body;
-      if (target && 'ResizeObserver' in window) {
-        resizeObserver = new ResizeObserver(() => updatePreviewScale());
-        resizeObserver.observe(target);
-      }
-
-      const images = Array.from(doc.images || []);
-      images.forEach((img) => {
-        if (img.complete) return;
-        img.addEventListener('load', updatePreviewScale, { once: true });
-        img.addEventListener('error', updatePreviewScale, { once: true });
-      });
-    };
-    iframe.addEventListener('load', handleLoad);
-
-    if (iframe.contentDocument?.readyState === 'complete') {
-      updatePreviewScale();
-    }
-
-    return () => {
-      iframe.removeEventListener('load', handleLoad);
-      if (resizeObserver) {
-        resizeObserver.disconnect();
-      }
-    };
-  }, [previewHtml, updatePreviewScale]);
+    const timer = window.setTimeout(() => {
+      applyPreviewPagination();
+      updatePreviewFrameSize();
+    }, 100);
+    return () => window.clearTimeout(timer);
+  }, [applyPreviewPagination, previewHtml, updatePreviewFrameSize]);
 
   useEffect(() => {
-    const frame = previewFrameRef.current;
-    if (!frame) return;
-    const observer = new ResizeObserver(() => updatePreviewScale());
-    observer.observe(frame);
-    return () => observer.disconnect();
-  }, [updatePreviewScale]);
+    if (!previewHtml) {
+      setPreviewPage(1);
+      setPreviewPageCount(1);
+      return;
+    }
+    autoDetectLockedRef.current = false;
+    updatePreviewPaging();
+  }, [previewHtml, updatePreviewPaging]);
+
+  useEffect(() => {
+    syncPreviewPagePosition(previewPage);
+  }, [previewPage, syncPreviewPagePosition]);
+
+  useEffect(() => {
+    if (previewPageSizeMode !== 'auto') return;
+    autoDetectLockedRef.current = false;
+    applyPreviewPagination();
+    setPreviewPage(1);
+    updatePreviewFrameSize();
+  }, [applyPreviewPagination, previewPageSizeMode, updatePreviewFrameSize]);
+
+  useEffect(() => {
+    applyPreviewPagination();
+    setPreviewPage(1);
+    updatePreviewFrameSize();
+  }, [applyPreviewPagination, resolvedPageSize, updatePreviewFrameSize]);
+
+  useEffect(() => {
+    const onResize = () => updatePreviewPaging();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [updatePreviewPaging]);
+
+  useEffect(() => {
+    if (!isEditorRoute) return;
+    const match = findTemplateBySlug(templateId);
+    if (match) {
+      selectTemplate(match.name);
+      setTemplateStep('edit');
+      return;
+    }
+    if (templates.length > 0) {
+      selectTemplate(templates[0].name);
+      setTemplateStep('edit');
+    }
+  }, [findTemplateBySlug, isEditorRoute, selectTemplate, templateId, templates]);
+
+  const getEditorSnapshot = useCallback(() => {
+    return JSON.stringify({
+      contactName,
+      contactRole,
+      contactEmail,
+      contactPhone,
+      contactLocation,
+      contactPhotoUrl,
+      contactPhotoName,
+      summaryText,
+      skillsText,
+      projectsText,
+      customDetails,
+      educationItems,
+      experienceItems,
+      sectionOrder,
+      unlockedSections,
+      activeSectionId,
+      selectedTemplate,
+      templateFieldValues,
+    });
+  }, [
+    activeSectionId,
+    contactEmail,
+    contactLocation,
+    contactName,
+    contactPhone,
+    contactPhotoName,
+    contactPhotoUrl,
+    contactRole,
+    customDetails,
+    educationItems,
+    experienceItems,
+    projectsText,
+    sectionOrder,
+    selectedTemplate,
+    skillsText,
+    summaryText,
+    templateFieldValues,
+    unlockedSections,
+  ]);
+
+  const getEditorSnapshotRef = useRef(getEditorSnapshot);
+
+  useEffect(() => {
+    getEditorSnapshotRef.current = getEditorSnapshot;
+  }, [getEditorSnapshot]);
+
+  const saveSnapshot = useMemo(() => (
+    isEditorRoute ? getEditorSnapshot() : ''
+  ), [getEditorSnapshot, isEditorRoute]);
+
+  useEffect(() => {
+    if (!isEditorRoute) return;
+    setSaveStatus((prev) => (prev === 'saving' ? prev : 'saving'));
+    const timer = window.setTimeout(() => setSaveStatus('saved'), 900);
+    return () => window.clearTimeout(timer);
+  }, [isEditorRoute, saveSnapshot]);
+
+  const applyEditorSnapshot = useCallback((raw: string) => {
+    try {
+      const next = JSON.parse(raw) as Partial<Record<string, unknown>>;
+      isApplyingHistoryRef.current = true;
+      if (typeof next.contactName === 'string') setContactName(next.contactName);
+      if (typeof next.contactRole === 'string') setContactRole(next.contactRole);
+      if (typeof next.contactEmail === 'string') setContactEmail(next.contactEmail);
+      if (typeof next.contactPhone === 'string') setContactPhone(next.contactPhone);
+      if (typeof next.contactLocation === 'string') setContactLocation(next.contactLocation);
+      if (typeof next.contactPhotoUrl === 'string') setContactPhotoUrl(next.contactPhotoUrl);
+      if (typeof next.contactPhotoName === 'string') setContactPhotoName(next.contactPhotoName);
+      if (typeof next.summaryText === 'string') setSummaryText(next.summaryText);
+      if (typeof next.skillsText === 'string') setSkillsText(next.skillsText);
+      if (typeof next.projectsText === 'string') setProjectsText(next.projectsText);
+      if (Array.isArray(next.customDetails)) setCustomDetails(next.customDetails as any);
+      if (Array.isArray(next.educationItems)) setEducationItems(next.educationItems as any);
+      if (Array.isArray(next.experienceItems)) setExperienceItems(next.experienceItems as any);
+      if (Array.isArray(next.sectionOrder)) setSectionOrder(next.sectionOrder as any);
+      if (Array.isArray(next.unlockedSections)) setUnlockedSections(next.unlockedSections as any);
+      if (typeof next.activeSectionId === 'string' || next.activeSectionId === null) {
+        setActiveSectionId(next.activeSectionId as any);
+      }
+    } finally {
+      // let state settle before we allow pushing history again
+      window.setTimeout(() => {
+        isApplyingHistoryRef.current = false;
+      }, 0);
+    }
+  }, []);
+
+  const canUndo = undoStackRef.current.length > 1;
+  const canRedo = redoStackRef.current.length > 0;
+
+  const handleUndo = useCallback(() => {
+    if (!isEditorRoute) return;
+    if (undoStackRef.current.length <= 1) return;
+    const current = undoStackRef.current.pop();
+    if (current) redoStackRef.current.push(current);
+    const prev = undoStackRef.current[undoStackRef.current.length - 1];
+    if (prev) applyEditorSnapshot(prev);
+  }, [applyEditorSnapshot, isEditorRoute]);
+
+  const handleRedo = useCallback(() => {
+    if (!isEditorRoute) return;
+    const next = redoStackRef.current.pop();
+    if (!next) return;
+    undoStackRef.current.push(next);
+    applyEditorSnapshot(next);
+  }, [applyEditorSnapshot, isEditorRoute]);
+
+  useEffect(() => {
+    if (!isEditorRoute) return;
+    // init history with current snapshot
+    const initial = getEditorSnapshot();
+    undoStackRef.current = [initial];
+    redoStackRef.current = [];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditorRoute]);
+
+  useEffect(() => {
+    if (!isEditorRoute) return;
+    if (isApplyingHistoryRef.current) return;
+
+    if (historyTimerRef.current) window.clearTimeout(historyTimerRef.current);
+    historyTimerRef.current = window.setTimeout(() => {
+      const snap = getEditorSnapshot();
+      const last = undoStackRef.current[undoStackRef.current.length - 1];
+      if (snap === last) return;
+      undoStackRef.current.push(snap);
+      // keep history bounded
+      if (undoStackRef.current.length > 80) undoStackRef.current.shift();
+      redoStackRef.current = [];
+    }, 400);
+
+    return () => {
+      if (historyTimerRef.current) window.clearTimeout(historyTimerRef.current);
+    };
+  }, [
+    getEditorSnapshot,
+    isEditorRoute,
+    contactName,
+    contactRole,
+    contactEmail,
+    contactPhone,
+    contactLocation,
+    contactPhotoUrl,
+    contactPhotoName,
+    summaryText,
+    skillsText,
+    projectsText,
+    experienceItems,
+    educationItems,
+    customDetails,
+    sectionOrder,
+    unlockedSections,
+    activeSectionId,
+    templateFieldValues,
+  ]);
+
+  useEffect(() => {
+    if (!isEditorRoute) {
+      restoreKeyRef.current = null;
+      return;
+    }
+    const storageKey = `hirevo:resume-editor:${templateId || 'default'}:${user?.id || 'anon'}`;
+    if (restoreKeyRef.current === storageKey) return;
+    restoreKeyRef.current = storageKey;
+    const saved = window.localStorage.getItem(storageKey);
+    if (saved) {
+      applyEditorSnapshot(saved);
+      undoStackRef.current = [saved];
+      redoStackRef.current = [];
+    } else {
+      const initial = getEditorSnapshotRef.current();
+      undoStackRef.current = [initial];
+      redoStackRef.current = [];
+    }
+  }, [applyEditorSnapshot, isEditorRoute, templateId, user?.id]);
+
+  useEffect(() => {
+    if (!isEditorRoute) return;
+    const storageKey = `hirevo:resume-editor:${templateId || 'default'}:${user?.id || 'anon'}`;
+    if (autosaveTimerRef.current) window.clearInterval(autosaveTimerRef.current);
+    autosaveTimerRef.current = window.setInterval(() => {
+      if (isApplyingHistoryRef.current) return;
+      window.localStorage.setItem(storageKey, getEditorSnapshot());
+    }, 2500);
+    return () => {
+      if (autosaveTimerRef.current) window.clearInterval(autosaveTimerRef.current);
+    };
+  }, [getEditorSnapshot, isEditorRoute, templateId, user?.id]);
+
+  useEffect(() => {
+    if (!isEditorRoute) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toLowerCase().includes('mac');
+      const mod = isMac ? e.metaKey : e.ctrlKey;
+      if (!mod) return;
+      if (e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) handleRedo();
+        else handleUndo();
+      }
+      if (e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', onKeyDown, { capture: true } as any);
+  }, [handleRedo, handleUndo, isEditorRoute]);
+
+  const resumeScore = useMemo(() => {
+    const values = Object.values(sectionCompletion);
+    if (values.length === 0) return 0;
+    const completed = values.filter(Boolean).length;
+    return Math.round((completed / values.length) * 100);
+  }, [sectionCompletion]);
 
   useEffect(() => {
     // Recover from any stale body scroll lock when entering the resume editor.
@@ -1403,16 +1870,6 @@ export const Resume = () => {
       document.body.classList.remove('preview-active');
     };
   }, []);
-
-  useEffect(() => {
-    if (showMobilePreview) {
-      document.body.classList.add('preview-active');
-      return () => document.body.classList.remove('preview-active');
-    }
-
-    document.body.classList.remove('preview-active');
-    return undefined;
-  }, [showMobilePreview]);
 
   useEffect(() => {
     if (initialResumeReady) return;
@@ -1440,72 +1897,78 @@ export const Resume = () => {
     return <AppLoader variant="full" />;
   }
 
+  const hasTemplateIssue = Boolean(templateError) || (!templateLoading && templates.length === 0);
+  const templateIssueMessage = templateError
+    ? templateError
+    : 'No templates available. Upload HTML files to the resume_templates bucket.';
+
 
   return (
-    <div className={`resume-page ${isTemplateSelection ? 'is-template-mode' : ''}`}>
-      <section className={`resume-hero ${isTemplateSelection ? 'is-templates' : ''}`}>
-        <div className="resume-hero-content">
-          {isTemplateSelection ? (
-            <>
-              <h1>Resume <span className="highlight">Templates</span></h1>
-              <p className="subtitle">
-                Each resume template is designed to help you get hired faster. Pick a layout and start editing in seconds.
-              </p>
-              <div className="resume-hero-meta">
-                <span>{templateLoading ? 'Loading templates...' : `${filteredTemplates.length} templates ready`}</span>
-                <span>ATS-friendly layouts</span>
-                <span>One-click editing</span>
-              </div>
-              <div className="resume-hero-actions">
-                <button
-                  type="button"
-                  className="btn btn-primary btn-lg"
-                  onClick={handleCreateResumeClick}
-                >
-                  Create my resume
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-lg"
-                  onClick={handleUploadResumeClick}
-                  disabled={uploadingResume}
-                >
-                  {uploadingResume ? 'Uploading...' : 'Upload my resume'}
-                </button>
-                <input
-                  ref={resumeUploadInputRef}
-                  type="file"
-                  accept=".pdf,.doc,.docx,.txt"
-                  style={{ display: 'none' }}
-                  onChange={handleUploadResumeFile}
-                />
-              </div>
-              <div className="template-filters">
-                {templateFilters.map((filter) => (
+    <div className={`resume-page ${isTemplateSelection ? 'is-template-mode' : ''} ${isEditorRoute ? 'is-editor-route' : ''}`}>
+      {!isEditorRoute && (
+        <section className={`resume-hero ${isTemplateSelection ? 'is-templates' : ''}`}>
+          <div className="resume-hero-content">
+            {isTemplateSelection ? (
+              <>
+                <h1>Resume <span className="highlight">Templates</span></h1>
+                <p className="subtitle">
+                  Each resume template is designed to help you get hired faster. Pick a layout and start editing in seconds.
+                </p>
+                <div className="resume-hero-meta">
+                  <span>{templateLoading ? 'Loading templates...' : `${filteredTemplates.length} templates ready`}</span>
+                  <span>ATS-friendly layouts</span>
+                  <span>One-click editing</span>
+                </div>
+                <div className="resume-hero-actions">
                   <button
-                    key={filter}
                     type="button"
-                    className={`template-filter ${activeTemplateFilter === filter ? 'active' : ''}`}
-                    onClick={() => setActiveTemplateFilter(filter)}
+                    className="btn btn-primary btn-lg"
+                    onClick={handleCreateResumeClick}
                   >
-                    {filter}
+                    Create my resume
                   </button>
-                ))}
-              </div>
-            </>
-          ) : (
-            <>
-              <h1>Build Your <span className="highlight">Resume</span></h1>
-              <p className="subtitle">Create a modern resume with live preview and ready-to-download formats.</p>
-              <div className="resume-hero-meta">
-                <span>Template: {selectedTemplateLabel}</span>
-                <span>{sectionOrder.length} editable sections</span>
-                <span>Live preview enabled</span>
-              </div>
-            </>
-          )}
-        </div>
-      </section>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-lg"
+                    onClick={handleUploadResumeClick}
+                    disabled={uploadingResume}
+                  >
+                    {uploadingResume ? 'Uploading...' : 'Upload my resume'}
+                  </button>
+                  <input
+                    ref={resumeUploadInputRef}
+                    type="file"
+                    accept=".pdf,.doc,.docx,.txt"
+                    style={{ display: 'none' }}
+                    onChange={handleUploadResumeFile}
+                  />
+                </div>
+                <div className="template-filters">
+                  {templateFilters.map((filter) => (
+                    <button
+                      key={filter}
+                      type="button"
+                      className={`template-filter ${activeTemplateFilter === filter ? 'active' : ''}`}
+                      onClick={() => setActiveTemplateFilter(filter)}
+                    >
+                      {filter}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <h1>Build Your <span className="highlight">Resume</span></h1>
+                <p className="subtitle">Create a modern resume with ready-to-download formats.</p>
+                <div className="resume-hero-meta">
+                  <span>Template: {selectedTemplateLabel}</span>
+                  <span>{sectionOrder.length} editable sections</span>
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+      )}
       <div className="resume-content">
         {isTemplateSelection ? (
           <section className="template-gallery">
@@ -1557,74 +2020,149 @@ export const Resume = () => {
           <>
             <div className="resume-topbar">
               <div className="resume-topbar-left">
-                <div className="resume-topbar-title">Resume Editor</div>
-                <div className="resume-topbar-subtitle">{selectedTemplateLabel}</div>
+                <button type="button" className="topbar-app-btn" aria-label="Menu">
+                  <span className="dot-grid">
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                </button>
+                <div className="topbar-title-group">
+                  <div className="resume-topbar-title">{selectedTemplateLabel || 'Untitled'}</div>
+                  <div className="topbar-language">
+                    <span className="flag">US</span>
+                    <span>English</span>
+                  </div>
+                </div>
               </div>
               <div className="resume-topbar-center">
-                <button type="button" className="resume-topbar-tab is-active">Edit</button>
-                <button type="button" className="resume-topbar-tab" disabled>Customize</button>
+                <button type="button" className="resume-topbar-pill is-active">Edit</button>
+                <button type="button" className="resume-topbar-pill">Customize</button>
+                <button type="button" className="resume-topbar-pill">AI Review</button>
+                <button type="button" className="resume-topbar-pill has-badge">
+                  Tailor
+                  <span className="pill-badge">NEW</span>
+                </button>
               </div>
               <div className="resume-topbar-right">
-                <button type="button" className="resume-topbar-download" onClick={handleDownloadPDF}>
-                  Download
-                </button>
-              </div>
-            </div>
-            <div className="card ai-generator-section mt-8">
-            <div className="card-header border-b pb-4 mb-6">
-              <Zap size={24} className="text-primary" />
-              <h2 className="text-2xl font-bold">Resume Builder</h2>
-            </div>
-
-            <p className="text-gray-600 mb-6">
-              Build your resume with a live preview. Drag sections to reorder and add multiple experiences or education entries.
-            </p>
-
-            <div className="resume-toolbar-row">
-              <div className="text-sm text-gray-600">
-                Selected Template: <span className="font-semibold text-gray-800">{selectedTemplateLabel}</span>
-              </div>
-                <div className="resume-toolbar-actions">
-                  <button
-                    type="button"
-                    className="resume-action-btn ghost"
-                    onClick={fillWithDemoData}
-                    disabled={isFillingDemo}
-                  >
-                    {isFillingDemo ? 'Filling...' : 'Fill Sample Data'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleGenerateResume}
-                    className="resume-action-btn primary"
-                  disabled={generating}
-                >
-                  {generating ? 'Refreshing...' : 'Refresh Preview'}
-                </button>
                 <button
                   type="button"
-                  onClick={() => setTemplateStep('choose')}
-                  className="resume-action-btn ghost"
+                  className="resume-topbar-outline"
+                  onClick={() => navigate('/resume/templates')}
                 >
                   Change Template
                 </button>
+                <button type="button" className="resume-topbar-download" onClick={handleDownloadPDF}>
+                  Download <span className="caret" aria-hidden="true" />
+                </button>
+                <button type="button" className="resume-topbar-icon" aria-label="Settings">
+                  <Settings size={18} />
+                </button>
               </div>
             </div>
+            <div className={`resume-workspace ${isEditorRoute ? 'is-editor' : ''}`}>
+              {!isEditorRoute && (
+                <>
+                  <div className="card-header border-b pb-4 mb-6">
+                    <Zap size={24} className="text-primary" />
+                    <h2 className="text-2xl font-bold">Resume Builder</h2>
+                  </div>
 
-            {templateSourceHtml && templateFields.length === 0 && (
-              <div className="text-sm text-gray-500 mb-6">
-                This template has no placeholders. Use a dynamic template to enable live editing.
-              </div>
-            )}
+                  <p className="text-gray-600 mb-6">
+                    Build your resume with guided sections. Drag sections to reorder and add multiple experiences or education entries.
+                  </p>
+                </>
+              )}
+
+              {!isEditorRoute && (
+                <div className="resume-toolbar-row">
+                  <div className="text-sm text-gray-600">
+                    Selected Template: <span className="font-semibold text-gray-800">{selectedTemplateLabel}</span>
+                  </div>
+                  <div className="resume-toolbar-actions">
+                    <button
+                      type="button"
+                      className="resume-action-btn ghost"
+                      onClick={fillWithDemoData}
+                      disabled={isFillingDemo}
+                    >
+                      {isFillingDemo ? 'Filling...' : 'Fill Sample Data'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/resume/templates')}
+                      className="resume-action-btn ghost"
+                    >
+                      Switch Template
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {isEditorRoute && hasTemplateIssue && (
+                <div className={`template-state ${templateError ? 'template-error' : ''} template-state-editor`}>
+                  <div className="template-issue-title">Resume templates unavailable</div>
+                  <div className="template-issue-body">{templateIssueMessage}</div>
+                  <div className="template-issue-actions">
+                    <button type="button" className="btn btn-secondary" onClick={() => navigate('/resume/templates')}>
+                      View templates
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => {
+                        if (selectedTemplate) {
+                          selectTemplate(selectedTemplate);
+                        } else {
+                          refreshTemplates();
+                        }
+                      }}
+                    >
+                      Try again
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {templateSourceHtml && templateFields.length === 0 && (
+                <div className="text-sm text-gray-500 mb-6">
+                  This template has no placeholders. Use a dynamic template to enable live editing.
+                </div>
+              )}
 
             <div className="resume-builder-grid">
               <div className="builder-panel">
-                {isStepMode && currentStepId && (
+                {showProgressCard && (
+                  <div className="builder-progress-card">
+                    <div className="progress-header">
+                      <span className="progress-badge">{resumeScore}%</span>
+                      <span className="progress-title">Resume completeness</span>
+                    </div>
+                    <div className="progress-bar">
+                      <span className="progress-fill" style={{ width: `${resumeScore}%` }} />
+                    </div>
+                    <div className="progress-actions">
+                      <button type="button" className="ai-chip">
+                        Try AI profile summary
+                      </button>
+                      <button type="button" className="ai-chip">
+                        Create quick cover letter
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {isStepMode && showStepChrome && currentStepId && (
                   <div className="step-header">
                     <div className="step-header-title">
                       <span className="step-count">Step {currentStepIndex + 1} of {totalSteps}</span>
                       <h3>{{
-                        contact: 'Contact',
+                        contact: 'Personal Details',
                         summary: 'Professional Summary',
                         experience: 'Work Experience',
                         projects: 'Projects',
@@ -1658,7 +2196,7 @@ export const Resume = () => {
                 <div className="space-y-5">
                   {sectionOrder.map((sectionId) => {
                     const sectionTitles: Record<string, string> = {
-                      contact: 'Contact',
+                      contact: 'Personal Details',
                       summary: 'Professional Summary',
                       experience: 'Work Experience',
                       projects: 'Projects',
@@ -1678,112 +2216,154 @@ export const Resume = () => {
 
                     const sectionContent = {
                       contact: (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {showNameField && (
-                            <div className="form-group">
-                              <label className="block text-sm font-semibold mb-2 text-gray-700">Full Name *</label>
-                              <input
-                                placeholder="e.g. John Doe"
-                                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                                value={contactName}
-                                onChange={(e) => setContactName(e.target.value)}
-                              />
-                            </div>
-                          )}
-                          {showRoleField && (
-                            <div className="form-group">
-                              <label className="block text-sm font-semibold mb-2 text-gray-700">Target Role *</label>
-                              <input
-                                placeholder="e.g. Software Engineer"
-                                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                                value={contactRole}
-                                onChange={(e) => setContactRole(e.target.value)}
-                              />
-                            </div>
-                          )}
-                          {showEmailField && (
-                            <div className="form-group">
-                              <label className="block text-sm font-semibold mb-2 text-gray-700">Email</label>
-                              <input
-                                type="email"
-                                placeholder="you@email.com"
-                                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                                value={contactEmail}
-                                onChange={(e) => setContactEmail(e.target.value)}
-                              />
-                            </div>
-                          )}
-                          {showPhoneField && (
-                            <div className="form-group">
-                              <label className="block text-sm font-semibold mb-2 text-gray-700">Phone</label>
-                              <input
-                                type="tel"
-                                placeholder="(555) 555-1234"
-                                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                                value={contactPhone}
-                                onChange={(e) => setContactPhone(e.target.value)}
-                              />
-                            </div>
-                          )}
-                          {showLocationField && (
-                            <div className="form-group">
-                              <label className="block text-sm font-semibold mb-2 text-gray-700">Location</label>
-                              <input
-                                placeholder="City, Country"
-                                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                                value={contactLocation}
-                                onChange={(e) => setContactLocation(e.target.value)}
-                              />
-                            </div>
-                          )}
-                          {showPhotoField && (
-                            <div className="form-group md:col-span-2">
-                              <label className="block text-sm font-semibold mb-2 text-gray-700">Profile Photo (optional)</label>
-                              <div className="flex flex-col gap-3">
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none bg-white"
-                                  onChange={(e) => handlePhotoUpload(e.target.files?.[0])}
-                                />
-                                {(contactPhotoUrl || contactPhotoName) && (
-                                  <div className="flex items-center gap-3">
-                                    {contactPhotoUrl && (
-                                      <img
-                                        src={contactPhotoUrl}
-                                        alt="Profile preview"
-                                        className="w-12 h-12 rounded-full object-cover border border-gray-200"
-                                        loading="lazy"
-                                        decoding="async"
-                                        width={48}
-                                        height={48}
-                                      />
+                        <div className="contact-grid">
+                          <div className="contact-fields">
+                            <div className="contact-top-row">
+                              {showRoleField && (
+                                <div className="form-group">
+                                  <label className="block text-sm font-semibold mb-2 text-gray-700">Job Target</label>
+                                  <input
+                                    placeholder="e.g. Software Engineer"
+                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                    value={contactRole}
+                                    onChange={(e) => setContactRole(e.target.value)}
+                                  />
+                                </div>
+                              )}
+                              {showPhotoField && (
+                                <div className="contact-photo-card">
+                                  <div className="photo-preview">
+                                    {contactPhotoUrl ? (
+                                      <img src={contactPhotoUrl} alt="Profile preview" />
+                                    ) : (
+                                      <div className="photo-placeholder">No photo</div>
                                     )}
-                                    <div className="text-sm text-gray-600">{contactPhotoName || 'No photo selected'}</div>
+                                  </div>
+                                  <div className="photo-actions">
+                                    <label className="photo-action" htmlFor="contact-photo-input">
+                                      <Pencil size={14} />
+                                      Edit photo
+                                    </label>
                                     <button
                                       type="button"
-                                      className="text-xs text-red-600 hover:text-red-700 ml-auto"
+                                      className="photo-action danger"
                                       onClick={() => handlePhotoUpload(undefined)}
                                     >
-                                      Remove
+                                      <Trash2 size={14} />
+                                      Delete
                                     </button>
                                   </div>
-                                )}
-                                <p className="text-xs text-gray-500">Upload a JPG or PNG from your device.</p>
+                                  <input
+                                    id="contact-photo-input"
+                                    type="file"
+                                    accept="image/*"
+                                    className="photo-input"
+                                    onChange={(e) => handlePhotoUpload(e.target.files?.[0])}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {showNameField && (
+                                <>
+                                  <div className="form-group">
+                                    <label className="block text-sm font-semibold mb-2 text-gray-700">First Name</label>
+                                    <input
+                                      placeholder="It's"
+                                      className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                      value={contactNameParts.first}
+                                      onChange={(e) => updateContactNameParts(e.target.value, contactNameParts.last)}
+                                    />
+                                  </div>
+                                  <div className="form-group">
+                                    <label className="block text-sm font-semibold mb-2 text-gray-700">Last Name</label>
+                                    <input
+                                      placeholder="Coder"
+                                      className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                      value={contactNameParts.last}
+                                      onChange={(e) => updateContactNameParts(contactNameParts.first, e.target.value)}
+                                    />
+                                  </div>
+                                </>
+                              )}
+                              {showEmailField && (
+                                <div className="form-group">
+                                  <label className="block text-sm font-semibold mb-2 text-gray-700">Email</label>
+                                  <input
+                                    type="email"
+                                    placeholder="you@email.com"
+                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                    value={contactEmail}
+                                    onChange={(e) => setContactEmail(e.target.value)}
+                                  />
+                                </div>
+                              )}
+                              {showPhoneField && (
+                                <div className="form-group">
+                                  <label className="block text-sm font-semibold mb-2 text-gray-700">Phone</label>
+                                  <input
+                                    type="tel"
+                                    placeholder="(555) 555-1234"
+                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                    value={contactPhone}
+                                    onChange={(e) => setContactPhone(e.target.value)}
+                                  />
+                                </div>
+                              )}
+                              <div className="form-group">
+                                <label className="block text-sm font-semibold mb-2 text-gray-700">LinkedIn URL</label>
+                                <input
+                                  placeholder="linkedin.com/in/you"
+                                  className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                  value={getTemplateFieldValue('linkedin')}
+                                  onChange={(e) => setTemplateFieldValue('linkedin', e.target.value)}
+                                />
+                              </div>
+                              <div className="form-group">
+                                <label className="block text-sm font-semibold mb-2 text-gray-700">Postal Code</label>
+                                <input
+                                  placeholder="Postal code"
+                                  className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                  value={getTemplateFieldValue('postal_code')}
+                                  onChange={(e) => setTemplateFieldValue('postal_code', e.target.value)}
+                                />
+                              </div>
+                              {showLocationField && (
+                                <div className="form-group">
+                                  <label className="block text-sm font-semibold mb-2 text-gray-700">City, State</label>
+                                  <input
+                                    placeholder="City, State"
+                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                    value={contactLocation}
+                                    onChange={(e) => setContactLocation(e.target.value)}
+                                  />
+                                </div>
+                              )}
+                              <div className="form-group">
+                                <label className="block text-sm font-semibold mb-2 text-gray-700">Country</label>
+                                <input
+                                  placeholder="Country"
+                                  className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                  value={getTemplateFieldValue('country')}
+                                  onChange={(e) => setTemplateFieldValue('country', e.target.value)}
+                                />
                               </div>
                             </div>
-                          )}
+                            <div className="contact-footer">
+                              <button type="button" className="add-details-btn">Add more details</button>
+                              <button type="button" className="ask-ai-btn">Ask AI writer</button>
+                            </div>
+                          </div>
                         </div>
                       ),
                       summary: (
                         <div className="form-group">
                           <label className="block text-sm font-semibold mb-2 text-gray-700">Summary</label>
-                          <textarea
-                            placeholder="Write a concise summary of your profile..."
-                            className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-y"
-                            rows={4}
+                          <RichTextEditor
                             value={summaryText}
-                            onChange={(e) => setSummaryText(e.target.value)}
+                            onChange={setSummaryText}
+                            placeholder="Write a concise summary of your profile..."
+                            minHeight={160}
                           />
                         </div>
                       ),
@@ -1832,12 +2412,11 @@ export const Resume = () => {
                                 </div>
                                 <div className="form-group md:col-span-2">
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Details (one bullet per line)</label>
-                                  <textarea
-                                    placeholder="Built X feature...\nImproved Y by 20%..."
-                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-y"
-                                    rows={4}
+                                  <RichTextEditor
                                     value={item.details}
-                                    onChange={(e) => updateExperienceItem(item.id, { details: e.target.value })}
+                                    onChange={(value) => updateExperienceItem(item.id, { details: value })}
+                                    placeholder="Built X feature...\nImproved Y by 20%..."
+                                    minHeight={140}
                                   />
                                 </div>
                               </div>
@@ -1854,12 +2433,11 @@ export const Resume = () => {
                       projects: (
                         <div className="form-group">
                           <label className="block text-sm font-semibold mb-2 text-gray-700">Projects (one per line)</label>
-                          <textarea
-                            placeholder="Project A - brief description..."
-                            className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-y"
-                            rows={4}
+                          <RichTextEditor
                             value={projectsText}
-                            onChange={(e) => setProjectsText(e.target.value)}
+                            onChange={setProjectsText}
+                            placeholder="Project A - brief description..."
+                            minHeight={140}
                           />
                         </div>
                       ),
@@ -1908,12 +2486,11 @@ export const Resume = () => {
                                 </div>
                                 <div className="form-group md:col-span-2">
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Details (one bullet per line)</label>
-                                  <textarea
-                                    placeholder="Honors, GPA, coursework..."
-                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-y"
-                                    rows={3}
+                                  <RichTextEditor
                                     value={item.details}
-                                    onChange={(e) => updateEducationItem(item.id, { details: e.target.value })}
+                                    onChange={(value) => updateEducationItem(item.id, { details: value })}
+                                    placeholder="Honors, GPA, coursework..."
+                                    minHeight={120}
                                   />
                                 </div>
                               </div>
@@ -2010,10 +2587,13 @@ export const Resume = () => {
                         >
                           <span className="drag-handle">::</span>
                           <h3>{sectionTitle}</h3>
+                          <span className="ai-help-btn">
+                            Get help with writing
+                          </span>
                           <span className={`section-status ${isComplete ? 'complete' : ''}`}>
                             {isComplete ? 'Completed' : 'In progress'}
                           </span>
-                          <span className="section-toggle">{isExpanded ? '▾' : '▸'}</span>
+                          <span className={`section-toggle ${isExpanded ? 'is-open' : ''}`} aria-hidden="true" />
                         </button>
                         {isExpanded && (
                           <div className="builder-section-body" onKeyDownCapture={handleSectionEnterKey}>
@@ -2035,6 +2615,34 @@ export const Resume = () => {
                     );
                   })}
                 </div>
+                {isStepMode && showStepChrome && (
+                  <div className="step-footer">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={goPrevStep}
+                      disabled={currentStepIndex === 0}
+                    >
+                      Back
+                    </button>
+                    <div className="step-dots">
+                      {stepSections.map((_, index) => (
+                        <span
+                          key={`step-dot-${index}`}
+                          className={`step-dot ${index === currentStepIndex ? 'active' : ''}`}
+                        />
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={goNextStep}
+                      disabled={currentStepIndex >= totalSteps - 1}
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
 
                 {generateError && (
                   <div className="p-4 bg-red-50 text-red-600 rounded-lg flex items-center gap-2 mt-4">
@@ -2043,118 +2651,63 @@ export const Resume = () => {
                   </div>
                 )}
 
-                {/* Mobile Only: Generate Resume Button */}
-                <div className="mt-6 md:hidden">
-                  <button
-                    type="button"
-                    onClick={handleMobileGenerate}
-                    className="w-full btn btn-primary py-3 font-bold text-lg shadow-lg"
-                  >
-                    Generate Resume & Preview
-                  </button>
-                </div>
               </div>
-
-              <div className={`builder-preview ${showMobilePreview ? 'is-visible' : ''}`}>
-                <div className="builder-preview-header">
-                  <div className="flex items-center gap-2">
-                    {/* Mobile Only: Back Button */}
-                    <button
-                      onClick={() => setShowMobilePreview(false)}
-                      className="md:hidden p-2 -ml-2 text-gray-600 hover:text-gray-900"
-                    >
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
-                    </button>
-                    <h3 className="text-lg font-semibold">Live Preview</h3>
-                  </div>
-                  <div className="preview-controls">
-                    <div className="preview-pager">
+              <div className="builder-preview-panel">
+                <div className="preview-card" ref={previewCardRef}>
+                  <div className="preview-card-body" ref={previewBodyRef} onScroll={updatePreviewPaging}>
+                    {previewHtml ? (
+                      <div className="preview-iframe-shell" ref={previewShellRef}>
+                        <iframe
+                          title="Resume preview"
+                          srcDoc={previewHtml}
+                          className="preview-iframe"
+                          scrolling="no"
+                          ref={previewFrameRef}
+                          onLoad={handlePreviewLoad}
+                        />
+                      </div>
+                    ) : (
+                      <div className="preview-empty">
+                        Select a template to preview your resume.
+                      </div>
+                    )}
+                    <div className="preview-overlay">
                       <button
                         type="button"
-                        className="preview-pager-btn"
-                        onClick={() => setPreviewPage((p) => Math.max(0, p - 1))}
-                        disabled={clampedPreviewPage === 0}
+                        className="preview-overlay-btn"
+                        disabled={previewPage <= 1}
+                        onClick={() => scrollPreviewToPage(previewPage - 1)}
                       >
-                        ‹
+                        &lt;
                       </button>
-                      <span className="preview-pager-text">
-                        {clampedPreviewPage + 1} / {totalPreviewPages}
-                      </span>
+                      <span className="preview-overlay-text">{previewPage} / {previewPageCount}</span>
                       <button
                         type="button"
-                        className="preview-pager-btn"
-                        onClick={() => setPreviewPage((p) => Math.min(totalPreviewPages - 1, p + 1))}
-                        disabled={clampedPreviewPage >= totalPreviewPages - 1}
+                        className="preview-overlay-btn"
+                        disabled={previewPage >= previewPageCount}
+                        onClick={() => scrollPreviewToPage(previewPage + 1)}
                       >
-                        ›
+                        &gt;
                       </button>
-                    </div>
-                    <button
-                      onClick={handleDownloadPDF}
-                      className="bg-green-600 text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-green-700 transition flex items-center gap-2 shadow-md"
-                    >
-                      <Download size={16} />
-                      PDF
-                    </button>
-                  </div>
-                </div>
-
-                <div className="builder-preview-frame" ref={previewFrameRef}>
-                  {showMobilePreview && generating && (
-                    <div className="mobile-preview-loading" role="status" aria-live="polite">
-                      <div className="loading-spinner" />
-                      <div className="loading-text">Generating your resume...</div>
-                    </div>
-                  )}
-                  {previewHtml ? (
-                    <div
-                      className="preview-frame-inner"
-                      style={{
-                        width: `${scaledPreviewWidth}px`,
-                        height: `${scaledPageHeight}px`,
-                      }}
-                    >
-                      <div
-                        className="preview-frame-content"
-                        style={{
-                          width: `${previewSize.width}px`,
-                          height: `${previewSize.height}px`,
-                          transform: `scale(${previewScale})`,
-                          transformOrigin: 'top left',
-                        }}
-                      >
-                        <div
-                          className="preview-page-shift"
-                          style={{
-                            transform: `translateY(-${clampedPreviewPage * A4_HEIGHT_PX}px)`,
-                          }}
-                        >
-                          <iframe
-                            id="generated-resume"
-                            ref={previewIframeRef}
-                            title="Generated resume"
-                            srcDoc={previewHtml}
-                            scrolling="no"
-                            style={{
-                              width: `${previewSize.width}px`,
-                              height: `${previewSize.height}px`,
-                              border: '0',
-                              display: 'block',
-                              background: '#ffffff',
-                            }}
-                          />
-                        </div>
+                      <div className="preview-overlay-size">
+                        {pageSizeOptions.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            className={`preview-size-btn ${previewPageSizeMode === option ? 'is-active' : ''}`}
+                            onClick={() => setPreviewPageSizeMode(option)}
+                            title={
+                              option === 'auto'
+                                ? `Auto (${PAGE_SIZES[resolvedPageSize].label})`
+                                : PAGE_SIZES[option].label
+                            }
+                          >
+                            {option === 'auto' ? 'Auto' : PAGE_SIZES[option].label}
+                          </button>
+                        ))}
                       </div>
                     </div>
-                  ) : generateError ? (
-                    <div className="text-sm text-red-600 p-6 text-center">
-                      {generateError}
-                    </div>
-                  ) : (
-                    <div className="text-sm text-gray-500 p-6 text-center">
-                      Select a template to preview your resume.
-                    </div>
-                  )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -2164,6 +2717,17 @@ export const Resume = () => {
       </div>
 
       <style>{`
+        .resume-editor-layout {
+          min-height: 100vh;
+          background: #eef2f7;
+        }
+
+        .resume-editor-layout .resume-page {
+          height: 100vh;
+          overflow: hidden;
+          background: #eef2f7;
+        }
+
         .resume-page {
           background: #f8fffe;
           font-family: var(--font-family);
@@ -2175,8 +2739,8 @@ export const Resume = () => {
         }
 
         .resume-page:not(.is-template-mode) {
-           height: auto;
-           overflow-y: auto;
+           height: 100vh;
+           overflow: hidden;
         }
 
         .resume-page.is-template-mode {
@@ -2273,29 +2837,97 @@ export const Resume = () => {
           width: 100%;
           display: flex;
           flex-direction: column;
-          gap: var(--spacing-xl);
-          padding: 0 24px 32px;
+          gap: 16px;
+          padding: 12px 16px 16px;
           flex: 1;
-          min-height: calc(100vh - 220px);
+          overflow: hidden;
+        }
+
+        .resume-page.is-editor-route .resume-content {
+          padding: 0;
+          height: 100%;
         }
 
         .resume-topbar {
           display: grid;
-          grid-template-columns: 1fr auto 1fr;
+          grid-template-columns: auto 1fr auto;
           align-items: center;
           gap: 16px;
-          padding: 10px 16px;
-          margin: 12px 24px 0;
-          border: 1px solid #e2e8f0;
-          border-radius: 14px;
+          padding: 12px 20px;
+          margin: 0;
+          border-bottom: 1px solid #e2e8f0;
           background: #ffffff;
-          box-shadow: 0 10px 22px -18px rgba(15, 23, 42, 0.35);
+          box-shadow: 0 6px 16px -16px rgba(15, 23, 42, 0.45);
+          position: sticky;
+          top: 0;
+          z-index: 50;
+        }
+
+        .resume-page.is-editor-route .resume-topbar {
+          position: fixed;
+          left: 0;
+          right: 0;
+          top: 0;
+          border-radius: 0;
+        }
+
+        .resume-workspace {
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          border-radius: 18px;
+          padding: 18px;
+          box-shadow: 0 14px 26px -22px rgba(15, 23, 42, 0.35);
+        }
+
+        .resume-workspace.is-editor {
+          background: #f1f5f9;
+          border: 0;
+          box-shadow: none;
+          padding: 16px;
+          border-radius: 0;
+          height: calc(100vh - 72px);
+          margin-top: 72px;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+          overflow: hidden;
         }
 
         .resume-topbar-left {
           display: flex;
-          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .topbar-app-btn {
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .dot-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 4px);
           gap: 4px;
+        }
+
+        .dot-grid span {
+          width: 4px;
+          height: 4px;
+          border-radius: 999px;
+          background: #64748b;
+          display: block;
+        }
+
+        .topbar-title-group {
+          display: flex;
+          align-items: center;
+          gap: 14px;
         }
 
         .resume-topbar-title {
@@ -2304,54 +2936,140 @@ export const Resume = () => {
           color: #0f172a;
         }
 
-        .resume-topbar-subtitle {
+        .topbar-language {
+          display: flex;
+          align-items: center;
+          gap: 6px;
           font-size: 0.85rem;
           color: #64748b;
+        }
+
+        .flag {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 22px;
+          height: 16px;
+          border-radius: 4px;
+          border: 1px solid #e2e8f0;
+          background: #f8fafc;
+          font-size: 0.65rem;
+          font-weight: 700;
+          color: #1f2937;
         }
 
         .resume-topbar-center {
-          display: flex;
+          display: inline-flex;
           align-items: center;
-          gap: 8px;
+          gap: 4px;
           justify-content: center;
-        }
-
-        .resume-topbar-tab {
+          justify-self: center;
+          padding: 4px;
+          border-radius: 999px;
           border: 1px solid #e2e8f0;
           background: #f8fafc;
-          color: #64748b;
-          padding: 6px 14px;
-          border-radius: 999px;
-          font-size: 0.85rem;
-          font-weight: 600;
-          cursor: default;
         }
 
-        .resume-topbar-tab.is-active {
-          background: #0f172a;
+        .resume-topbar-pill {
+          border: 1px solid transparent;
+          background: transparent;
+          color: #64748b;
+          padding: 6px 16px;
+          border-radius: 999px;
+          font-size: 0.82rem;
+          font-weight: 600;
+        }
+
+        .resume-topbar-pill.is-active {
+          border-color: #e2e8f0;
+          background: #ffffff;
+          color: #0f172a;
+          box-shadow: 0 8px 14px -12px rgba(15, 23, 42, 0.45);
+        }
+
+        .resume-topbar-pill.has-badge {
+          position: relative;
+          padding-right: 48px;
+        }
+
+        .pill-badge {
+          position: absolute;
+          top: -6px;
+          right: 8px;
+          background: #2563eb;
           color: #ffffff;
-          border-color: #0f172a;
+          font-size: 0.6rem;
+          padding: 2px 6px;
+          border-radius: 999px;
+          font-weight: 700;
         }
 
         .resume-topbar-right {
           display: flex;
           justify-content: flex-end;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .resume-topbar-outline {
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+          color: #475569;
+          padding: 8px 14px;
+          border-radius: 10px;
+          font-weight: 600;
+          font-size: 0.82rem;
+          cursor: pointer;
+          transition: border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+        }
+
+        .resume-topbar-outline:hover {
+          border-color: #94a3b8;
+          color: #0f172a;
+          box-shadow: 0 8px 16px -14px rgba(15, 23, 42, 0.5);
         }
 
         .resume-topbar-download {
           background: #2563eb;
           color: #ffffff;
           border: none;
-          padding: 8px 14px;
+          padding: 8px 18px;
           border-radius: 10px;
           font-weight: 700;
           font-size: 0.85rem;
           cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
           box-shadow: 0 10px 20px -14px rgba(37, 99, 235, 0.8);
+        }
+
+        .resume-topbar-download .caret {
+          display: inline-block;
+          width: 0;
+          height: 0;
+          border-left: 4px solid transparent;
+          border-right: 4px solid transparent;
+          border-top: 5px solid #ffffff;
+          margin-top: 2px;
         }
 
         .resume-topbar-download:hover {
           background: #1d4ed8;
+        }
+
+        .resume-topbar-icon {
+          width: 38px;
+          height: 38px;
+          border-radius: 10px;
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+          font-size: 1rem;
+          color: #64748b;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .resume-page:not(.is-template-mode) .resume-content {
@@ -2386,6 +3104,26 @@ export const Resume = () => {
           border-color: rgba(239, 68, 68, 0.4);
           background: rgba(239, 68, 68, 0.08);
           color: var(--color-danger);
+        }
+
+        .template-state-editor {
+          margin-bottom: 16px;
+        }
+
+        .template-issue-title {
+          font-weight: 700;
+          margin-bottom: 6px;
+        }
+
+        .template-issue-body {
+          margin-bottom: 12px;
+        }
+
+        .template-issue-actions {
+          display: flex;
+          gap: 8px;
+          justify-content: center;
+          flex-wrap: wrap;
         }
 
         .template-grid {
@@ -2944,10 +3682,16 @@ export const Resume = () => {
 
         .resume-builder-grid {
           display: grid;
-          grid-template-columns: minmax(420px, 1.1fr) minmax(360px, 0.9fr);
-          gap: var(--spacing-xl);
+          grid-template-columns: minmax(360px, 1.05fr) minmax(420px, 1fr);
+          gap: 16px;
           align-items: stretch;
           flex: 1;
+          min-height: 0;
+          height: calc(100vh - 160px);
+        }
+
+        .resume-workspace.is-editor .resume-builder-grid {
+          height: 100%;
           min-height: 0;
         }
 
@@ -2955,9 +3699,327 @@ export const Resume = () => {
           display: flex;
           flex-direction: column;
           height: 100%;
+          min-height: 0;
           min-width: 0;
-          overflow: auto;
-          padding-right: 10px;
+          overflow-y: auto;
+          overflow-x: hidden;
+          overscroll-behavior: contain;
+          padding-right: 6px;
+          gap: 16px;
+        }
+
+        .contact-grid {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+
+        .contact-top-row {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 16px;
+          align-items: start;
+        }
+
+        .contact-photo-card {
+          border: 1px solid #e2e8f0;
+          border-radius: 14px;
+          padding: 12px;
+          display: flex;
+          gap: 12px;
+          align-items: center;
+          min-width: 200px;
+          background: #f8fafc;
+        }
+
+        .photo-preview {
+          width: 56px;
+          height: 56px;
+          border-radius: 12px;
+          overflow: hidden;
+          background: #e2e8f0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 0.75rem;
+          color: #64748b;
+        }
+
+        .photo-preview img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .photo-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          font-size: 0.85rem;
+        }
+
+        .photo-action {
+          color: #2563eb;
+          font-weight: 600;
+          background: none;
+          border: none;
+          text-align: left;
+          padding: 0;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .photo-action.danger {
+          color: #ef4444;
+        }
+
+        .photo-input {
+          display: none;
+        }
+
+        .contact-footer {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding-top: 6px;
+        }
+
+        .add-details-btn {
+          border: none;
+          background: none;
+          color: #2563eb;
+          font-weight: 600;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .add-details-btn::after {
+          content: '';
+          width: 6px;
+          height: 6px;
+          border-right: 2px solid #2563eb;
+          border-bottom: 2px solid #2563eb;
+          transform: rotate(45deg);
+          margin-top: -2px;
+        }
+
+        .ask-ai-btn {
+          border: 2px solid transparent;
+          background:
+            linear-gradient(#ffffff, #ffffff) padding-box,
+            linear-gradient(135deg, #6366f1, #f97316) border-box;
+          color: #312e81;
+          font-weight: 700;
+          border-radius: 999px;
+          padding: 10px 18px;
+          box-shadow: 0 12px 24px -20px rgba(99, 102, 241, 0.6);
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .builder-progress-card {
+          border-radius: 16px;
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+          box-shadow: 0 18px 32px -24px rgba(15, 23, 42, 0.35);
+          padding: 16px 18px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .progress-header {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-weight: 600;
+          color: #334155;
+        }
+
+        .progress-badge {
+          background: rgba(34, 197, 94, 0.2);
+          color: #15803d;
+          font-weight: 800;
+          border-radius: 999px;
+          padding: 4px 10px;
+          font-size: 0.78rem;
+        }
+
+        .progress-title {
+          font-size: 0.95rem;
+        }
+
+        .progress-bar {
+          height: 6px;
+          border-radius: 999px;
+          background: #e2e8f0;
+          overflow: hidden;
+        }
+
+        .progress-fill {
+          display: block;
+          height: 100%;
+          border-radius: 999px;
+          background: #22c55e;
+        }
+
+        .progress-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+
+        .ai-chip {
+          border: 1px solid #e2e8f0;
+          background: #f8fafc;
+          color: #0f172a;
+          font-weight: 600;
+          border-radius: 999px;
+          padding: 8px 14px;
+          font-size: 0.85rem;
+          box-shadow: 0 10px 20px -18px rgba(15, 23, 42, 0.4);
+        }
+
+        .builder-preview-panel {
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+          height: 100%;
+          overflow: hidden;
+        }
+
+        .preview-card {
+          flex: 1;
+          border-radius: 18px;
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+          box-shadow: 0 18px 40px -28px rgba(15, 23, 42, 0.35);
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+          overflow: hidden;
+          --preview-scale: 0.86;
+        }
+
+        .preview-card-body {
+          flex: 1;
+          height: 100%;
+          min-height: 0;
+          padding: 20px;
+          background: #ffffff;
+          position: relative;
+          overflow: hidden;
+          overflow-x: hidden;
+          display: flex;
+          align-items: flex-start;
+          justify-content: center;
+          overscroll-behavior: contain;
+        }
+
+        .preview-iframe-shell {
+          width: var(--preview-shell-width, 100%);
+          height: var(--preview-shell-height, auto);
+          margin: 0 auto;
+        }
+
+        .preview-iframe {
+          width: 100%;
+          height: 100%;
+          min-height: 720px;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          background: #ffffff;
+          transform: scale(var(--preview-scale));
+          transform-origin: top left;
+        }
+
+        .preview-empty {
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #64748b;
+          font-weight: 500;
+          text-align: center;
+        }
+
+        .preview-overlay {
+          position: absolute;
+          bottom: 24px;
+          left: 50%;
+          transform: translateX(-50%);
+          display: inline-flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 10px;
+          background: #0f172a;
+          color: #ffffff;
+          border-radius: 999px;
+          padding: 8px 14px;
+          font-size: 0.85rem;
+          box-shadow: 0 18px 30px -22px rgba(15, 23, 42, 0.4);
+        }
+
+        .preview-overlay-btn {
+          border: none;
+          background: rgba(255, 255, 255, 0.15);
+          color: #ffffff;
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 0.85rem;
+        }
+
+        .preview-overlay-text {
+          font-weight: 600;
+        }
+
+        .preview-overlay-size {
+          display: inline-flex;
+          gap: 4px;
+          padding: 2px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.12);
+        }
+
+        .preview-size-btn {
+          border: none;
+          background: transparent;
+          color: #e2e8f0;
+          font-size: 0.72rem;
+          font-weight: 600;
+          padding: 4px 8px;
+          border-radius: 999px;
+          cursor: pointer;
+        }
+
+        .preview-size-btn.is-active {
+          background: rgba(255, 255, 255, 0.28);
+          color: #ffffff;
+        }
+
+        @media (max-width: 1100px) {
+          .resume-builder-grid {
+            grid-template-columns: 1fr;
+            height: auto;
+          }
+
+          .builder-preview-panel {
+            order: 2;
+          }
+
+          .preview-card {
+            --preview-scale: 0.92;
+          }
         }
 
         .step-header {
@@ -2965,19 +4027,24 @@ export const Resume = () => {
           align-items: center;
           justify-content: space-between;
           gap: 12px;
-          padding: 12px 14px;
+          padding: 14px 18px;
           border: 1px solid #e2e8f0;
-          border-radius: 12px;
-          background: #f8fafc;
-          position: sticky;
-          top: 0;
-          z-index: 2;
+          border-radius: 16px;
+          background: #ffffff;
+          box-shadow: 0 18px 30px -26px rgba(15, 23, 42, 0.35);
         }
 
         .step-header-title {
           display: flex;
           flex-direction: column;
           gap: 4px;
+        }
+
+        .step-header-title h3 {
+          font-size: 1.35rem;
+          font-weight: 700;
+          color: #0f172a;
+          margin: 0;
         }
 
         .step-count {
@@ -2993,12 +4060,99 @@ export const Resume = () => {
           gap: 8px;
         }
 
+        .step-footer {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 12px 16px;
+          border: 1px solid #e2e8f0;
+          border-radius: 16px;
+          margin-top: 12px;
+          background: #ffffff;
+          box-shadow: 0 18px 30px -26px rgba(15, 23, 42, 0.35);
+        }
+
+        .step-dots {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .step-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 999px;
+          background: #cbd5f5;
+        }
+
+        .step-dot.active {
+          width: 18px;
+          background: #2563eb;
+        }
+
         .builder-section {
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-lg);
-          padding: var(--spacing-lg);
-          background: var(--color-surface);
-          box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+          border: 1px solid #e2e8f0;
+          border-radius: 16px;
+          padding: 0;
+          background: #ffffff;
+          box-shadow: 0 12px 24px -22px rgba(15, 23, 42, 0.35);
+          overflow: hidden;
+        }
+
+        .rte-shell {
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          background: #ffffff;
+          box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.02);
+          overflow: hidden;
+        }
+
+        .rte-toolbar {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 10px;
+          border-bottom: 1px solid #e2e8f0;
+          background: #f8fafc;
+        }
+
+        .rte-toolbar button {
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+          border-radius: 8px;
+          padding: 4px 8px;
+          font-size: 0.75rem;
+          font-weight: 700;
+          color: #0f172a;
+        }
+
+        .rte-toolbar button.active {
+          background: #2563eb;
+          color: #ffffff;
+          border-color: #2563eb;
+        }
+
+        .rte-content {
+          padding: 12px;
+          min-height: 120px;
+          outline: none;
+          font-size: 0.92rem;
+          color: #0f172a;
+        }
+
+        .rte-content:empty:before {
+          content: attr(data-placeholder);
+          color: #94a3b8;
+        }
+
+        .rte-content ul {
+          padding-left: 1.25rem;
+          list-style: disc;
+        }
+
+        .rte-content p {
+          margin: 0 0 8px;
         }
 
         .builder-section.is-dragging {
@@ -3010,25 +4164,56 @@ export const Resume = () => {
         .builder-section-header {
           display: flex;
           align-items: center;
-          gap: var(--spacing-sm);
+          gap: 10px;
           width: 100%;
           border: none;
-          background: transparent;
-          padding: 0;
-          margin-bottom: var(--spacing-md);
-          font-weight: 600;
-          color: var(--color-text-primary);
+          background: #ffffff;
+          padding: 16px 18px;
+          margin: 0;
+          font-weight: 700;
+          color: #0f172a;
           text-align: left;
           cursor: pointer;
         }
 
+        .drag-handle,
+        .ai-help-btn,
+        .section-status {
+          display: none;
+        }
+
+        .section-toggle {
+          margin-left: auto;
+          width: 14px;
+          height: 14px;
+          position: relative;
+          display: inline-block;
+        }
+
+        .section-toggle::before {
+          content: '';
+          position: absolute;
+          top: 2px;
+          left: 2px;
+          width: 8px;
+          height: 8px;
+          border-right: 2px solid #94a3b8;
+          border-bottom: 2px solid #94a3b8;
+          transform: rotate(-45deg);
+          transition: transform 180ms ease;
+        }
+
+        .section-toggle.is-open::before {
+          transform: rotate(45deg);
+        }
+
         .builder-section-header h3 {
-          font-size: var(--font-size-md);
+          font-size: 1.15rem;
         }
 
         .builder-section-body {
-          padding-top: var(--spacing-sm);
-          border-top: 1px solid var(--color-border);
+          padding: 16px 18px 18px;
+          border-top: 1px solid #e2e8f0;
         }
 
         .section-nav-actions {
@@ -3052,7 +4237,7 @@ export const Resume = () => {
         }
 
         .section-status {
-          margin-left: auto;
+          margin-left: 8px;
           font-size: var(--font-size-xs);
           color: var(--color-text-tertiary);
         }
@@ -3060,13 +4245,6 @@ export const Resume = () => {
         .section-status.complete {
           color: var(--color-success);
         }
-
-        .section-toggle {
-          font-size: var(--font-size-sm);
-          color: var(--color-text-tertiary);
-          margin-left: var(--spacing-sm);
-        }
-
 
         .builder-preview {
           display: flex;
@@ -3618,7 +4796,7 @@ export const Resume = () => {
         }
 
         .resume-builder-grid {
-          gap: 18px;
+          gap: 16px;
         }
 
         .builder-panel {
@@ -3685,6 +4863,30 @@ export const Resume = () => {
         .resume-page .form-group select:focus {
           border-color: #14b8a6 !important;
           box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.14) !important;
+        }
+
+        .resume-page.is-editor-route {
+          background: #f1f5f9;
+        }
+
+        .resume-page.is-editor-route::before,
+        .resume-page.is-editor-route::after {
+          display: none;
+        }
+
+        .resume-page.is-editor-route .form-group input,
+        .resume-page.is-editor-route .form-group textarea,
+        .resume-page.is-editor-route .form-group select {
+          background: #f1f5f9;
+          border-color: #e2e8f0 !important;
+          box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.04);
+        }
+
+        .resume-page.is-editor-route .form-group input:focus,
+        .resume-page.is-editor-route .form-group textarea:focus,
+        .resume-page.is-editor-route .form-group select:focus {
+          border-color: #2563eb !important;
+          box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
         }
 
         [data-theme="dark"] .resume-page {
@@ -3896,6 +5098,6 @@ export const Resume = () => {
           }
         }
       `}</style>
-    </div >
+    </div>
   );
 };

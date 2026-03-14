@@ -23,9 +23,10 @@ export const AdminAnalytics = ({ users }: AdminAnalyticsProps) => {
                 if (!isSupabaseConfigured || !supabase) {
                     throw new Error('Supabase is not configured.');
                 }
+                const sb = supabase;
 
                 const fetchCount = async () => {
-                    const { count, error } = await supabase
+                    const { count, error } = await sb
                         .from('jobs')
                         .select('id', { count: 'exact', head: true });
                     if (error) throw error;
@@ -34,13 +35,13 @@ export const AdminAnalytics = ({ users }: AdminAnalyticsProps) => {
 
                 await fetchCount();
 
-                const channel = supabase
+                const channel = sb
                     .channel('jobs-count')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, fetchCount)
                     .subscribe();
 
                 unsubscribeJobs = () => {
-                    void supabase.removeChannel(channel);
+                    void sb.removeChannel(channel);
                 };
             } catch (error) {
                 console.error('Failed to load jobs count:', error);
