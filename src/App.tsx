@@ -26,6 +26,8 @@ const JobSearchTool = lazy(() => import('./pages/JobSearchTool').then((m) => ({ 
 const JobSearchDetails = lazy(() => import('./pages/JobSearchDetails').then((m) => ({ default: m.JobSearchDetails })));
 const SeoJobsPage = lazy(() => import('./pages/SeoJobsPage').then((m) => ({ default: m.SeoJobsPage })));
 const Resume = lazy(() => import('./pages/Resume').then((m) => ({ default: m.Resume })));
+const ResumeBuilderLanding = lazy(() => import('./pages/ResumeBuilderLanding').then((m) => ({ default: m.ResumeBuilderLanding })));
+const ResumeBuilderTemplates = lazy(() => import('./pages/ResumeBuilderTemplates').then((m) => ({ default: m.ResumeBuilderTemplates })));
 const ResumeTemplates = lazy(() => import('./pages/ResumeTemplates').then((m) => ({ default: m.ResumeTemplates })));
 const CareerTrends = lazy(() => import('./pages/CareerTrends').then((m) => ({ default: m.CareerTrends })));
 const AICopilot = lazy(() => import('./pages/AICopilot').then((m) => ({ default: m.AICopilot })));
@@ -176,8 +178,10 @@ function App() {
             <Route path="/truck-driver-jobs-usa" element={<SeoJobsPage />} />
             <Route path="/nurse-jobs-usa" element={<SeoJobsPage />} />
             <Route path="/government-jobs-usa" element={<SeoJobsPage />} />
-            <Route path="/resume" element={<Navigate to="/resume/templates" replace />} />
-            <Route path="/resume/templates" element={<ResumeTemplates />} />
+            <Route path="/resume" element={<Navigate to="/resume-builder" replace />} />
+            <Route path="/resume/templates" element={<Navigate to="/resume-builder/templates" replace />} />
+            <Route path="/resume-builder" element={<ResumeBuilderLanding />} />
+            <Route path="/resume-builder/templates" element={<ResumeBuilderTemplates />} />
             <Route path="/trends" element={<CareerTrends />} />
             <Route path="/ai-copilot" element={<AICopilot />} />
             <Route path="/settings" element={<Settings />} />
@@ -226,6 +230,15 @@ function App() {
 
           <Route
             path="/resume-editor/:templateId"
+            element={
+              <ResumeEditorLayout>
+                <Resume />
+              </ResumeEditorLayout>
+            }
+          />
+
+          <Route
+            path="/resume-builder/editor"
             element={
               <ResumeEditorLayout>
                 <Resume />

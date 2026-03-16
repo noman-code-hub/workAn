@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { Header } from './Header';
+import { Footer } from './Footer';
 import { AdSenseSlot } from './AdSenseSlot';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -11,6 +12,7 @@ export const Layout = () => {
   const isCommunity = location.pathname === '/community';
   const isProfile = location.pathname === '/profile';
   const isJobs = location.pathname.startsWith('/jobs');
+  const isResume = location.pathname.startsWith('/resume-builder');
   const adSlotMain = (import.meta.env.VITE_ADSENSE_SLOT_MAIN || '').trim();
 
   // Handle role-based redirects (e.g. users with no role -> /select-role)
@@ -24,7 +26,7 @@ export const Layout = () => {
       {/* Main Content */}
       <div className="main-content">
         {/* Page Content */}
-        <main className={`page-content ${isCommunity ? 'page-content-full' : ''} ${isProfile ? 'page-content-profile' : ''} ${isJobs ? 'page-content-jobs' : ''}`}>
+        <main className={`page-content ${isCommunity ? 'page-content-full' : ''} ${isProfile || isResume ? 'page-content-profile' : ''} ${isJobs ? 'page-content-jobs' : ''}`}>
           <Outlet />
           {!isCommunity && !isJobs && (
             <section className="adsense-wrap" aria-label="Advertisement">
@@ -33,6 +35,8 @@ export const Layout = () => {
           )}
         </main>
       </div>
+      
+      {!isCommunity && !isJobs && <Footer />}
 
       <style>{`
         .layout {

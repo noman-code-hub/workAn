@@ -209,3 +209,5 @@ export interface Notification {
     timestamp: Date;
     actionURL?: string;
 }
+
+export * from './resumeTemplate';

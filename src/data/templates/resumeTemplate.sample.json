@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "metadata": {
+    "name": "Modern Simple",
+    "slug": "modern-simple",
+    "description": "Single-column A4 template with clean typography.",
+    "category": "Minimal",
+    "tags": ["a4", "simple", "professional"],
+    "thumbnailUrl": "https://example.com/templates/modern-simple.png"
+  },
+  "page": {
+    "size": "A4",
+    "widthPx": 794,
+    "heightPx": 1123,
+    "margin": {
+      "top": 32,
+      "right": 32,
+      "bottom": 32,
+      "left": 32
+    }
+  },
+  "theme": {
+    "fonts": {
+      "heading": "Merriweather",
+      "body": "Inter",
+      "mono": "IBM Plex Mono"
+    },
+    "colors": {
+      "text": "#1f2933",
+      "muted": "#52606d",
+      "primary": "#111827",
+      "secondary": "#2f3f4f",
+      "background": "#ffffff",
+      "accent": "#e5e7eb"
+    },
+    "spacing": {
+      "sectionGapPx": 20,
+      "itemGapPx": 10,
+      "lineHeight": 1.5
+    }
+  },
+  "layout": {
+    "columns": 1,
+    "columnGapPx": 24
+  },
+  "sections": [
+    {
+      "id": "header",
+      "type": "header",
+      "dataKey": "header",
+      "blocks": [
+        {
+          "kind": "image",
+          "key": "photo_url",
+          "shape": "circle",
+          "width": 96,
+          "height": 96
+        },
+        {
+          "kind": "text",
+          "key": "full_name",
+          "variant": "heading"
+        },
+        {
+          "kind": "text",
+          "key": "title",
+          "variant": "subheading"
+        },
+        {
+          "kind": "list",
+          "key": "contact",
+          "itemBlocks": [
+            {
+              "kind": "text",
+              "key": "value",
+              "variant": "label"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "type": "summary",
+      "label": "About",
+      "showTitle": true,
+      "dataKey": "summary",
+      "blocks": [
+        {
+          "kind": "richText",
+          "key": "summary"
+        }
+      ]
+    },
+    {
+      "id": "experience",
+      "type": "experience",
+      "label": "Experience",
+      "showTitle": true,
+      "dataKey": "experience",
+      "blocks": [
+        {
+          "kind": "list",
+          "key": "experience",
+          "itemBlocks": [
+            { "kind": "text", "key": "role", "variant": "subheading" },
+            { "kind": "text", "key": "company", "variant": "label" },
+            { "kind": "text", "key": "date_range", "variant": "caption" },
+            { "kind": "richText", "key": "highlights" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "education",
+      "type": "education",
+      "label": "Education",
+      "showTitle": true,
+      "dataKey": "education",
+      "blocks": [
+        {
+          "kind": "list",
+          "key": "education",
+          "itemBlocks": [
+            { "kind": "text", "key": "degree", "variant": "subheading" },
+            { "kind": "text", "key": "school", "variant": "label" },
+            { "kind": "text", "key": "date_range", "variant": "caption" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "skills",
+      "type": "skills",
+      "label": "Skills",
+      "showTitle": true,
+      "dataKey": "skills",
+      "blocks": [
+        {
+          "kind": "list",
+          "key": "skills",
+          "itemBlocks": [
+            { "kind": "text", "key": "name", "variant": "label" }
+          ]
+        }
+      ]
+    }
+  ]
+}

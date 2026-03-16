@@ -19,7 +19,11 @@ const mapDisplayName = (name: string) => {
   return base.replace(/\.html$/i, '').replace(/[_-]+/g, ' ').toUpperCase();
 };
 
-export const useResumeTemplate = (user?: User | null) => {
+export const useResumeTemplate = (
+  user?: User | null,
+  options?: { autoSelectFirst?: boolean }
+) => {
+  const autoSelectFirst = options?.autoSelectFirst ?? true;
   const [templates, setTemplates] = useState<ResumeTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [templatePreviewHtml, setTemplatePreviewHtml] = useState<string | null>(null);
@@ -34,11 +38,6 @@ export const useResumeTemplate = (user?: User | null) => {
 
   const getDefaultValueForField = useCallback((field: string) => {
     const normalized = normalizeFieldKey(field);
-    if (normalized === 'name' || normalized === 'fullname') return user?.name || '';
-    if (normalized === 'email') return user?.email || '';
-    if (['role', 'title', 'position', 'jobtitle', 'targetrole'].includes(normalized)) return user?.profession || '';
-    if (['location', 'city', 'country', 'address'].includes(normalized)) return user?.country || '';
-    if (['skills', 'skillset'].includes(normalized)) return user?.skills?.join(', ') || '';
     return '';
   }, [user]);
 
@@ -212,7 +211,7 @@ export const useResumeTemplate = (user?: User | null) => {
       // Keep all templates for editor routes, even if thumbnails are missing.
       setTemplates(mapped);
 
-      if (mapped.length > 0) {
+      if (mapped.length > 0 && autoSelectFirst) {
         selectTemplate(mapped[0].name);
       } else {
         setSelectedTemplate('');
@@ -233,7 +232,7 @@ export const useResumeTemplate = (user?: User | null) => {
     } finally {
       setTemplateLoading(false);
     }
-  }, [selectTemplate, supabaseClient]);
+  }, [autoSelectFirst, selectTemplate, supabaseClient]);
 
   useEffect(() => {
     void fetchTemplates();

@@ -15,7 +15,7 @@ const getTemplateSlug = (name: string) => slugifyTemplate(name);
 export const ResumeTemplates = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { templates, templateLoading, templateError } = useResumeTemplate(user);
+  const { templates, templateLoading, templateError } = useResumeTemplate(user, { autoSelectFirst: false });
 
   const templatesWithSlugs = useMemo(
     () => templates.map((t) => ({ ...t, slug: getTemplateSlug(t.name) })),

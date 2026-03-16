@@ -37,7 +37,7 @@ This application implements a comprehensive Role-Based Access Control (RBAC) sys
 - ✅ Manage all users
 - ✅ Change user roles
 - ✅ View admin dashboard
-- ✅ Access all system analytics
+- ✅ Access all system analytics 
 - ✅ Delete users
 - ✅ Full system control
 

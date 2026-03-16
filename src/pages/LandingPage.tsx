@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bot, Briefcase, MapPin, Search, Sparkles, TrendingUp } from 'lucide-react';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 
 const popularRoles = ['Remote Engineer', 'Product Manager', 'Data Scientist'];
 
@@ -164,17 +165,20 @@ export const LandingPage = () => {
           </button>
         </section>
       </main>
+      <Footer />
 
       <style>{`
         .landing-pro {
           min-height: 100vh;
           background: #f5fbfb;
+          display: flex;
+          flex-direction: column;
         }
 
         .landing-main {
           position: relative;
           overflow: hidden;
-          height: calc(100vh - 72px);
+          flex: 1;
           min-height: 620px;
           isolation: isolate;
         }
@@ -216,7 +220,7 @@ export const LandingPage = () => {
           max-width: 1200px;
           margin: 0 auto;
           height: 100%;
-          padding: 24px 24px 18px;
+          padding: 64px 24px;
           position: relative;
           z-index: 1;
           display: flex;
@@ -278,18 +282,15 @@ export const LandingPage = () => {
 
         .hero-title {
           margin: 0;
-          font-size: clamp(2rem, 4.8vw, 4.2rem);
-          line-height: 1.06;
-          letter-spacing: -0.03em;
+          font-size: clamp(2.2rem, 5vw, 4.5rem);
+          line-height: 1.05;
+          letter-spacing: -0.04em;
           font-weight: 800;
           color: #0d1532;
-          animation: fadeSlide 620ms ease-out both;
-          animation-delay: 130ms;
         }
 
         .hero-title span {
-          color: #0fc3a4;
-          background-image: linear-gradient(120deg, #0fc3a4 0%, #0aa7c9 100%);
+          background: linear-gradient(135deg, #0fc3a4 0%, #0aa7c9 100%);
           -webkit-background-clip: text;
           background-clip: text;
           color: transparent;
@@ -297,40 +298,33 @@ export const LandingPage = () => {
 
         .hero-subtitle {
           max-width: 650px;
-          margin: 14px auto 0;
+          margin: 20px auto 0;
           color: #53627a;
-          font-size: clamp(1rem, 1.55vw, 1.25rem);
-          line-height: 1.42;
-          padding-left: 10px;
-          border-left: 2px solid #d6e4f2;
-          text-align: left;
-          animation: fadeSlide 680ms ease-out both;
-          animation-delay: 220ms;
+          font-size: clamp(1.1rem, 1.6vw, 1.35rem);
+          line-height: 1.5;
+          text-align: center;
         }
 
         .hero-search {
-          margin: 20px auto 0;
-          width: min(100%, 960px);
+          margin: 32px auto 0;
+          width: min(100%, 800px);
           border: 1px solid #b4dfd8;
           border-radius: 999px;
-          background: rgba(255, 255, 255, 0.92);
-          backdrop-filter: blur(8px);
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(12px);
           display: grid;
           grid-template-columns: 1.2fr 1fr auto;
           align-items: center;
-          gap: 8px;
-          padding: 7px;
-          box-shadow: 0 14px 42px rgba(11, 77, 102, 0.12);
-          animation: fadeSlide 780ms ease-out both;
-          animation-delay: 300ms;
+          gap: 12px;
+          padding: 8px;
+          box-shadow: 0 20px 50px rgba(11, 77, 102, 0.15);
         }
 
         .hero-search-field {
           display: flex;
           align-items: center;
           gap: 12px;
-          min-height: 50px;
-          padding: 0 10px;
+          padding: 0 16px;
           color: #9ca7bb;
         }
 
@@ -342,414 +336,165 @@ export const LandingPage = () => {
           width: 100%;
           border: none;
           outline: none;
-          font-size: 0.95rem;
-          color: #2f3b52;
+          font-size: 1rem;
+          color: #1e293b;
           background: transparent;
         }
 
-        .hero-search-field input::placeholder {
-          color: #9ca7bb;
-        }
-
         .hero-search-button {
-          border: none;
+          height: 54px;
+          min-width: 130px;
           border-radius: 999px;
           background: linear-gradient(135deg, #0fc3a4 0%, #0c9ec7 100%);
-          color: #ffffff;
-          min-width: 140px;
-          height: 50px;
-          font-size: 0.95rem;
+          color: white;
           font-weight: 700;
+          border: none;
           cursor: pointer;
-          transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+          transition: all 0.2s;
         }
 
         .hero-search-button:hover {
-          background: linear-gradient(135deg, #0db999 0%, #0a8db3 100%);
-          transform: translateY(-1px);
-          box-shadow: 0 10px 24px rgba(10, 141, 179, 0.32);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(12, 158, 199, 0.3);
         }
 
         .hero-popular {
-          margin-top: 16px;
+          margin-top: 24px;
           display: flex;
-          justify-content: center;
           align-items: center;
-          gap: 10px;
-          animation: fadeSlide 850ms ease-out both;
-          animation-delay: 380ms;
+          justify-content: center;
+          gap: 12px;
         }
 
         .hero-popular-label {
           font-size: 0.9rem;
-          color: #6f7d94;
-          font-weight: 700;
+          color: #64748b;
+          font-weight: 600;
         }
 
         .hero-popular-chips {
           display: flex;
-          align-items: center;
           gap: 10px;
-          flex-wrap: wrap;
-          justify-content: center;
         }
 
         .hero-popular-chip {
-          border: 1px solid #d5dde6;
-          background: rgba(255, 255, 255, 0.72);
-          color: #223049;
+          padding: 8px 16px;
           border-radius: 999px;
-          padding: 8px 14px;
-          font-size: 0.86rem;
+          border: 1px solid #e2e8f0;
+          background: white;
+          font-size: 0.85rem;
           font-weight: 600;
+          color: #475569;
           cursor: pointer;
-          transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+          transition: all 0.2s;
         }
 
         .hero-popular-chip:hover {
-          background: #ffffff;
-          border-color: #b8c8d9;
-          transform: translateY(-1px);
+          background: #f8fafc;
+          border-color: #cbd5e1;
         }
 
         .hero-insights {
-          margin-top: 14px;
+          margin-top: 48px;
           display: flex;
           justify-content: center;
-          gap: 10px;
-          flex-wrap: wrap;
-          animation: fadeSlide 900ms ease-out both;
-          animation-delay: 470ms;
+          gap: 20px;
         }
 
         .insight-card {
-          margin: 0;
-          min-width: 180px;
+          padding: 12px 20px;
+          background: white;
+          border: 1px solid #edf2f7;
+          border-radius: 16px;
           display: flex;
           align-items: center;
-          gap: 12px;
-          padding: 9px 11px;
-          border-radius: 14px;
-          background: rgba(255, 255, 255, 0.76);
-          border: 1px solid #dce8ee;
-          box-shadow: 0 8px 20px rgba(31, 60, 77, 0.08);
-          text-align: left;
+          gap: 16px;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.05);
         }
 
         .insight-icon {
-          width: 32px;
-          height: 32px;
-          border-radius: 8px;
-          background: linear-gradient(135deg, #0fc3a4 0%, #0b9ebd 100%);
-          color: #fff;
-          display: inline-flex;
+          width: 40px;
+          height: 40px;
+          background: #f0fdfa;
+          color: #0fc3a4;
+          border-radius: 12px;
+          display: flex;
           align-items: center;
           justify-content: center;
-          flex-shrink: 0;
         }
 
         .insight-value {
-          margin: 0;
-          color: #11203f;
-          font-size: 0.9rem;
+          font-size: 1.1rem;
           font-weight: 800;
-          line-height: 1.2;
+          color: #0f172a;
+          margin: 0;
         }
 
         .insight-label {
-          margin: 2px 0 0;
-          color: #6a7892;
-          font-size: 0.74rem;
-          font-weight: 600;
+          font-size: 0.8rem;
+          color: #64748b;
+          margin: 0;
         }
 
         .ai-chat-pill {
           position: fixed;
-          right: 0;
-          top: 50%;
-          transform: translateY(-50%);
-          background: linear-gradient(160deg, #0fc3a4 0%, #0c9ec7 100%);
-          color: #ffffff;
-          border: none;
+          right: 32px;
+          bottom: 32px;
+          padding: 12px 24px;
+          background: linear-gradient(135deg, #0fc3a4 0%, #0c9ec7 100%);
+          color: white;
+          border-radius: 999px;
           display: flex;
           align-items: center;
           gap: 12px;
-          writing-mode: vertical-rl;
-          text-orientation: mixed;
-          border-radius: 12px 0 0 12px;
-          padding: 12px 9px;
-          font-size: 0.82rem;
+          border: none;
           font-weight: 700;
           cursor: pointer;
-          box-shadow: 0 12px 34px rgba(12, 158, 199, 0.34);
-          z-index: 60;
+          box-shadow: 0 15px 35px rgba(12, 158, 199, 0.4);
+          z-index: 100;
+          transition: all 0.3s;
+        }
+
+        .ai-chat-pill:hover {
+          transform: translateY(-4px);
         }
 
         .ai-chat-icon-wrap {
           width: 32px;
           height: 32px;
+          background: white;
+          color: #0fc3a4;
           border-radius: 50%;
-          display: inline-flex;
+          display: flex;
           align-items: center;
           justify-content: center;
-          background: rgba(255, 255, 255, 0.95);
-          color: #11c4a6;
-          writing-mode: horizontal-tb;
         }
 
         @keyframes fadeSlide {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
         @keyframes heroRise {
-          from {
-            opacity: 0;
-            transform: translateY(16px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(30px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
         @keyframes networkFadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 0.8;
-          }
+          from { opacity: 0; }
+          to { opacity: 0.8; }
         }
 
         @media (max-width: 1024px) {
-          .landing-main {
-            height: auto;
-            min-height: calc(100vh - 72px);
-          }
-
-          .hero-shell {
-            height: auto;
-            padding-top: 20px;
-            padding-bottom: 24px;
-          }
-
-          .hero-content {
-            margin-top: 0;
-          }
-
-          .hero-subtitle {
-            text-align: center;
-            border-left: none;
-            padding-left: 0;
-          }
-
-          .hero-search {
-            grid-template-columns: 1fr;
-            border-radius: 26px;
-            gap: 0;
-            padding: 8px;
-          }
-
-          .hero-search-location {
-            border-left: none;
-            border-top: 1px solid #e6ecf1;
-          }
-
-          .hero-search-button {
-            width: 100%;
-            min-width: 0;
-            border-radius: 18px;
-            margin-top: 8px;
-          }
-
-          .hero-insights {
-            margin-top: 14px;
-          }
-
-          .ai-chat-pill {
-            top: auto;
-            bottom: 18px;
-            transform: none;
-            writing-mode: horizontal-tb;
-            border-radius: 14px;
-            right: 18px;
-            padding: 12px 16px;
-            font-size: 0.86rem;
-          }
+          .hero-search { grid-template-columns: 1fr; border-radius: 24px; }
+          .hero-search-location { border-left: none; border-top: 1px solid #edf2f7; }
         }
 
-        @media (max-width: 640px) {
-          .landing-main {
-            min-height: calc(100vh - 72px);
-            height: auto;
-          }
-
-          .hero-shell {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding-left: 14px;
-            padding-right: 14px;
-            padding-top: 16px;
-            padding-bottom: 90px;
-          }
-
-          .hero-network {
-            inset: 20px 0 0;
-            opacity: 0.6;
-          }
-
-          .landing-grid {
-            background-size: 34px 34px;
-          }
-
-          .hero-content {
-            text-align: center;
-            max-width: 100%;
-          }
-
-          .hero-kicker {
-            font-size: 0.74rem;
-            padding: 5px 10px;
-            margin-bottom: 12px;
-          }
-
-          .hero-title {
-            font-size: clamp(2rem, 9.2vw, 2.7rem);
-            line-height: 1.06;
-          }
-
-          .hero-subtitle {
-            max-width: 100%;
-            font-size: 0.95rem;
-            text-align: left;
-            border-left: 2px solid #d6e4f2;
-            padding-left: 9px;
-            margin-top: 12px;
-          }
-
-          .hero-search-field {
-            min-height: 48px;
-            padding: 0 8px;
-          }
-
-          .hero-search {
-            margin-top: 16px;
-            border-radius: 20px;
-            padding: 8px;
-            grid-template-columns: 1fr;
-            gap: 0;
-          }
-
-          .hero-search-location {
-            border-left: none;
-            border-top: 1px solid #e2e8ef;
-          }
-
-          .hero-search-button {
-            width: 100%;
-            min-width: 0;
-            height: 46px;
-            border-radius: 12px;
-            margin-top: 8px;
-          }
-
-          .hero-popular {
-            margin-top: 14px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 8px;
-          }
-
-          .hero-popular-label {
-            font-size: 0.86rem;
-            margin: 0;
-            text-align: center;
-            text-transform: none;
-            letter-spacing: 0;
-          }
-
-          .hero-popular-chips {
-            justify-content: center;
-            overflow-x: auto;
-            flex-wrap: nowrap;
-            padding-bottom: 2px;
-            scrollbar-width: none;
-          }
-
-          .hero-popular-chips::-webkit-scrollbar {
-            display: none;
-          }
-
-          .hero-popular-chip {
-            font-size: 0.82rem;
-            padding: 8px 12px;
-            white-space: nowrap;
-          }
-
-          .hero-insights {
-            margin-top: 12px;
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 8px;
-          }
-
-          .insight-card {
-            min-width: 150px;
-            width: auto;
-            gap: 8px;
-            padding: 8px;
-            border-radius: 12px;
-          }
-
-          .insight-icon {
-            width: 28px;
-            height: 28px;
-          }
-
-          .ai-chat-pill {
-            right: 12px;
-            bottom: 12px;
-            padding: 10px 12px;
-            border-radius: 999px;
-            box-shadow: 0 8px 24px rgba(12, 158, 199, 0.3);
-          }
-
-          .ai-chat-icon-wrap {
-            width: 28px;
-            height: 28px;
-          }
-        }
-
-        @media (max-width: 420px) {
-          .hero-title {
-            font-size: 1.8rem;
-          }
-
-          .hero-subtitle {
-            font-size: 0.88rem;
-            line-height: 1.38;
-          }
-
-          .hero-insights { gap: 6px; }
-
-          .ai-chat-pill span {
-            display: none;
-          }
-
-          .ai-chat-pill {
-            padding: 8px;
-          }
+        @media (max-width: 768px) {
+          .hero-popular { flex-wrap: wrap; }
+          .hero-insights { flex-direction: column; align-items: center; }
+          .ai-chat-pill span { display: none; }
+          .ai-chat-pill { padding: 12px; }
         }
       `}</style>
     </div>

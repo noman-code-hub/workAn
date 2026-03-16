@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, Pencil, Settings, Trash2, Zap } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Pencil, Settings, Trash2, Zap } from 'lucide-react';
 import axios, { type AxiosResponse } from 'axios';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
 import { normalizeFieldKey, renderTemplateWithSchema } from '../services/resumeTemplateRenderer';
+import { ResumeTemplatePreview } from '../components/resume/ResumeTemplatePreview';
+import { listResumeTemplateDefinitions } from '../services/resumeTemplateService';
+import type { ResumeTemplateRecord } from '../types/resumeTemplate';
 import { API_BASE, apiUrl } from '../config/api';
 import { AppLoader } from '../components/AppLoader';
 import { RichTextEditor } from '../components/RichTextEditor';
@@ -18,23 +21,44 @@ const PAGE_SIZES = {
 type PreviewPageSize = keyof typeof PAGE_SIZES;
 const PAGE_MARGIN_PX = 72;
 const PAGE_GAP_PX = 24;
+const ENABLE_PREVIEW_PAGINATION = false;
+const PREVIEW_FONT_SCALES = [1, 0.93, 0.86, 0.79, 0.75];
+
+type TemplateListItem = {
+  kind: 'html' | 'json';
+  name: string;
+  displayName: string;
+  thumbnailUrl?: string;
+  json?: ResumeTemplateRecord;
+};
 
 export const Resume = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { templateId } = useParams();
-  const isEditorRoute = Boolean(templateId);
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const templateQueryParam = searchParams.get('template') || '';
+  const uploadQueryParam = searchParams.get('upload');
+  const isBuilderEditorRoute = location.pathname.startsWith('/resume-builder/editor');
+  const effectiveTemplateId = templateId || templateQueryParam || '';
+  const isEditorRoute = Boolean(templateId) || isBuilderEditorRoute;
+  const backTarget = isBuilderEditorRoute ? '/resume-builder/templates' : '/resume/templates';
 
   // Resume Builder state
-  const [contactName, setContactName] = useState(user?.name || "");
-  const [contactRole, setContactRole] = useState(user?.profession || "");
-  const [contactEmail, setContactEmail] = useState(user?.email || "");
+  const [contactName, setContactName] = useState("");
+  const [contactRole, setContactRole] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
-  const [contactLocation, setContactLocation] = useState(user?.country || "");
+  const [contactLocation, setContactLocation] = useState("");
   const [contactPhotoUrl, setContactPhotoUrl] = useState("");
   const [contactPhotoName, setContactPhotoName] = useState("");
   const [summaryText, setSummaryText] = useState("");
-  const [skillsText, setSkillsText] = useState(user?.skills?.join(", ") || "");
+  const [skillsText, setSkillsText] = useState("");
+  const [skillsInput, setSkillsInput] = useState("");
+  const [activeEditorTab, setActiveEditorTab] = useState<'edit' | 'customize' | 'review' | 'tailor'>('edit');
+  const [tailorRole, setTailorRole] = useState('');
+  const [tailorKeywords, setTailorKeywords] = useState('');
   const [projectsText, setProjectsText] = useState("");
   const [additionalText] = useState("");
   const [customDetails, setCustomDetails] = useState<{ id: string; label: string; value: string }[]>([]);
@@ -62,6 +86,8 @@ export const Resume = () => {
   const previewCardRef = useRef<HTMLDivElement | null>(null);
   const previewShellRef = useRef<HTMLDivElement | null>(null);
   const previewBodyRef = useRef<HTMLDivElement | null>(null);
+  const previewContentObserverRef = useRef<ResizeObserver | null>(null);
+  const previewFontScaleRef = useRef(1);
   const [previewPage, setPreviewPage] = useState(1);
   const [previewPageCount, setPreviewPageCount] = useState(1);
   const [previewPageSizeMode, setPreviewPageSizeMode] = useState<'auto' | PreviewPageSize>('auto');
@@ -69,9 +95,17 @@ export const Resume = () => {
   const previewContentHeightRef = useRef<number>(PAGE_SIZES.a4.height);
   const previewScaleRef = useRef(1);
   const autoDetectLockedRef = useRef(false);
+  const showMobilePreview = false;
+  const [jsonTemplates, setJsonTemplates] = useState<ResumeTemplateRecord[]>([]);
+  const [jsonTemplateLoading, setJsonTemplateLoading] = useState(false);
+  const [jsonTemplateError, setJsonTemplateError] = useState<string | null>(null);
+  const [selectedJsonTemplate, setSelectedJsonTemplate] = useState<ResumeTemplateRecord | null>(null);
+  const jsonTemplateLoadIdRef = useRef(0);
+  const [jsonSectionOrder, setJsonSectionOrder] = useState<string[]>([]);
   const [templateStep, setTemplateStep] = useState<'choose' | 'edit'>('choose');
   const [uploadingResume, setUploadingResume] = useState(false);
   const [isFillingDemo, setIsFillingDemo] = useState(false);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
   const undoStackRef = useRef<string[]>([]);
   const redoStackRef = useRef<string[]>([]);
@@ -99,6 +133,38 @@ export const Resume = () => {
     refreshTemplates,
   } = useResumeTemplate(user);
 
+  const refreshJsonTemplates = useCallback(async () => {
+    const loadId = ++jsonTemplateLoadIdRef.current;
+    setJsonTemplateLoading(true);
+    setJsonTemplateError(null);
+    try {
+      const data = await listResumeTemplateDefinitions({ activeOnly: true });
+      if (jsonTemplateLoadIdRef.current !== loadId) return;
+      setJsonTemplates(data);
+    } catch (error) {
+      if (jsonTemplateLoadIdRef.current !== loadId) return;
+      console.error('Failed to load JSON resume templates:', error);
+      setJsonTemplates([]);
+      setJsonTemplateError('Failed to load JSON templates.');
+    } finally {
+      if (jsonTemplateLoadIdRef.current === loadId) {
+        setJsonTemplateLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshJsonTemplates();
+  }, [refreshJsonTemplates]);
+
+  useEffect(() => {
+    if (!selectedJsonTemplate) {
+      setJsonSectionOrder([]);
+      return;
+    }
+    setJsonSectionOrder(selectedJsonTemplate.definition.sections.map((section) => section.id));
+  }, [selectedJsonTemplate]);
+
   const getTemplateFieldValue = (key: string) => {
     if (templateFieldValues[key]) return templateFieldValues[key];
     const normalized = normalizeFieldKey(key);
@@ -110,9 +176,66 @@ export const Resume = () => {
     updateField(key, value);
   }, [updateField]);
 
+  const defaultTemplateFields = useMemo(
+    () => ([
+      'name',
+      'fullname',
+      'full_name',
+      'role',
+      'title',
+      'position',
+      'company',
+      'degree',
+      'school',
+      'dates',
+      'email',
+      'phone',
+      'mobile',
+      'location',
+      'address',
+      'city',
+      'country',
+      'website',
+      'portfolio',
+      'linkedin',
+      'github',
+      'photo_url',
+      'summary',
+      'profile',
+      'objective',
+      'skills',
+      'experience',
+      'work_experience',
+      'education',
+      'projects',
+      'additionalinfo',
+      'additional_info',
+      'additional',
+      'hassummary',
+      'hasexperience',
+      'haseducation',
+      'hasskills',
+      'hasprojects',
+      'hasadditional',
+      'customdetails',
+      'custom_details',
+      'hascustomdetails',
+      'bullets',
+      'hasbullets',
+    ]),
+    []
+  );
+
+  const isJsonTemplateSelected = Boolean(selectedJsonTemplate);
+
+  const activeTemplateFields = useMemo(
+    () => (isJsonTemplateSelected ? defaultTemplateFields : templateFields),
+    [defaultTemplateFields, isJsonTemplateSelected, templateFields]
+  );
+
   const templateFieldSet = useMemo(
-    () => new Set(templateFields.map((field) => normalizeFieldKey(field))),
-    [templateFields]
+    () => new Set(activeTemplateFields.map((field) => normalizeFieldKey(field))),
+    [activeTemplateFields]
   );
 
   const contactNameParts = useMemo(() => {
@@ -129,9 +252,10 @@ export const Resume = () => {
   }, []);
 
   const selectedTemplateLabel = useMemo(() => {
+    if (selectedJsonTemplate) return selectedJsonTemplate.name || selectedJsonTemplate.slug;
     const match = templates.find((t) => t.name === selectedTemplate);
     return match?.displayName || selectedTemplate || 'Template';
-  }, [selectedTemplate, templates]);
+  }, [selectedJsonTemplate, selectedTemplate, templates]);
 
   const templateFilters = [
     'All templates',
@@ -143,12 +267,34 @@ export const Resume = () => {
     'Google Docs',
   ];
 
+  const templateCatalog = useMemo<TemplateListItem[]>(() => {
+    const jsonItems = jsonTemplates.map((template) => ({
+      kind: 'json' as const,
+      name: template.slug,
+      displayName: template.name,
+      thumbnailUrl: template.thumbnailUrl ?? undefined,
+      json: template,
+    }));
+    const htmlItems = templates.map((template) => ({
+      kind: 'html' as const,
+      name: template.name,
+      displayName: template.displayName,
+      thumbnailUrl: template.thumbnailUrl,
+    }));
+    return [...jsonItems, ...htmlItems];
+  }, [jsonTemplates, templates]);
+
+  const combinedTemplateLoading = templateLoading || jsonTemplateLoading;
+  const combinedTemplateError = isJsonTemplateSelected
+    ? jsonTemplateError
+    : templateError || (templateCatalog.length === 0 ? jsonTemplateError : null);
+
   const filteredTemplates = useMemo(() => {
-    if (templates.length === 0) return [];
-    if (activeTemplateFilter === 'All templates') return templates;
+    if (templateCatalog.length === 0) return [];
+    if (activeTemplateFilter === 'All templates') return templateCatalog;
 
     const filterKey = activeTemplateFilter.toLowerCase();
-    const matches = (template: (typeof templates)[number]) => {
+    const matches = (template: TemplateListItem) => {
       const haystack = `${template.displayName} ${template.name}`.toLowerCase();
       switch (filterKey) {
         case 'simple':
@@ -168,13 +314,16 @@ export const Resume = () => {
       }
     };
 
-    return templates.filter(matches);
-  }, [activeTemplateFilter, templates]);
+    return templateCatalog.filter(matches);
+  }, [activeTemplateFilter, templateCatalog]);
 
-  const resolvedPageSize: PreviewPageSize =
-    previewPageSizeMode === 'auto' ? autoDetectedPageSize : previewPageSizeMode;
+  const resolvedPageSize: PreviewPageSize = ENABLE_PREVIEW_PAGINATION
+    ? (previewPageSizeMode === 'auto' ? autoDetectedPageSize : previewPageSizeMode)
+    : 'a4';
   const activePageSize = PAGE_SIZES[resolvedPageSize];
-  const pageSizeOptions: Array<'auto' | PreviewPageSize> = ['auto', 'a4', 'letter'];
+  const pageSizeOptions: Array<'auto' | PreviewPageSize> = ENABLE_PREVIEW_PAGINATION
+    ? ['auto', 'a4', 'letter']
+    : ['a4'];
 
   const slugifyTemplate = (value: string) =>
     value
@@ -195,6 +344,17 @@ export const Resume = () => {
       }) || null;
     },
     [templates]
+  );
+
+  const findJsonTemplateBySlug = useCallback(
+    (slug?: string | null) => {
+      if (!slug) return null;
+      const normalized = slugifyTemplate(slug);
+      return jsonTemplates.find((t) =>
+        slugifyTemplate(t.slug) === normalized || slugifyTemplate(t.name) === normalized
+      ) || null;
+    },
+    [jsonTemplates]
   );
 
   const demoSamples = useMemo(() => ([
@@ -314,10 +474,13 @@ export const Resume = () => {
     setIsFillingDemo(false);
   }, [demoSamples]);
 
-  const isTemplateSelection = !isEditorRoute && (templateStep === 'choose' || !selectedTemplate);
+  const isTemplateSelection =
+    !isEditorRoute && (templateStep === 'choose' || (!selectedTemplate && !selectedJsonTemplate));
 
   useEffect(() => {
-    if (resumeViewRestoreRef.current || templates.length === 0) return;
+    if (resumeViewRestoreRef.current) return;
+    if (templateLoading || jsonTemplateLoading) return;
+    if (templates.length === 0 && jsonTemplates.length === 0) return;
 
     resumeViewRestoreRef.current = true;
 
@@ -328,10 +491,19 @@ export const Resume = () => {
       const savedState = JSON.parse(raw) as {
         templateStep?: 'choose' | 'edit';
         selectedTemplate?: string;
+        selectedJsonTemplate?: string;
       };
 
       if (savedState.templateStep === 'choose' || savedState.templateStep === 'edit') {
         setTemplateStep(savedState.templateStep);
+      }
+
+      if (savedState.selectedJsonTemplate) {
+        const match = jsonTemplates.find((template) => template.slug === savedState.selectedJsonTemplate);
+        if (match) {
+          setSelectedJsonTemplate(match);
+          return;
+        }
       }
 
       if (
@@ -344,7 +516,14 @@ export const Resume = () => {
     } catch {
       // Ignore malformed saved state and continue with defaults.
     }
-  }, [selectedTemplate, selectTemplate, templates]);
+  }, [
+    jsonTemplateLoading,
+    jsonTemplates,
+    selectedTemplate,
+    selectTemplate,
+    templateLoading,
+    templates,
+  ]);
 
   useEffect(() => {
     if (!resumeViewRestoreRef.current) return;
@@ -354,13 +533,14 @@ export const Resume = () => {
       JSON.stringify({
         templateStep,
         selectedTemplate,
+        selectedJsonTemplate: selectedJsonTemplate?.slug || '',
       })
     );
-  }, [selectedTemplate, templateStep]);
+  }, [selectedJsonTemplate, selectedTemplate, templateStep]);
 
   const hasTemplateField = useCallback(
-    (key: string) => templateFields.length > 0 && templateFieldSet.has(normalizeFieldKey(key)),
-    [templateFieldSet, templateFields.length]
+    (key: string) => activeTemplateFields.length > 0 && templateFieldSet.has(normalizeFieldKey(key)),
+    [activeTemplateFields.length, templateFieldSet]
   );
 
   const hasAnyTemplateField = useCallback(
@@ -413,56 +593,14 @@ export const Resume = () => {
     [hasAnyTemplateField]
   );
 
-  const knownFieldKeys = useMemo(() => new Set([
-    'name',
-    'fullname',
-    'full_name',
-    'role',
-    'title',
-    'position',
-    'company',
-    'degree',
-    'school',
-    'dates',
-    'email',
-    'phone',
-    'mobile',
-    'location',
-    'address',
-    'city',
-    'country',
-    'website',
-    'portfolio',
-    'linkedin',
-    'github',
-    'photo_url',
-    'summary',
-    'profile',
-    'objective',
-    'skills',
-    'experience',
-    'work_experience',
-    'education',
-    'projects',
-    'additionalinfo',
-    'additional_info',
-    'additional',
-    'hassummary',
-    'hasexperience',
-    'haseducation',
-    'hasskills',
-    'hasprojects',
-    'hasadditional',
-    'customdetails',
-    'custom_details',
-    'hascustomdetails',
-    'bullets',
-    'hasbullets',
-  ].map((key) => normalizeFieldKey(key))), []);
+  const knownFieldKeys = useMemo(
+    () => new Set(defaultTemplateFields.map((key) => normalizeFieldKey(key))),
+    [defaultTemplateFields]
+  );
 
   const extraFields = useMemo(
-    () => templateFields.filter((field) => !knownFieldKeys.has(normalizeFieldKey(field))),
-    [templateFields, knownFieldKeys]
+    () => activeTemplateFields.filter((field) => !knownFieldKeys.has(normalizeFieldKey(field))),
+    [activeTemplateFields, knownFieldKeys]
   );
 
   const makeId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
@@ -611,6 +749,21 @@ export const Resume = () => {
       .map((item) => item.trim())
       .filter(Boolean);
 
+  const skillsList = useMemo(() => parseCommaOrNewline(skillsText), [skillsText]);
+
+  const addSkill = useCallback(() => {
+    const entries = parseCommaOrNewline(skillsInput);
+    if (entries.length === 0) return;
+    const updated = [...skillsList, ...entries];
+    setSkillsText(updated.join(', '));
+    setSkillsInput('');
+  }, [skillsInput, skillsList]);
+
+  const removeSkill = useCallback((index: number) => {
+    const updated = skillsList.filter((_, idx) => idx !== index);
+    setSkillsText(updated.join(', '));
+  }, [skillsList]);
+
   const buildResumeView = useCallback(() => {
     const templateHasSection = (key: string) =>
       templateSourceHtml ? new RegExp(`{{\\s*#\\s*${key}\\s*}}`, 'i').test(templateSourceHtml) : false;
@@ -745,6 +898,239 @@ export const Resume = () => {
     templateSourceHtml,
   ]);
 
+  const buildJsonResumeData = useCallback(() => {
+    const skills = parseCommaOrNewline(skillsText).map((name) => ({ name, value: name }));
+    const projects = parseNewline(projectsText).map((title) => ({ title, name: title, value: title }));
+    const additional = parseNewline(additionalText);
+    const customDetailItems = customDetails
+      .map((item) => ({
+        id: item.id,
+        label: item.label.trim(),
+        value: item.value.trim(),
+      }))
+      .filter((item) => item.label || item.value);
+
+    const experience = experienceItems
+      .map((item) => ({
+        id: item.id,
+        role: item.role,
+        company: item.company,
+        dates: item.dates,
+        date_range: item.dates,
+        highlights: item.details,
+        bullets: parseNewline(item.details),
+      }))
+      .filter((item) =>
+        [item.role, item.company, item.dates, item.highlights].some((value) => value && value.toString().trim())
+      );
+
+    const education = educationItems
+      .map((item) => ({
+        id: item.id,
+        degree: item.degree,
+        school: item.school,
+        dates: item.dates,
+        date_range: item.dates,
+        highlights: item.details,
+        bullets: parseNewline(item.details),
+      }))
+      .filter((item) =>
+        [item.degree, item.school, item.dates, item.highlights].some((value) => value && value.toString().trim())
+      );
+
+    const website = (templateFieldValues.website || templateFieldValues.portfolio || '').toString().trim();
+    const linkedIn = (templateFieldValues.linkedin || '').toString().trim();
+    const github = (templateFieldValues.github || '').toString().trim();
+
+    const contact = [
+      { label: 'Phone', value: contactPhone },
+      { label: 'Email', value: contactEmail },
+      { label: 'Location', value: contactLocation },
+      ...(website ? [{ label: 'Website', value: website }] : []),
+      ...(linkedIn ? [{ label: 'LinkedIn', value: linkedIn }] : []),
+      ...(github ? [{ label: 'GitHub', value: github }] : []),
+    ].filter((item) => item.value && item.value.toString().trim());
+
+    return {
+      name: contactName,
+      full_name: contactName,
+      fullname: contactName,
+      title: contactRole,
+      role: contactRole,
+      position: contactRole,
+      email: contactEmail,
+      phone: contactPhone,
+      location: contactLocation,
+      photo_url: contactPhotoUrl,
+      summary: summaryText,
+      profile: summaryText,
+      objective: summaryText,
+      skills,
+      skills_text: skillsText,
+      projects,
+      projects_text: projectsText,
+      experience,
+      education,
+      additional,
+      custom_details: customDetailItems,
+      customdetails: customDetailItems,
+      contact,
+      links: contact,
+    };
+  }, [
+    additionalText,
+    contactEmail,
+    contactLocation,
+    contactName,
+    contactPhone,
+    contactPhotoUrl,
+    contactRole,
+    customDetails,
+    educationItems,
+    experienceItems,
+    projectsText,
+    skillsText,
+    summaryText,
+    templateFieldValues,
+  ]);
+
+  const jsonPreviewData = useMemo(() => buildJsonResumeData(), [buildJsonResumeData]);
+
+  const handleInlineFieldChange = useCallback((path: string, value: string) => {
+    const listMatch = path.match(/^([a-zA-Z0-9_]+)\[(\d+)\](?:\.(.+))?$/);
+    if (!listMatch) {
+      const key = normalizeFieldKey(path);
+      if (['name', 'full_name', 'fullname'].includes(key)) {
+        setContactName(value);
+        return;
+      }
+      if (['role', 'title', 'position'].includes(key)) {
+        setContactRole(value);
+        return;
+      }
+      if (key === 'email') {
+        setContactEmail(value);
+        return;
+      }
+      if (['phone', 'mobile'].includes(key)) {
+        setContactPhone(value);
+        return;
+      }
+      if (['location', 'address', 'city', 'country'].includes(key)) {
+        setContactLocation(value);
+        return;
+      }
+      if (key === 'summary' || key === 'profile' || key === 'objective') {
+        setSummaryText(value);
+        return;
+      }
+      if (key === 'skills' || key === 'skillset' || key === 'skills_text') {
+        setSkillsText(value);
+        return;
+      }
+      if (key === 'projects' || key === 'projects_text') {
+        setProjectsText(value);
+        return;
+      }
+      if (key === 'photo_url') {
+        setContactPhotoUrl(value);
+        return;
+      }
+      setTemplateFieldValue(path, value);
+      return;
+    }
+
+    const [, rawListKey, rawIndex, rawField] = listMatch;
+    const listKey = normalizeFieldKey(rawListKey);
+    const index = Number(rawIndex);
+    const field = rawField ? normalizeFieldKey(rawField) : 'value';
+
+    if (listKey === 'experience') {
+      const targetId = jsonPreviewData.experience?.[index]?.id;
+      if (!targetId) return;
+      setExperienceItems((prev) =>
+        prev.map((item) =>
+          item.id === targetId
+            ? {
+                ...item,
+                role: field === 'role' ? value : item.role,
+                company: field === 'company' ? value : item.company,
+                dates: field === 'dates' || field === 'daterange' ? value : item.dates,
+                details: field === 'highlights' || field === 'bullets' ? value : item.details,
+              }
+            : item
+        )
+      );
+      return;
+    }
+
+    if (listKey === 'education') {
+      const targetId = jsonPreviewData.education?.[index]?.id;
+      if (!targetId) return;
+      setEducationItems((prev) =>
+        prev.map((item) =>
+          item.id === targetId
+            ? {
+                ...item,
+                degree: field === 'degree' ? value : item.degree,
+                school: field === 'school' ? value : item.school,
+                dates: field === 'dates' || field === 'daterange' ? value : item.dates,
+                details: field === 'highlights' || field === 'bullets' ? value : item.details,
+              }
+            : item
+        )
+      );
+      return;
+    }
+
+    if (listKey === 'skills') {
+      const skills = parseCommaOrNewline(skillsText);
+      if (index >= skills.length) return;
+      skills[index] = value;
+      setSkillsText(skills.join(', '));
+      return;
+    }
+
+    if (listKey === 'projects') {
+      const projects = parseNewline(projectsText);
+      if (index >= projects.length) return;
+      projects[index] = value;
+      setProjectsText(projects.join('\n'));
+      return;
+    }
+
+    if (listKey === 'customdetails' || listKey === 'custom_details') {
+      setCustomDetails((prev) => {
+        if (index >= prev.length) return prev;
+        const next = [...prev];
+        const current = next[index];
+        next[index] = {
+          ...current,
+          label: field === 'label' ? value : current.label,
+          value: field === 'value' ? value : current.value,
+        };
+        return next;
+      });
+      return;
+    }
+
+    if (listKey === 'contact') {
+      if (index === 0) setContactPhone(value);
+      if (index === 1) setContactEmail(value);
+      if (index === 2) setContactLocation(value);
+      if (index === 3) setTemplateFieldValue('website', value);
+      if (index === 4) setTemplateFieldValue('linkedin', value);
+      if (index === 5) setTemplateFieldValue('github', value);
+    }
+  }, [
+    jsonPreviewData,
+    parseCommaOrNewline,
+    parseNewline,
+    projectsText,
+    setTemplateFieldValue,
+    skillsText,
+  ]);
+
   const handleDragStart = (id: string) => setDraggingSection(id);
 
   const handleDrop = (targetId: string) => {
@@ -838,36 +1224,180 @@ export const Resume = () => {
     }
   };
 
-  const handleTemplateSelect = (name: string) => {
-    selectTemplate(name);
+  const handleTemplateSelect = (template: TemplateListItem) => {
+    if (template.kind === 'json' && template.json) {
+      setSelectedJsonTemplate(template.json);
+      setTemplateStep('edit');
+      return;
+    }
+    setSelectedJsonTemplate(null);
+    selectTemplate(template.name);
     setTemplateStep('edit');
   };
 
+  const handleTemplatePickerSelect = (template: TemplateListItem) => {
+    handleTemplateSelect(template);
+    setShowTemplatePicker(false);
+  };
+
+  const handleCustomizeTemplateSelect = (template: TemplateListItem) => {
+    handleTemplateSelect(template);
+    setActiveEditorTab('edit');
+  };
+
   const ensureEditModeReady = useCallback(() => {
-    const fallbackTemplate = selectedTemplate || filteredTemplates[0]?.name || templates[0]?.name;
+    if (selectedJsonTemplate || selectedTemplate) {
+      setTemplateStep('edit');
+      setActiveSectionId('contact');
+      setGenerateError(null);
+      return true;
+    }
+    const fallbackTemplate = filteredTemplates[0];
     if (!fallbackTemplate) {
       setGenerateError('No resume template is available yet.');
       return false;
     }
-    if (!selectedTemplate) {
-      selectTemplate(fallbackTemplate);
-    }
-    setTemplateStep('edit');
+    handleTemplateSelect(fallbackTemplate);
     setActiveSectionId('contact');
     setGenerateError(null);
     return true;
-  }, [filteredTemplates, selectedTemplate, selectTemplate, templates]);
+  }, [filteredTemplates, handleTemplateSelect, selectedJsonTemplate, selectedTemplate]);
+
+  const ensurePreviewRoot = useCallback((doc: Document) => {
+    const body = doc.body;
+    if (!body) return null;
+    const rootId = 'resume-preview-root';
+    let root = doc.getElementById(rootId) as HTMLElement | null;
+    if (!root) {
+      const originalHtml = body.dataset.originalHtml ?? body.innerHTML;
+      body.dataset.originalHtml = originalHtml;
+      body.innerHTML = `<div id="${rootId}">${originalHtml}</div>`;
+      root = doc.getElementById(rootId) as HTMLElement | null;
+    }
+    return root;
+  }, []);
+
+  const applyPreviewFontScale = useCallback((doc: Document, root: HTMLElement, scale: number) => {
+    const view = doc.defaultView;
+    if (!view) return;
+    const elements = [root, ...Array.from(root.querySelectorAll<HTMLElement>('*'))];
+    elements.forEach((el) => {
+      const style = view.getComputedStyle(el);
+      if (!style) return;
+      if (!el.dataset.previewFontSize) {
+        el.dataset.previewFontSize = style.fontSize;
+      }
+      const baseFont = Number.parseFloat(el.dataset.previewFontSize);
+      if (Number.isFinite(baseFont)) {
+        el.style.fontSize = `${baseFont * scale}px`;
+      }
+      if (!el.dataset.previewLineHeight) {
+        el.dataset.previewLineHeight = style.lineHeight;
+      }
+      const baseLine = Number.parseFloat(el.dataset.previewLineHeight);
+      if (Number.isFinite(baseLine)) {
+        el.style.lineHeight = `${baseLine * scale}px`;
+      }
+      if (!el.dataset.previewLetterSpacing) {
+        el.dataset.previewLetterSpacing = style.letterSpacing;
+      }
+      const baseLetterSpacing = Number.parseFloat(el.dataset.previewLetterSpacing);
+      if (Number.isFinite(baseLetterSpacing)) {
+        el.style.letterSpacing = `${baseLetterSpacing * scale}px`;
+      }
+    });
+  }, []);
+
+  const fitPreviewToPage = useCallback(() => {
+    if (selectedJsonTemplate) return;
+    const frame = previewFrameRef.current;
+    const doc = frame?.contentDocument;
+    if (!doc) return;
+    const root = ensurePreviewRoot(doc);
+    if (!root) return;
+
+    let appliedScale = PREVIEW_FONT_SCALES[PREVIEW_FONT_SCALES.length - 1] || 1;
+    for (const scale of PREVIEW_FONT_SCALES) {
+      applyPreviewFontScale(doc, root, scale);
+      const height = root.scrollHeight;
+      if (height <= activePageSize.height) {
+        appliedScale = scale;
+        break;
+      }
+    }
+    previewFontScaleRef.current = appliedScale;
+  }, [activePageSize.height, applyPreviewFontScale, ensurePreviewRoot, selectedJsonTemplate]);
+
+  const attachPreviewContentObserver = useCallback(() => {
+    if (selectedJsonTemplate) return;
+    const frame = previewFrameRef.current;
+    const doc = frame?.contentDocument;
+    const view = doc?.defaultView;
+    if (!doc || !view) return;
+    const root = ensurePreviewRoot(doc);
+    if (!root) return;
+    previewContentObserverRef.current?.disconnect();
+    const observer = new view.ResizeObserver(() => {
+      fitPreviewToPage();
+    });
+    observer.observe(root);
+    previewContentObserverRef.current = observer;
+  }, [ensurePreviewRoot, fitPreviewToPage, selectedJsonTemplate]);
 
   const handleCreateResumeClick = useCallback(() => {
     ensureEditModeReady();
   }, [ensureEditModeReady]);
 
   const applyPreviewPagination = useCallback(() => {
+    if (selectedJsonTemplate) return;
     const frame = previewFrameRef.current;
     const doc = frame?.contentDocument;
     if (!doc) return;
     const body = doc.body;
     if (!body) return;
+
+    if (!ENABLE_PREVIEW_PAGINATION) {
+      const originalHtml = body.dataset.originalHtml ?? body.innerHTML;
+      body.dataset.originalHtml = originalHtml;
+      body.dataset.paginated = 'disabled';
+      const styleId = 'resume-preview-pagination-style';
+      let styleTag = doc.getElementById(styleId) as HTMLStyleElement | null;
+      const styleContent = `
+        html, body {
+          width: ${activePageSize.width}px;
+          height: ${activePageSize.height}px;
+          margin: 0;
+          padding: 0;
+          overflow: hidden;
+          background: #ffffff;
+        }
+        #resume-preview-root {
+          width: 100%;
+          min-height: 100%;
+          box-sizing: border-box;
+        }
+        #resume-preview-root * {
+          box-sizing: border-box;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
+      `.trim();
+      if (!styleTag) {
+        styleTag = doc.createElement('style');
+        styleTag.id = styleId;
+        doc.head.appendChild(styleTag);
+      }
+      styleTag.textContent = styleContent;
+      body.innerHTML = `<div id="resume-preview-root">${originalHtml}</div>`;
+      const root = doc.getElementById('resume-preview-root') as HTMLElement | null;
+      if (root) {
+        body.dataset.measureWidth = String(root.scrollWidth || activePageSize.width);
+        body.dataset.measureHeight = String(root.scrollHeight || activePageSize.height);
+        previewContentHeightRef.current = root.scrollHeight || activePageSize.height;
+      }
+      fitPreviewToPage();
+      return;
+    }
 
     const pageKey = `${resolvedPageSize}-${activePageSize.width}x${activePageSize.height}`;
     if (body.dataset.paginated === pageKey) return;
@@ -886,10 +1416,10 @@ export const Resume = () => {
       }
       body {
         margin: 0;
-        padding: 24px 0;
-        background: #e5e7eb;
+        padding: 0;
+        background: transparent;
         display: flex;
-        justify-content: center;
+        justify-content: flex-start;
         align-items: flex-start;
       }
       .resume-preview-viewport {
@@ -910,8 +1440,8 @@ export const Resume = () => {
         width: ${activePageSize.width}px;
         min-height: ${activePageSize.height}px;
         height: ${activePageSize.height}px;
-        background: #ffffff;
-        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+        background: transparent;
+        box-shadow: none;
         box-sizing: border-box;
         overflow: hidden;
         display: flex;
@@ -920,7 +1450,7 @@ export const Resume = () => {
       .resume-preview-page-content {
         width: 100%;
         height: 100%;
-        padding: ${PAGE_MARGIN_PX}px;
+        padding: 0;
         box-sizing: border-box;
         overflow: hidden;
       }
@@ -957,9 +1487,37 @@ export const Resume = () => {
       (el) => !['SCRIPT', 'STYLE'].includes(el.tagName)
     ) as HTMLElement[];
     const rootTemplate = candidateRoots.length === 1 ? candidateRoots[0] : null;
-    const sectionNodes = rootTemplate
-      ? Array.from(rootTemplate.childNodes)
-      : Array.from(temp.childNodes);
+    const selectors = '[data-resume-block],[data-section],[data-block],section';
+    const directMatches = (el: Element) =>
+      Array.from(el.children).filter((child) => child.matches(selectors));
+    const isMeaningfulNode = (node: Node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return (node.textContent || '').trim().length > 0;
+      }
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const el = node as Element;
+        if (['SCRIPT', 'STYLE'].includes(el.tagName)) return false;
+      }
+      return true;
+    };
+    const getBlockNodes = () => {
+      const root = rootTemplate ?? temp;
+      const meaningful = Array.from(root.childNodes).filter(isMeaningfulNode);
+      const wrapper =
+        meaningful.length === 1 && meaningful[0].nodeType === Node.ELEMENT_NODE
+          ? (meaningful[0] as Element)
+          : null;
+      if (wrapper) {
+        const scoped = directMatches(wrapper);
+        if (scoped.length > 0) return scoped;
+      }
+      if (rootTemplate) {
+        const scoped = directMatches(rootTemplate);
+        if (scoped.length > 0) return scoped;
+      }
+      return meaningful;
+    };
+    const sectionNodes = getBlockNodes();
 
     const pagesWrapper = doc.createElement('div');
     pagesWrapper.className = 'resume-preview-pages';
@@ -987,6 +1545,12 @@ export const Resume = () => {
     const createPageShell = () => {
       if (!rootTemplate) return null;
       const shell = rootTemplate.cloneNode(false) as HTMLElement;
+      // Prevent fixed page containers from forcing extra pagination.
+      shell.style.minHeight = 'auto';
+      shell.style.height = 'auto';
+      shell.style.maxHeight = 'none';
+      // Ensure floats are contained for correct height measurement.
+      shell.style.display = 'flow-root';
       currentPage.appendChild(shell);
       return shell;
     };
@@ -999,16 +1563,38 @@ export const Resume = () => {
       return content.querySelector('*') === null;
     };
 
-    const nodes = sectionNodes.filter((node) => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        return (node.textContent || '').trim().length > 0;
-      }
-      if (node.nodeType === Node.ELEMENT_NODE) {
-        const el = node as Element;
-        if (['SCRIPT', 'STYLE'].includes(el.tagName)) return false;
-      }
+    const nodes = sectionNodes.filter(isMeaningfulNode);
+
+    const splitElementAcrossPages = (element: HTMLElement) => {
+      const children = Array.from(element.childNodes).filter(isMeaningfulNode);
+      if (children.length <= 1) return false;
+      const createContainer = () => {
+        const container = element.cloneNode(false) as HTMLElement;
+        container.style.minHeight = 'auto';
+        container.style.height = 'auto';
+        container.style.maxHeight = 'none';
+        container.style.display = 'flow-root';
+        (currentShell ?? currentPage).appendChild(container);
+        return container;
+      };
+      let container = createContainer();
+      children.forEach((child) => {
+        container.appendChild(child);
+        if (currentPage.scrollHeight <= currentPage.clientHeight) return;
+        container.removeChild(child);
+        if (isContentEmpty(container)) {
+          container.remove();
+        }
+        currentPage = createPage();
+        currentShell = createPageShell();
+        container = createContainer();
+        container.appendChild(child);
+        if (currentPage.scrollHeight > currentPage.clientHeight) {
+          // Still too tall; keep it to avoid losing content.
+        }
+      });
       return true;
-    });
+    };
 
     nodes.forEach((node) => {
       const target = currentShell ?? currentPage;
@@ -1017,13 +1603,18 @@ export const Resume = () => {
 
       target.removeChild(node);
 
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const didSplit = splitElementAcrossPages(node as HTMLElement);
+        if (didSplit) return;
+      }
+
       if (!isContentEmpty(target)) {
         currentPage = createPage();
         currentShell = createPageShell();
       }
       (currentShell ?? currentPage).appendChild(node);
       if (currentPage.scrollHeight > currentPage.clientHeight) {
-        // Section is taller than a page; allow overflow within this page.
+        // Block is taller than a page; allow overflow within this page.
       }
     });
 
@@ -1037,9 +1628,15 @@ export const Resume = () => {
       createPage();
     }
     pagesWrapper.style.transform = 'translateX(0px)';
-  }, [activePageSize.height, activePageSize.width, resolvedPageSize]);
+  }, [activePageSize.height, activePageSize.width, fitPreviewToPage, resolvedPageSize, selectedJsonTemplate]);
 
   const updatePreviewPaging = useCallback(() => {
+    if (selectedJsonTemplate) return;
+    if (!ENABLE_PREVIEW_PAGINATION) {
+      setPreviewPageCount(1);
+      setPreviewPage(1);
+      return;
+    }
     const pageHeight = activePageSize.height;
     const frame = previewFrameRef.current;
     const pages = frame?.contentDocument?.querySelector('.resume-preview-pages');
@@ -1048,12 +1645,12 @@ export const Resume = () => {
       : Math.max(1, Math.ceil((previewContentHeightRef.current || pageHeight) / pageHeight));
     setPreviewPageCount(count);
     setPreviewPage((prev) => Math.min(Math.max(prev, 1), count));
-  }, [activePageSize.height]);
+  }, [activePageSize.height, selectedJsonTemplate]);
 
   const updatePreviewFrameSize = useCallback(() => {
+    if (selectedJsonTemplate) return;
     const frame = previewFrameRef.current;
     const shell = previewShellRef.current;
-    const card = previewCardRef.current;
     if (!frame) return;
     const pageWidth = activePageSize.width;
     const pageHeight = activePageSize.height;
@@ -1066,7 +1663,7 @@ export const Resume = () => {
     const measuredHeight = Number(body.dataset.measureHeight || pageHeight) || pageHeight;
     const height = pageHeight;
     const width = pageWidth;
-    if (previewPageSizeMode === 'auto' && !autoDetectLockedRef.current && width > 0) {
+    if (ENABLE_PREVIEW_PAGINATION && previewPageSizeMode === 'auto' && !autoDetectLockedRef.current && width > 0) {
       const ratio = measuredHeight / measuredWidth;
       const a4Ratio = PAGE_SIZES.a4.height / PAGE_SIZES.a4.width;
       const letterRatio = PAGE_SIZES.letter.height / PAGE_SIZES.letter.width;
@@ -1076,19 +1673,7 @@ export const Resume = () => {
       }
       autoDetectLockedRef.current = true;
     }
-    let scale = 1;
-    if (card) {
-      const padding = 40;
-      const availableWidth = Math.max(0, card.clientWidth - padding);
-      const scaleX = availableWidth > 0 ? availableWidth / width : 1;
-      const nextScale = Math.min(1, scaleX);
-      if (Number.isFinite(nextScale) && nextScale > 0) {
-        scale = nextScale;
-        card.style.setProperty('--preview-scale', scale.toFixed(3));
-      }
-    }
-    const safeScale = scale > 0 ? scale : 1;
-    previewScaleRef.current = safeScale;
+    previewScaleRef.current = 1;
     const pages = doc.querySelector('.resume-preview-pages');
     const pageCount = pages
       ? Math.max(
@@ -1099,12 +1684,12 @@ export const Resume = () => {
           ).length
         )
       : 1;
-    previewContentHeightRef.current = pageCount * activePageSize.height;
+    previewContentHeightRef.current = ENABLE_PREVIEW_PAGINATION ? pageCount * activePageSize.height : height;
     frame.style.height = `${height}px`;
     frame.style.width = `${width}px`;
     if (shell) {
-      shell.style.setProperty('--preview-shell-height', `${height * safeScale}px`);
-      shell.style.setProperty('--preview-shell-width', `${width * safeScale}px`);
+      shell.style.setProperty('--preview-shell-height', `${height}px`);
+      shell.style.setProperty('--preview-shell-width', `${width}px`);
     }
     updatePreviewPaging();
   }, [
@@ -1112,10 +1697,25 @@ export const Resume = () => {
     activePageSize.width,
     autoDetectedPageSize,
     previewPageSizeMode,
+    selectedJsonTemplate,
     updatePreviewPaging,
   ]);
 
+  const updateJsonPreviewScale = useCallback(() => {
+    const template = selectedJsonTemplate?.definition;
+    const shell = previewShellRef.current;
+    if (!template) return;
+    const pageWidth = template.page.widthPx;
+    const pageHeight = template.page.heightPx;
+    if (shell) {
+      shell.style.setProperty('--preview-shell-width', `${pageWidth}px`);
+      shell.style.setProperty('--preview-shell-height', `${pageHeight}px`);
+    }
+  }, [selectedJsonTemplate]);
+
   const syncPreviewPagePosition = useCallback((targetPage: number) => {
+    if (selectedJsonTemplate) return;
+    if (!ENABLE_PREVIEW_PAGINATION) return;
     const frame = previewFrameRef.current;
     const doc = frame?.contentDocument;
     if (!doc) return;
@@ -1125,22 +1725,35 @@ export const Resume = () => {
     const maxPage = Math.max(1, Math.ceil((previewContentHeightRef.current || activePageSize.height) / activePageSize.height));
     const clamped = Math.min(maxPage, Math.max(1, targetPage));
     pagesWrapper.style.transform = `translateX(-${(clamped - 1) * (pageWidth + PAGE_GAP_PX)}px)`;
-  }, [activePageSize.height, activePageSize.width]);
+  }, [activePageSize.height, activePageSize.width, selectedJsonTemplate]);
 
   const scrollPreviewToPage = useCallback((targetPage: number) => {
+    if (selectedJsonTemplate) {
+      const maxPage = Math.max(1, previewPageCount);
+      const clamped = Math.min(maxPage, Math.max(1, targetPage));
+      setPreviewPage(clamped);
+      return;
+    }
+    if (!ENABLE_PREVIEW_PAGINATION) {
+      setPreviewPage(1);
+      return;
+    }
     const pageHeight = activePageSize.height;
     const maxPage = Math.max(1, Math.ceil((previewContentHeightRef.current || pageHeight) / pageHeight));
     const clamped = Math.min(maxPage, Math.max(1, targetPage));
     setPreviewPage(clamped);
     syncPreviewPagePosition(clamped);
-  }, [activePageSize.height, syncPreviewPagePosition]);
+  }, [activePageSize.height, previewPageCount, selectedJsonTemplate, syncPreviewPagePosition]);
 
   const handlePreviewLoad = useCallback(() => {
+    if (selectedJsonTemplate) return;
     applyPreviewPagination();
     requestAnimationFrame(() => {
       updatePreviewFrameSize();
+      fitPreviewToPage();
+      attachPreviewContentObserver();
     });
-  }, [applyPreviewPagination, updatePreviewFrameSize]);
+  }, [applyPreviewPagination, attachPreviewContentObserver, fitPreviewToPage, selectedJsonTemplate, updatePreviewFrameSize]);
 
   const normalizeImportKey = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, '');
   const humanizeFileName = (name: string) =>
@@ -1240,6 +1853,15 @@ export const Resume = () => {
   const handleUploadResumeClick = useCallback(() => {
     resumeUploadInputRef.current?.click();
   }, []);
+
+  useEffect(() => {
+    if (!isEditorRoute) return;
+    if (!uploadQueryParam) return;
+    const timer = window.setTimeout(() => {
+      handleUploadResumeClick();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [handleUploadResumeClick, isEditorRoute, uploadQueryParam]);
 
   const handleUploadResumeFile = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -1577,6 +2199,7 @@ export const Resume = () => {
   };
 
   const previewHtml = useMemo(() => {
+    if (selectedJsonTemplate) return null;
     if (templateSourceHtml) {
       try {
         return renderTemplateWithSchema(templateSourceHtml, buildResumeView());
@@ -1586,18 +2209,25 @@ export const Resume = () => {
       }
     }
     return templatePreviewHtml;
-  }, [buildResumeView, templatePreviewHtml, templateSourceHtml]);
+  }, [buildResumeView, selectedJsonTemplate, templatePreviewHtml, templateSourceHtml]);
 
   useEffect(() => {
-    if (!previewHtml) return;
+    if (!previewHtml || selectedJsonTemplate) return;
     const timer = window.setTimeout(() => {
       applyPreviewPagination();
       updatePreviewFrameSize();
+      fitPreviewToPage();
+      attachPreviewContentObserver();
     }, 100);
     return () => window.clearTimeout(timer);
-  }, [applyPreviewPagination, previewHtml, updatePreviewFrameSize]);
+  }, [applyPreviewPagination, attachPreviewContentObserver, fitPreviewToPage, previewHtml, selectedJsonTemplate, updatePreviewFrameSize]);
 
   useEffect(() => {
+    if (selectedJsonTemplate) {
+      setPreviewPage(1);
+      setPreviewPageCount(1);
+      return;
+    }
     if (!previewHtml) {
       setPreviewPage(1);
       setPreviewPageCount(1);
@@ -1605,7 +2235,23 @@ export const Resume = () => {
     }
     autoDetectLockedRef.current = false;
     updatePreviewPaging();
-  }, [previewHtml, updatePreviewPaging]);
+  }, [previewHtml, selectedJsonTemplate, updatePreviewPaging]);
+
+  useEffect(() => {
+    if (!selectedJsonTemplate) return;
+    updateJsonPreviewScale();
+  }, [jsonPreviewData, selectedJsonTemplate, updateJsonPreviewScale]);
+
+  useEffect(() => {
+    if (selectedJsonTemplate) {
+      previewContentObserverRef.current?.disconnect();
+      previewContentObserverRef.current = null;
+    }
+  }, [selectedJsonTemplate]);
+
+  useEffect(() => () => {
+    previewContentObserverRef.current?.disconnect();
+  }, []);
 
   useEffect(() => {
     syncPreviewPagePosition(previewPage);
@@ -1626,24 +2272,39 @@ export const Resume = () => {
   }, [applyPreviewPagination, resolvedPageSize, updatePreviewFrameSize]);
 
   useEffect(() => {
-    const onResize = () => updatePreviewPaging();
+    const onResize = () => {
+      if (selectedJsonTemplate) {
+        updateJsonPreviewScale();
+      } else {
+        updatePreviewFrameSize();
+        fitPreviewToPage();
+      }
+    };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [updatePreviewPaging]);
+  }, [fitPreviewToPage, selectedJsonTemplate, updateJsonPreviewScale, updatePreviewFrameSize]);
 
   useEffect(() => {
     if (!isEditorRoute) return;
-    const match = findTemplateBySlug(templateId);
+    const jsonMatch = findJsonTemplateBySlug(effectiveTemplateId);
+    if (jsonMatch) {
+      setSelectedJsonTemplate(jsonMatch);
+      setTemplateStep('edit');
+      return;
+    }
+    const match = findTemplateBySlug(effectiveTemplateId);
     if (match) {
+      setSelectedJsonTemplate(null);
       selectTemplate(match.name);
       setTemplateStep('edit');
       return;
     }
     if (templates.length > 0) {
+      setSelectedJsonTemplate(null);
       selectTemplate(templates[0].name);
       setTemplateStep('edit');
     }
-  }, [findTemplateBySlug, isEditorRoute, selectTemplate, templateId, templates]);
+  }, [effectiveTemplateId, findJsonTemplateBySlug, findTemplateBySlug, isEditorRoute, selectTemplate, templates]);
 
   const getEditorSnapshot = useCallback(() => {
     return JSON.stringify({
@@ -1664,6 +2325,7 @@ export const Resume = () => {
       unlockedSections,
       activeSectionId,
       selectedTemplate,
+      selectedJsonTemplate: selectedJsonTemplate?.slug ?? null,
       templateFieldValues,
     });
   }, [
@@ -1680,6 +2342,7 @@ export const Resume = () => {
     experienceItems,
     projectsText,
     sectionOrder,
+    selectedJsonTemplate,
     selectedTemplate,
     skillsText,
     summaryText,
@@ -1808,7 +2471,7 @@ export const Resume = () => {
       restoreKeyRef.current = null;
       return;
     }
-    const storageKey = `hirevo:resume-editor:${templateId || 'default'}:${user?.id || 'anon'}`;
+    const storageKey = `hirevo:resume-editor:${effectiveTemplateId || 'default'}:${user?.id || 'anon'}`;
     if (restoreKeyRef.current === storageKey) return;
     restoreKeyRef.current = storageKey;
     const saved = window.localStorage.getItem(storageKey);
@@ -1821,11 +2484,11 @@ export const Resume = () => {
       undoStackRef.current = [initial];
       redoStackRef.current = [];
     }
-  }, [applyEditorSnapshot, isEditorRoute, templateId, user?.id]);
+  }, [applyEditorSnapshot, effectiveTemplateId, isEditorRoute, user?.id]);
 
   useEffect(() => {
     if (!isEditorRoute) return;
-    const storageKey = `hirevo:resume-editor:${templateId || 'default'}:${user?.id || 'anon'}`;
+    const storageKey = `hirevo:resume-editor:${effectiveTemplateId || 'default'}:${user?.id || 'anon'}`;
     if (autosaveTimerRef.current) window.clearInterval(autosaveTimerRef.current);
     autosaveTimerRef.current = window.setInterval(() => {
       if (isApplyingHistoryRef.current) return;
@@ -1834,7 +2497,7 @@ export const Resume = () => {
     return () => {
       if (autosaveTimerRef.current) window.clearInterval(autosaveTimerRef.current);
     };
-  }, [getEditorSnapshot, isEditorRoute, templateId, user?.id]);
+  }, [effectiveTemplateId, getEditorSnapshot, isEditorRoute, user?.id]);
 
   useEffect(() => {
     if (!isEditorRoute) return;
@@ -1863,6 +2526,11 @@ export const Resume = () => {
     return Math.round((completed / values.length) * 100);
   }, [sectionCompletion]);
 
+  const canDownload = useMemo(() => {
+    if (availableSections.length === 0) return false;
+    return availableSections.every((id) => sectionCompletion[id]);
+  }, [availableSections, sectionCompletion]);
+
   useEffect(() => {
     // Recover from any stale body scroll lock when entering the resume editor.
     document.body.classList.remove('no-scroll');
@@ -1875,17 +2543,25 @@ export const Resume = () => {
     if (initialResumeReady) return;
 
     const waitingForInitialTemplate =
+      !selectedJsonTemplate &&
       Boolean(selectedTemplate) &&
       !templateSourceHtml &&
       !templateError;
 
-    if (templateLoading || (templatePreviewLoading && waitingForInitialTemplate) || waitingForInitialTemplate) {
+    if (
+      templateLoading ||
+      jsonTemplateLoading ||
+      (templatePreviewLoading && waitingForInitialTemplate) ||
+      waitingForInitialTemplate
+    ) {
       return;
     }
 
     setInitialResumeReady(true);
   }, [
     initialResumeReady,
+    jsonTemplateLoading,
+    selectedJsonTemplate,
     selectedTemplate,
     templateError,
     templateLoading,
@@ -1897,14 +2573,101 @@ export const Resume = () => {
     return <AppLoader variant="full" />;
   }
 
-  const hasTemplateIssue = Boolean(templateError) || (!templateLoading && templates.length === 0);
-  const templateIssueMessage = templateError
-    ? templateError
+  const hasTemplateIssue = Boolean(combinedTemplateError) || (!combinedTemplateLoading && templateCatalog.length === 0);
+  const templateIssueMessage = combinedTemplateError
+    ? combinedTemplateError
     : 'No templates available. Upload HTML files to the resume_templates bucket.';
 
+  const previewPanel = (
+    <div className="builder-preview-panel">
+      <div className="preview-card" ref={previewCardRef}>
+        <div className="preview-card-body">
+          <div className="preview-scroll" ref={previewBodyRef} onScroll={updatePreviewPaging}>
+            {selectedJsonTemplate ? (
+              <div className="preview-iframe-shell" ref={previewShellRef}>
+                <div className="preview-json-frame">
+                  <ResumeTemplatePreview
+                    template={selectedJsonTemplate.definition}
+                    data={jsonPreviewData}
+                    currentPage={previewPage}
+                    onPageChange={setPreviewPage}
+                    onPageCountChange={setPreviewPageCount}
+                    sectionOrder={jsonSectionOrder}
+                    onSectionOrderChange={setJsonSectionOrder}
+                    inlineEditing
+                    onFieldChange={handleInlineFieldChange}
+                  />
+                </div>
+              </div>
+            ) : previewHtml ? (
+              <div className="preview-iframe-shell" ref={previewShellRef}>
+                <iframe
+                  title="Resume preview"
+                  srcDoc={previewHtml}
+                  className="preview-iframe"
+                  scrolling="no"
+                  ref={previewFrameRef}
+                  onLoad={handlePreviewLoad}
+                />
+              </div>
+            ) : (
+              <div className="preview-empty">
+                Select a template to preview your resume.
+              </div>
+            )}
+          </div>
+          <div className="preview-overlay">
+            <button
+              type="button"
+              className="preview-overlay-btn"
+              disabled={previewPage <= 1}
+              onClick={() => scrollPreviewToPage(previewPage - 1)}
+            >
+              &lt;
+            </button>
+            <span className="preview-overlay-text">Page {previewPage} of {previewPageCount}</span>
+            <button
+              type="button"
+              className="preview-overlay-btn"
+              disabled={previewPage >= previewPageCount}
+              onClick={() => scrollPreviewToPage(previewPage + 1)}
+            >
+              &gt;
+            </button>
+            {ENABLE_PREVIEW_PAGINATION && !selectedJsonTemplate && (
+              <div className="preview-overlay-size">
+                {pageSizeOptions.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    className={`preview-size-btn ${previewPageSizeMode === option ? 'is-active' : ''}`}
+                    onClick={() => setPreviewPageSizeMode(option)}
+                    title={
+                      option === 'auto'
+                        ? `Auto (${PAGE_SIZES[resolvedPageSize].label})`
+                        : PAGE_SIZES[option].label
+                    }
+                  >
+                    {option === 'auto' ? 'Auto' : PAGE_SIZES[option].label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className={`resume-page ${isTemplateSelection ? 'is-template-mode' : ''} ${isEditorRoute ? 'is-editor-route' : ''}`}>
+      <input
+        ref={resumeUploadInputRef}
+        type="file"
+        accept=".pdf,.doc,.docx,.txt"
+        style={{ display: 'none' }}
+        onChange={handleUploadResumeFile}
+      />
       {!isEditorRoute && (
         <section className={`resume-hero ${isTemplateSelection ? 'is-templates' : ''}`}>
           <div className="resume-hero-content">
@@ -1915,7 +2678,7 @@ export const Resume = () => {
                   Each resume template is designed to help you get hired faster. Pick a layout and start editing in seconds.
                 </p>
                 <div className="resume-hero-meta">
-                  <span>{templateLoading ? 'Loading templates...' : `${filteredTemplates.length} templates ready`}</span>
+                  <span>{combinedTemplateLoading ? 'Loading templates...' : `${filteredTemplates.length} templates ready`}</span>
                   <span>ATS-friendly layouts</span>
                   <span>One-click editing</span>
                 </div>
@@ -1935,13 +2698,6 @@ export const Resume = () => {
                   >
                     {uploadingResume ? 'Uploading...' : 'Upload my resume'}
                   </button>
-                  <input
-                    ref={resumeUploadInputRef}
-                    type="file"
-                    accept=".pdf,.doc,.docx,.txt"
-                    style={{ display: 'none' }}
-                    onChange={handleUploadResumeFile}
-                  />
                 </div>
                 <div className="template-filters">
                   {templateFilters.map((filter) => (
@@ -1972,10 +2728,10 @@ export const Resume = () => {
       <div className="resume-content">
         {isTemplateSelection ? (
           <section className="template-gallery">
-            {templateLoading ? (
+            {combinedTemplateLoading ? (
               <div className="template-state">Loading templates...</div>
-            ) : templateError ? (
-              <div className="template-state template-error">{templateError}</div>
+            ) : combinedTemplateError ? (
+              <div className="template-state template-error">{combinedTemplateError}</div>
             ) : filteredTemplates.length === 0 ? (
               <div className="template-state">
                 {activeTemplateFilter === 'All templates'
@@ -1986,12 +2742,15 @@ export const Resume = () => {
               <div className="template-compact-grid">
                 {filteredTemplates.map((t) => {
                   const displayName = t.displayName.toLowerCase();
+                  const isSelected = t.kind === 'json'
+                    ? selectedJsonTemplate?.slug === t.name
+                    : selectedTemplate === t.name;
                   return (
                     <button
-                      key={t.name}
+                      key={`${t.kind}:${t.name}`}
                       type="button"
-                      onClick={() => handleTemplateSelect(t.name)}
-                      className={`template-card-compact ${selectedTemplate === t.name ? 'is-selected' : ''}`}
+                      onClick={() => handleTemplateSelect(t)}
+                      className={`template-card-compact ${isSelected ? 'is-selected' : ''}`}
                       title={displayName}
                     >
                       <div className="template-card-compact-preview">
@@ -2020,6 +2779,14 @@ export const Resume = () => {
           <>
             <div className="resume-topbar">
               <div className="resume-topbar-left">
+                <button
+                  type="button"
+                  className="topbar-back-btn"
+                  aria-label="Back"
+                  onClick={() => navigate(backTarget)}
+                >
+                  <ArrowLeft size={18} />
+                </button>
                 <button type="button" className="topbar-app-btn" aria-label="Menu">
                   <span className="dot-grid">
                     <span />
@@ -2042,10 +2809,32 @@ export const Resume = () => {
                 </div>
               </div>
               <div className="resume-topbar-center">
-                <button type="button" className="resume-topbar-pill is-active">Edit</button>
-                <button type="button" className="resume-topbar-pill">Customize</button>
-                <button type="button" className="resume-topbar-pill">AI Review</button>
-                <button type="button" className="resume-topbar-pill has-badge">
+                <button
+                  type="button"
+                  className={`resume-topbar-pill ${activeEditorTab === 'edit' ? 'is-active' : ''}`}
+                  onClick={() => setActiveEditorTab('edit')}
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  className={`resume-topbar-pill ${activeEditorTab === 'customize' ? 'is-active' : ''}`}
+                  onClick={() => setActiveEditorTab('customize')}
+                >
+                  Customize
+                </button>
+                <button
+                  type="button"
+                  className={`resume-topbar-pill ${activeEditorTab === 'review' ? 'is-active' : ''}`}
+                  onClick={() => setActiveEditorTab('review')}
+                >
+                  AI Review
+                </button>
+                <button
+                  type="button"
+                  className={`resume-topbar-pill has-badge ${activeEditorTab === 'tailor' ? 'is-active' : ''}`}
+                  onClick={() => setActiveEditorTab('tailor')}
+                >
                   Tailor
                   <span className="pill-badge">NEW</span>
                 </button>
@@ -2054,13 +2843,15 @@ export const Resume = () => {
                 <button
                   type="button"
                   className="resume-topbar-outline"
-                  onClick={() => navigate('/resume/templates')}
+                  onClick={() => (isEditorRoute ? setShowTemplatePicker(true) : navigate('/resume/templates'))}
                 >
                   Change Template
                 </button>
-                <button type="button" className="resume-topbar-download" onClick={handleDownloadPDF}>
-                  Download <span className="caret" aria-hidden="true" />
-                </button>
+                {canDownload && (
+                  <button type="button" className="resume-topbar-download" onClick={handleDownloadPDF}>
+                    Download <span className="caret" aria-hidden="true" />
+                  </button>
+                )}
                 <button type="button" className="resume-topbar-icon" aria-label="Settings">
                   <Settings size={18} />
                 </button>
@@ -2115,29 +2906,33 @@ export const Resume = () => {
                     </button>
                     <button
                       type="button"
-                      className="btn btn-primary"
-                      onClick={() => {
-                        if (selectedTemplate) {
+                        className="btn btn-primary"
+                        onClick={() => {
+                        if (selectedJsonTemplate) {
+                          refreshJsonTemplates();
+                        } else if (selectedTemplate) {
                           selectTemplate(selectedTemplate);
                         } else {
                           refreshTemplates();
                         }
-                      }}
-                    >
+                        }}
+                      >
                       Try again
                     </button>
                   </div>
                 </div>
               )}
 
-              {templateSourceHtml && templateFields.length === 0 && (
+              {templateSourceHtml && !selectedJsonTemplate && activeTemplateFields.length === 0 && (
                 <div className="text-sm text-gray-500 mb-6">
                   This template has no placeholders. Use a dynamic template to enable live editing.
                 </div>
               )}
 
-            <div className="resume-builder-grid">
+            <div className={`resume-builder-grid ${showMobilePreview ? 'is-preview-only' : ''}`}>
               <div className="builder-panel">
+                {activeEditorTab === 'edit' ? (
+                  <>
                 {showProgressCard && (
                   <div className="builder-progress-card">
                     <div className="progress-header">
@@ -2172,24 +2967,6 @@ export const Resume = () => {
                         additional: 'Additional Information',
                         extra: 'Other Fields',
                       }[currentStepId] || 'Section'}</h3>
-                    </div>
-                    <div className="step-header-actions">
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        onClick={goPrevStep}
-                        disabled={currentStepIndex === 0}
-                      >
-                        Back
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-sm"
-                        onClick={goNextStep}
-                        disabled={currentStepIndex >= totalSteps - 1}
-                      >
-                        Next
-                      </button>
                     </div>
                   </div>
                 )}
@@ -2351,7 +3128,13 @@ export const Resume = () => {
                             </div>
                             <div className="contact-footer">
                               <button type="button" className="add-details-btn">Add more details</button>
-                              <button type="button" className="ask-ai-btn">Ask AI writer</button>
+                              <button
+                                type="button"
+                                className="ask-ai-btn"
+                                onClick={() => setActiveEditorTab('review')}
+                              >
+                                Ask AI writer
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -2506,14 +3289,46 @@ export const Resume = () => {
                       ),
                       skills: (
                         <div className="form-group">
-                          <label className="block text-sm font-semibold mb-2 text-gray-700">Skills (comma or line separated)</label>
-                          <textarea
-                            placeholder="React, TypeScript, Node.js..."
-                            className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-y"
-                            rows={3}
-                            value={skillsText}
-                            onChange={(e) => setSkillsText(e.target.value)}
-                          />
+                          <label className="block text-sm font-semibold mb-2 text-gray-700">Skills</label>
+                          <div className="skills-editor">
+                            <div className="skills-input-row">
+                              <input
+                                placeholder="Add a skill (e.g. React)"
+                                className="skills-input"
+                                value={skillsInput}
+                                onChange={(e) => setSkillsInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    addSkill();
+                                  }
+                                }}
+                              />
+                              <button type="button" className="add-skill-btn" onClick={addSkill}>
+                                Add skill
+                              </button>
+                            </div>
+                            {skillsList.length > 0 ? (
+                              <div className="skills-chip-list">
+                                {skillsList.map((skill, index) => (
+                                  <span key={`${skill}-${index}`} className="skills-chip">
+                                    {skill}
+                                    <button
+                                      type="button"
+                                      className="skills-chip-remove"
+                                      aria-label={`Remove ${skill}`}
+                                      onClick={() => removeSkill(index)}
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="skills-empty">Add your first skill to get started.</div>
+                            )}
+                            <div className="skills-helper">Tip: You can paste multiple skills separated by commas.</div>
+                          </div>
                         </div>
                       ),
                       custom: (
@@ -2598,14 +3413,14 @@ export const Resume = () => {
                         {isExpanded && (
                           <div className="builder-section-body" onKeyDownCapture={handleSectionEnterKey}>
                             {sectionContent}
-                            {nextSectionId && (
+                            {nextSectionId && !isStepMode && (
                               <div className="section-nav-actions">
                                 <button
                                   type="button"
                                   className="btn btn-primary btn-sm section-next-btn"
-                                  onClick={() => (isStepMode ? goNextStep() : setActiveSectionId(nextSectionId))}
+                                  onClick={() => setActiveSectionId(nextSectionId)}
                                 >
-                                  {isStepMode ? 'Next Step' : `Next: ${nextSectionTitle}`}
+                                  {`Next: ${nextSectionTitle}`}
                                 </button>
                               </div>
                             )}
@@ -2615,7 +3430,7 @@ export const Resume = () => {
                     );
                   })}
                 </div>
-                {isStepMode && showStepChrome && (
+                {isStepMode && showStepChrome && activeEditorTab === 'edit' && (
                   <div className="step-footer">
                     <button
                       type="button"
@@ -2636,10 +3451,10 @@ export const Resume = () => {
                     <button
                       type="button"
                       className="btn btn-primary"
-                      onClick={goNextStep}
-                      disabled={currentStepIndex >= totalSteps - 1}
+                      onClick={currentStepIndex >= totalSteps - 1 ? handleDownloadPDF : goNextStep}
+                      disabled={currentStepIndex >= totalSteps - 1 ? !canDownload : false}
                     >
-                      Next
+                      {currentStepIndex >= totalSteps - 1 ? 'Download' : 'Next'}
                     </button>
                   </div>
                 )}
@@ -2650,71 +3465,231 @@ export const Resume = () => {
                     {generateError}
                   </div>
                 )}
-
-              </div>
-              <div className="builder-preview-panel">
-                <div className="preview-card" ref={previewCardRef}>
-                  <div className="preview-card-body" ref={previewBodyRef} onScroll={updatePreviewPaging}>
-                    {previewHtml ? (
-                      <div className="preview-iframe-shell" ref={previewShellRef}>
-                        <iframe
-                          title="Resume preview"
-                          srcDoc={previewHtml}
-                          className="preview-iframe"
-                          scrolling="no"
-                          ref={previewFrameRef}
-                          onLoad={handlePreviewLoad}
-                        />
+                  </>
+                ) : activeEditorTab === 'customize' ? (
+                  <div className="resume-tab-panel">
+                    <div className="tab-panel-header">
+                      <div>
+                        <h2>Customize your template</h2>
+                        <p>Switch layouts or tweak the look before editing content.</p>
                       </div>
-                    ) : (
-                      <div className="preview-empty">
-                        Select a template to preview your resume.
+                    </div>
+                    <div className="tab-panel-body">
+                      <div className="tab-section">
+                        <h3>Select a template</h3>
+                        {combinedTemplateLoading ? (
+                          <div className="template-state">Loading templates...</div>
+                        ) : combinedTemplateError ? (
+                          <div className="template-state template-error">{combinedTemplateError}</div>
+                        ) : filteredTemplates.length === 0 ? (
+                          <div className="template-state">No templates available.</div>
+                        ) : (
+                          <div className="template-compact-grid">
+                            {filteredTemplates.map((t) => {
+                              const displayName = t.displayName.toLowerCase();
+                              const isSelected = t.kind === 'json'
+                                ? selectedJsonTemplate?.slug === t.name
+                                : selectedTemplate === t.name;
+                              return (
+                                <button
+                                  key={`customize:${t.kind}:${t.name}`}
+                                  type="button"
+                                  onClick={() => handleCustomizeTemplateSelect(t)}
+                                  className={`template-card-compact ${isSelected ? 'is-selected' : ''}`}
+                                  title={displayName}
+                                >
+                                  <div className="template-card-compact-preview">
+                                    {t.thumbnailUrl ? (
+                                      <img
+                                        src={t.thumbnailUrl}
+                                        alt={`${t.displayName} template`}
+                                        loading="lazy"
+                                        decoding="async"
+                                        width={420}
+                                        height={594}
+                                      />
+                                    ) : (
+                                      <div className="template-preview-placeholder">
+                                        <div className="template-preview-paper" />
+                                      </div>
+                                    )}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
-                    )}
-                    <div className="preview-overlay">
-                      <button
-                        type="button"
-                        className="preview-overlay-btn"
-                        disabled={previewPage <= 1}
-                        onClick={() => scrollPreviewToPage(previewPage - 1)}
-                      >
-                        &lt;
-                      </button>
-                      <span className="preview-overlay-text">{previewPage} / {previewPageCount}</span>
-                      <button
-                        type="button"
-                        className="preview-overlay-btn"
-                        disabled={previewPage >= previewPageCount}
-                        onClick={() => scrollPreviewToPage(previewPage + 1)}
-                      >
-                        &gt;
-                      </button>
-                      <div className="preview-overlay-size">
-                        {pageSizeOptions.map((option) => (
-                          <button
-                            key={option}
-                            type="button"
-                            className={`preview-size-btn ${previewPageSizeMode === option ? 'is-active' : ''}`}
-                            onClick={() => setPreviewPageSizeMode(option)}
-                            title={
-                              option === 'auto'
-                                ? `Auto (${PAGE_SIZES[resolvedPageSize].label})`
-                                : PAGE_SIZES[option].label
-                            }
-                          >
-                            {option === 'auto' ? 'Auto' : PAGE_SIZES[option].label}
-                          </button>
-                        ))}
+                      <div className="tab-section">
+                        <h3>Preview settings</h3>
+                        <div className="preview-settings">
+                          <div className="setting-card">
+                            <span>Live preview fits to A4</span>
+                            <strong>Automatic</strong>
+                          </div>
+                          <div className="setting-card">
+                            <span>Font scaling in preview</span>
+                            <strong>Smart fit</strong>
+                          </div>
+                          <div className="setting-card">
+                            <span>Page size</span>
+                            <strong>A4</strong>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                ) : activeEditorTab === 'review' ? (
+                  <div className="resume-tab-panel">
+                    <div className="tab-panel-header">
+                      <div>
+                        <h2>AI Review</h2>
+                        <p>See what’s missing and improve your resume quality.</p>
+                      </div>
+                      <div className="review-score">
+                        <span>Score</span>
+                        <strong>{resumeScore}%</strong>
+                      </div>
+                    </div>
+                    <div className="tab-panel-body">
+                      <div className="tab-section">
+                        <h3>Completion checklist</h3>
+                        <div className="review-list">
+                          {availableSections.map((sectionId) => (
+                            <div key={`review-${sectionId}`} className={`review-item ${sectionCompletion[sectionId] ? 'complete' : 'missing'}`}>
+                              <span>{{
+                                contact: 'Personal Details',
+                                summary: 'Professional Summary',
+                                experience: 'Work Experience',
+                                projects: 'Projects',
+                                education: 'Education',
+                                skills: 'Skills',
+                                custom: 'Custom Details',
+                                additional: 'Additional Information',
+                                extra: 'Other Fields',
+                              }[sectionId] || sectionId}</span>
+                              <strong>{sectionCompletion[sectionId] ? 'Complete' : 'Needs attention'}</strong>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="resume-tab-panel">
+                    <div className="tab-panel-header">
+                      <div>
+                        <h2>Tailor to a job</h2>
+                        <p>Add a target role or keywords to tailor your resume.</p>
+                      </div>
+                    </div>
+                    <div className="tab-panel-body">
+                      <div className="tab-section">
+                        <label className="tab-label">Target role</label>
+                        <input
+                          className="tab-input"
+                          placeholder="e.g. Frontend Engineer"
+                          value={tailorRole}
+                          onChange={(e) => setTailorRole(e.target.value)}
+                        />
+                      </div>
+                      <div className="tab-section">
+                        <label className="tab-label">Key skills to emphasize</label>
+                        <textarea
+                          className="tab-textarea"
+                          rows={4}
+                          placeholder="React, TypeScript, Next.js..."
+                          value={tailorKeywords}
+                          onChange={(e) => setTailorKeywords(e.target.value)}
+                        />
+                      </div>
+                      <div className="tab-section tab-actions">
+                        <button type="button" className="btn btn-primary" onClick={() => setActiveEditorTab('edit')}>
+                          Apply and return to Edit
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
+              {previewPanel}
             </div>
-          </div>
+            </div>
           </>
         )}
       </div>
+
+      {isEditorRoute && showTemplatePicker && (
+        <div className="template-drawer" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="template-drawer-backdrop"
+            aria-label="Close template picker"
+            onClick={() => setShowTemplatePicker(false)}
+          />
+          <aside className="template-drawer-panel">
+            <div className="template-drawer-header">
+              <div>
+                <h2>Change template</h2>
+                <p>Pick a new layout. Your content stays the same.</p>
+              </div>
+              <button
+                type="button"
+                className="template-drawer-close"
+                onClick={() => setShowTemplatePicker(false)}
+              >
+                Close
+              </button>
+            </div>
+            <div className="template-drawer-body">
+              {combinedTemplateLoading ? (
+                <div className="template-state">Loading templates...</div>
+              ) : combinedTemplateError ? (
+                <div className="template-state template-error">{combinedTemplateError}</div>
+              ) : filteredTemplates.length === 0 ? (
+                <div className="template-state">
+                  No templates available. Upload HTML files to the resume_templates bucket.
+                </div>
+              ) : (
+                <div className="template-compact-grid">
+                  {filteredTemplates.map((t) => {
+                    const displayName = t.displayName.toLowerCase();
+                    const isSelected = t.kind === 'json'
+                      ? selectedJsonTemplate?.slug === t.name
+                      : selectedTemplate === t.name;
+                    return (
+                      <button
+                        key={`drawer:${t.kind}:${t.name}`}
+                        type="button"
+                        onClick={() => handleTemplatePickerSelect(t)}
+                        className={`template-card-compact ${isSelected ? 'is-selected' : ''}`}
+                        title={displayName}
+                      >
+                        <div className="template-card-compact-preview">
+                          {t.thumbnailUrl ? (
+                            <img
+                              src={t.thumbnailUrl}
+                              alt={`${t.displayName} template`}
+                              loading="lazy"
+                              decoding="async"
+                              width={420}
+                              height={594}
+                            />
+                          ) : (
+                            <div className="template-preview-placeholder">
+                              <div className="template-preview-paper" />
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
 
       <style>{`
         .resume-editor-layout {
@@ -2848,6 +3823,235 @@ export const Resume = () => {
           height: 100%;
         }
 
+        .resume-tab-panel {
+          background: #ffffff;
+          border-radius: 20px;
+          border: 1px solid #e2e8f0;
+          padding: 20px 24px;
+          box-shadow: 0 18px 40px -30px rgba(15, 23, 42, 0.35);
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+          height: 100%;
+        }
+
+        .tab-panel-header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 16px;
+        }
+
+        .tab-panel-header h2 {
+          font-size: 1.5rem;
+          font-weight: 700;
+          margin: 0 0 6px;
+          color: #0f172a;
+        }
+
+        .tab-panel-header p {
+          margin: 0;
+          color: #64748b;
+          font-size: 0.95rem;
+        }
+
+        .tab-panel-body {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+          overflow: auto;
+          min-height: 0;
+          scrollbar-width: none;
+        }
+
+        .tab-panel-body::-webkit-scrollbar {
+          width: 0;
+          height: 0;
+        }
+
+        .tab-section h3 {
+          margin: 0 0 12px;
+          font-size: 1.05rem;
+          font-weight: 700;
+          color: #0f172a;
+        }
+
+        .preview-settings {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          gap: 12px;
+        }
+
+        .setting-card {
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 12px 14px;
+          background: #f8fafc;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          color: #0f172a;
+          font-weight: 600;
+        }
+
+        .setting-card span {
+          color: #64748b;
+          font-size: 0.85rem;
+          font-weight: 600;
+        }
+
+        .review-score {
+          background: #0f172a;
+          color: #ffffff;
+          border-radius: 14px;
+          padding: 10px 14px;
+          display: inline-flex;
+          flex-direction: column;
+          gap: 4px;
+          text-align: center;
+          min-width: 90px;
+        }
+
+        .review-score span {
+          font-size: 0.75rem;
+          opacity: 0.7;
+        }
+
+        .review-score strong {
+          font-size: 1.25rem;
+        }
+
+        .review-list {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 12px;
+        }
+
+        .review-item {
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 12px 14px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          font-weight: 600;
+        }
+
+        .review-item.complete {
+          background: rgba(34, 197, 94, 0.1);
+          border-color: rgba(34, 197, 94, 0.4);
+          color: #166534;
+        }
+
+        .review-item.missing {
+          background: rgba(248, 113, 113, 0.08);
+          border-color: rgba(248, 113, 113, 0.4);
+          color: #b91c1c;
+        }
+
+        .tab-label {
+          display: block;
+          font-weight: 600;
+          color: #0f172a;
+          margin-bottom: 8px;
+        }
+
+        .tab-input,
+        .tab-textarea {
+          width: 100%;
+          border: 1px solid #dbe5ef;
+          border-radius: 12px;
+          padding: 10px 12px;
+          font-size: 0.95rem;
+          outline: none;
+        }
+
+        .tab-textarea {
+          resize: vertical;
+        }
+
+        .tab-actions {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        .template-drawer {
+          position: fixed;
+          inset: 0;
+          z-index: 120;
+          display: flex;
+          align-items: stretch;
+          justify-content: flex-start;
+        }
+
+        .template-drawer-backdrop {
+          position: absolute;
+          inset: 0;
+          border: none;
+          background: rgba(15, 23, 42, 0.45);
+        }
+
+        .template-drawer-panel {
+          position: relative;
+          width: min(560px, 94vw);
+          height: 100%;
+          background: #ffffff;
+          box-shadow: 24px 0 48px -32px rgba(15, 23, 42, 0.6);
+          border-right: 1px solid #e2e8f0;
+          display: flex;
+          flex-direction: column;
+          padding: 20px 22px;
+          overflow: hidden;
+          z-index: 1;
+        }
+
+        .template-drawer-header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 16px;
+        }
+
+        .template-drawer-header h2 {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: #0f172a;
+          margin: 0 0 6px;
+        }
+
+        .template-drawer-header p {
+          margin: 0;
+          color: #64748b;
+          font-size: 0.9rem;
+        }
+
+        .template-drawer-close {
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+          border-radius: 999px;
+          padding: 6px 12px;
+          font-weight: 600;
+          color: #0f172a;
+        }
+
+        .template-drawer-body {
+          flex: 1;
+          min-height: 0;
+          overflow: auto;
+          padding-right: 4px;
+          scrollbar-width: none;
+        }
+
+        .template-drawer-body::-webkit-scrollbar {
+          width: 0;
+          height: 0;
+        }
+
+        .template-drawer .template-compact-grid {
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+
         .resume-topbar {
           display: grid;
           grid-template-columns: auto 1fr auto;
@@ -2908,6 +4112,25 @@ export const Resume = () => {
           display: inline-flex;
           align-items: center;
           justify-content: center;
+        }
+
+        .topbar-back-btn {
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+          color: #1f2937;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+        }
+
+        .topbar-back-btn:hover {
+          border-color: #14b8a6;
+          box-shadow: 0 8px 18px -14px rgba(15, 23, 42, 0.4);
+          transform: translateY(-1px);
         }
 
         .dot-grid {
@@ -3695,6 +4918,14 @@ export const Resume = () => {
           min-height: 0;
         }
 
+        .resume-builder-grid.is-preview-only {
+          grid-template-columns: minmax(0, 0) minmax(520px, 1fr);
+        }
+
+        .resume-builder-grid.is-preview-only .builder-panel {
+          display: none;
+        }
+
         .builder-panel {
           display: flex;
           flex-direction: column;
@@ -3706,6 +4937,12 @@ export const Resume = () => {
           overscroll-behavior: contain;
           padding-right: 6px;
           gap: 16px;
+          scrollbar-width: none;
+        }
+
+        .builder-panel::-webkit-scrollbar {
+          width: 0;
+          height: 0;
         }
 
         .contact-grid {
@@ -3822,6 +5059,81 @@ export const Resume = () => {
           gap: 8px;
         }
 
+        .skills-editor {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .skills-input-row {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .skills-input {
+          flex: 1;
+          min-width: 200px;
+          border: 1px solid #d1d5db;
+          border-radius: 12px;
+          padding: 10px 12px;
+          font-size: 0.95rem;
+          outline: none;
+        }
+
+        .skills-input:focus {
+          border-color: #2563eb;
+          box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+        }
+
+        .add-skill-btn {
+          border: none;
+          background: #0f172a;
+          color: #ffffff;
+          font-weight: 600;
+          border-radius: 12px;
+          padding: 10px 14px;
+          cursor: pointer;
+        }
+
+        .skills-chip-list {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .skills-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 10px;
+          border-radius: 999px;
+          background: #f1f5f9;
+          border: 1px solid #e2e8f0;
+          font-size: 0.85rem;
+          color: #0f172a;
+        }
+
+        .skills-chip-remove {
+          border: none;
+          background: transparent;
+          color: #64748b;
+          font-weight: 700;
+          font-size: 1rem;
+          line-height: 1;
+          cursor: pointer;
+        }
+
+        .skills-empty {
+          font-size: 0.85rem;
+          color: #94a3b8;
+        }
+
+        .skills-helper {
+          font-size: 0.8rem;
+          color: #94a3b8;
+        }
+
         .builder-progress-card {
           border-radius: 16px;
           border: 1px solid #e2e8f0;
@@ -3904,39 +5216,54 @@ export const Resume = () => {
           flex-direction: column;
           min-height: 0;
           overflow: hidden;
-          --preview-scale: 0.86;
         }
 
         .preview-card-body {
           flex: 1;
           height: 100%;
           min-height: 0;
-          padding: 20px;
           background: #ffffff;
           position: relative;
           overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .preview-scroll {
+          flex: 1;
+          min-height: 0;
+          padding: 0 0 140px;
+          overflow: auto;
           overflow-x: hidden;
           display: flex;
-          align-items: flex-start;
-          justify-content: center;
+          align-items: stretch;
+          justify-content: flex-start;
           overscroll-behavior: contain;
+          scrollbar-width: none;
+        }
+
+        .preview-scroll::-webkit-scrollbar {
+          width: 0;
+          height: 0;
         }
 
         .preview-iframe-shell {
           width: var(--preview-shell-width, 100%);
           height: var(--preview-shell-height, auto);
-          margin: 0 auto;
+          margin: 0;
         }
 
         .preview-iframe {
           width: 100%;
           height: 100%;
           min-height: 720px;
-          border: 1px solid #e2e8f0;
-          border-radius: 12px;
-          background: #ffffff;
-          transform: scale(var(--preview-scale));
-          transform-origin: top left;
+          border: none;
+          border-radius: 0;
+          background: transparent;
+        }
+
+        .preview-json-frame {
+          display: inline-block;
         }
 
         .preview-empty {
@@ -4015,10 +5342,6 @@ export const Resume = () => {
 
           .builder-preview-panel {
             order: 2;
-          }
-
-          .preview-card {
-            --preview-scale: 0.92;
           }
         }
 
@@ -4856,6 +6179,17 @@ export const Resume = () => {
           border-color: #dbe5ef !important;
           background: #ffffff;
           transition: border-color 180ms ease, box-shadow 180ms ease;
+        }
+
+        .resume-page .form-group textarea,
+        .resume-page .rte-content {
+          scrollbar-width: none;
+        }
+
+        .resume-page .form-group textarea::-webkit-scrollbar,
+        .resume-page .rte-content::-webkit-scrollbar {
+          width: 0;
+          height: 0;
         }
 
         .resume-page .form-group input:focus,
