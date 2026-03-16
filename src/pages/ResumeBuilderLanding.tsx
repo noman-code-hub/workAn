@@ -131,7 +131,10 @@ export const ResumeBuilderLanding = () => {
   }, []);
 
   const previews = useMemo(
-    () => templates.slice(0, 10).map(t => ({ name: t.displayName, slug: slugify(t.name), thumb: t.thumbnailUrl })),
+    () => templates
+      .filter(t => t.thumbnailUrl)
+      .slice(0, 10)
+      .map(t => ({ name: t.displayName, slug: slugify(t.name), thumb: t.thumbnailUrl })),
     [templates],
   );
 

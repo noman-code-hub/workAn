@@ -15,7 +15,9 @@ export const ResumeBuilderTemplates = () => {
   const { templates, templateLoading, templateError } = useResumeTemplate(user, { autoSelectFirst: false });
 
   const templatesWithSlugs = useMemo(
-    () => templates.map(t => ({ ...t, slug: slugify(t.name) })),
+    () => templates
+      .filter(t => t.thumbnailUrl)
+      .map(t => ({ ...t, slug: slugify(t.name) })),
     [templates],
   );
 

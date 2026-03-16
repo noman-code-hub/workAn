@@ -28,7 +28,7 @@ const SeoJobsPage = lazy(() => import('./pages/SeoJobsPage').then((m) => ({ defa
 const Resume = lazy(() => import('./pages/Resume').then((m) => ({ default: m.Resume })));
 const ResumeBuilderLanding = lazy(() => import('./pages/ResumeBuilderLanding').then((m) => ({ default: m.ResumeBuilderLanding })));
 const ResumeBuilderTemplates = lazy(() => import('./pages/ResumeBuilderTemplates').then((m) => ({ default: m.ResumeBuilderTemplates })));
-const ResumeTemplates = lazy(() => import('./pages/ResumeTemplates').then((m) => ({ default: m.ResumeTemplates })));
+
 const CareerTrends = lazy(() => import('./pages/CareerTrends').then((m) => ({ default: m.CareerTrends })));
 const AICopilot = lazy(() => import('./pages/AICopilot').then((m) => ({ default: m.AICopilot })));
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
@@ -182,6 +182,8 @@ function App() {
             <Route path="/resume/templates" element={<Navigate to="/resume-builder/templates" replace />} />
             <Route path="/resume-builder" element={<ResumeBuilderLanding />} />
             <Route path="/resume-builder/templates" element={<ResumeBuilderTemplates />} />
+            <Route path="/resume-builder/editor" element={<Resume />} />
+            <Route path="/resume-editor/:templateId" element={<Resume />} />
             <Route path="/trends" element={<CareerTrends />} />
             <Route path="/ai-copilot" element={<AICopilot />} />
             <Route path="/settings" element={<Settings />} />
