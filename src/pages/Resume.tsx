@@ -20,6 +20,7 @@ const PAGE_SIZES = {
 } as const;
 type PreviewPageSize = keyof typeof PAGE_SIZES;
 const ENABLE_PREVIEW_PAGINATION = false;
+const PAGE_GAP_PX = 24;
 const PREVIEW_FONT_SCALES = [1, 0.93, 0.86, 0.79, 0.75];
 
 type TemplateListItem = {

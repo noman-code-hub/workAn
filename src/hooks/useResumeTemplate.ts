@@ -38,6 +38,12 @@ export const useResumeTemplate = (
 
   const getDefaultValueForField = useCallback((field: string) => {
     const normalized = normalizeFieldKey(field);
+    if (!user) return '';
+    if (['name', 'fullname', 'full_name'].includes(normalized)) return user.name || '';
+    if (['email'].includes(normalized)) return user.email || '';
+    if (['location', 'city', 'country', 'address'].includes(normalized)) return user.country || '';
+    if (['title', 'role', 'position', 'profession'].includes(normalized)) return user.profession || '';
+    if (['skills'].includes(normalized)) return user.skills?.join(', ') || '';
     return '';
   }, [user]);
 

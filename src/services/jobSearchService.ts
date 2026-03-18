@@ -24,8 +24,7 @@ export const fetchAggregatedJobs = async (filters: JobSearchFilters): Promise<Ag
 };
 
 export const fetchAggregatedJobById = async (
-  jobId: string,
-  options?: Partial<Pick<JobSearchFilters, 'keyword' | 'location' | 'remote' | 'salaryMin'>>
+  jobId: string
 ): Promise<AggregatedJob> => {
   // Edge function doesn't support /jobs/id natively yet, but we provide a dummy wrapper
   // We can fallback to fetching the exact id from market if necessary, but JobDetails.tsx fetches from supabase client directly anyway.

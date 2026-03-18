@@ -4,7 +4,7 @@ import {
   Users, TrendingUp, Heart, ChevronRight, Quote,
   MessageSquare,
   Globe, LayoutGrid, Filter, Bookmark,
-  ArrowRight, Zap, Award, CheckCircle2, Star, FileText, Smile, CheckCheck
+  ArrowRight, Zap, Award, CheckCircle2, Star, Smile, CheckCheck
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
@@ -84,17 +84,6 @@ const RECOMMENDED_JOBS = [
   { id: 5, title: 'DevOps Engineer', company: 'Microsoft', location: 'Remote', salary: '$125k–$155k', type: 'Remote', posted: '8h ago', logo: 'M', logoImg: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg', color: '#00A4EF' },
 ];
 
-const FEATURED_JOBS = [
-  { id: 1, title: 'Frontend Engineer', company: 'Vercel', location: 'Remote', type: 'Full-time', salary: '$130k–$160k', tags: ['Next.js', 'React', 'TypeScript'], featured: true, logo: 'V', logoImg: 'https://assets.vercel.com/image/upload/front/favicon/vercel/180x180.png', color: '#000' },
-  { id: 2, title: 'ML Engineer', company: 'OpenAI', location: 'San Francisco', type: 'Hybrid', salary: '$180k–$220k', tags: ['Python', 'PyTorch', 'LLMs'], featured: true, logo: 'O', logoImg: 'https://upload.wikimedia.org/wikipedia/commons/4/4d/OpenAI_Logo.svg', color: '#10a37f' },
-  { id: 3, title: 'Product Manager', company: 'Stripe', location: 'Remote', type: 'Full-time', salary: '$145k–$170k', tags: ['Payments', 'B2B', 'APIs'], featured: false, logo: 'S', logoImg: 'https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg', color: '#635BFF' },
-  { id: 4, title: 'Backend Engineer', company: 'Shopify', location: 'Remote', type: 'Remote', salary: '$120k–$150k', tags: ['Ruby', 'GraphQL', 'Go'], featured: false, logo: 'S', logoImg: 'https://upload.wikimedia.org/wikipedia/commons/0/0e/Shopify_logo_2018.svg', color: '#96BF48' },
-  { id: 5, title: 'UX / Product Designer', company: 'Figma', location: 'Remote', type: 'Full-time', salary: '$115k–$145k', tags: ['Figma', 'Prototyping', 'Research'], featured: false, logo: 'F', logoImg: 'https://upload.wikimedia.org/wikipedia/commons/3/33/Figma-logo.svg', color: '#F24E1E' },
-  { id: 6, title: 'Data Scientist', company: 'Airbnb', location: 'Hybrid, NYC', type: 'Hybrid', salary: '$135k–$165k', tags: ['Python', 'SQL', 'Spark'], featured: false, logo: 'A', logoImg: 'https://upload.wikimedia.org/wikipedia/commons/6/69/Airbnb_Logo_B%C3%A9lo.svg', color: '#FF5A5F' },
-  { id: 7, title: 'iOS Engineer', company: 'Spotify', location: 'Stockholm', type: 'On-site', salary: '$100k–$130k', tags: ['Swift', 'Xcode', 'ObjC'], featured: false, logo: 'S', logoImg: 'https://upload.wikimedia.org/wikipedia/commons/1/19/Spotify_logo_without_text.svg', color: '#1DB954' },
-  { id: 8, title: 'Cloud Architect', company: 'Cloudflare', location: 'Remote', type: 'Remote', salary: '$155k–$185k', tags: ['AWS', 'Terraform', 'K8s'], featured: false, logo: 'C', logoImg: 'https://upload.wikimedia.org/wikipedia/commons/4/4b/Cloudflare_Logo.svg', color: '#F6821F' },
-  { id: 9, title: 'Growth Marketer', company: 'HubSpot', location: 'Boston, MA', type: 'Hybrid', salary: '$95k–$115k', tags: ['SEO', 'Analytics', 'Ads'], featured: false, logo: 'H', logoImg: 'https://upload.wikimedia.org/wikipedia/commons/f/fc/HubSpot_Logo.svg', color: '#FF7A59' },
-];
 
 export const JobSearchLanding = () => {
   const navigate = useNavigate();

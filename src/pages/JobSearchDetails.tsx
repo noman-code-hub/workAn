@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Building2, DollarSign, ExternalLink, Globe2, MapPin } from 'lucide-react';
 import { fetchAggregatedJobById } from '../services/jobSearchService';
 import type { AggregatedJob } from '../types/jobSearch';
@@ -18,7 +18,6 @@ const salaryText = (job: AggregatedJob) => {
 
 export const JobSearchDetails = () => {
   const { id } = useParams<{ id: string }>();
-  const routeLocation = useLocation();
   const navigate = useNavigate();
   const [job, setJob] = useState<AggregatedJob | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,13 +54,7 @@ export const JobSearchDetails = () => {
     const run = async () => {
       setLoading(true);
       try {
-        const params = new URLSearchParams(routeLocation.search);
-        const payload = await fetchAggregatedJobById(decodedId, {
-          keyword: params.get('keyword') || undefined,
-          location: params.get('location') || undefined,
-          remote: params.get('remote') === 'true',
-          salaryMin: params.get('salary_min') ? Number(params.get('salary_min')) : undefined,
-        });
+        const payload = await fetchAggregatedJobById(decodedId);
         if (!active) return;
         setJob(payload);
         applySeoMeta(
@@ -84,7 +77,7 @@ export const JobSearchDetails = () => {
     return () => {
       active = false;
     };
-  }, [id, routeLocation.search]);
+  }, [id]);
 
   if (loading) return <main style={{ maxWidth: 900, margin: '0 auto', padding: 20 }}>Loading job details...</main>;
 

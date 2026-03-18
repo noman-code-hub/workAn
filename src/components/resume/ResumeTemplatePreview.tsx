@@ -300,6 +300,10 @@ const renderBlock = (
   theme: ResumeTemplateDefinition['theme'],
   options?: RenderBlockOptions
 ) => {
+  if (block.kind === 'divider') {
+    return <div key={`divider-${block.thicknessPx ?? 1}-${block.color ?? 'default'}`}>{renderDivider(block, theme)}</div>;
+  }
+
   const path = options?.pathPrefix ? `${options.pathPrefix}.${block.key}` : block.key;
   const hasOverride =
     options?.blockOverrides
@@ -344,8 +348,6 @@ const renderBlock = (
         const content = renderTable(block, value, theme);
         return content ? <div key={block.key}>{content}</div> : null;
       }
-    case 'divider':
-      return <div key={`divider-${block.thicknessPx ?? 1}`}>{renderDivider(block, theme)}</div>;
     default:
       return null;
   }
