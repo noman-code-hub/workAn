@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
 
@@ -85,14 +85,6 @@ export const ResumeBuilderTemplates = () => {
                       <div className="rbt-paper" />
                     </div>
                   )}
-                  <div className="rbt-card-overlay">
-                    <button type="button" className="rbt-use-btn" onClick={() => navigate(`/resume-builder/editor?template=${t.slug}`)}>
-                      <Sparkles size={14} /> Use template
-                    </button>
-                  </div>
-                </div>
-                <div className="rbt-card-meta">
-                  <span className="rbt-card-name">{t.displayName}</span>
                 </div>
               </div>
             ))}
@@ -271,14 +263,7 @@ export const ResumeBuilderTemplates = () => {
         }
         .rbt-use-btn:hover { transform: scale(1.05); }
 
-        .rbt-card-meta {
-          padding: 20px 24px;
-          display: flex;
-          align-items: center;
-          border-top: 1px solid var(--border);
-          background: #ffffff;
-        }
-        .rbt-card-name { font-weight: 800; font-size: 1rem; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; margin: 0; }
+
 
         /* FOOTER */
         .rb-footer {

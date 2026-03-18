@@ -9,6 +9,7 @@ import { useRoleBasedRedirect } from '../hooks/useRoleBasedRedirect';
 export const Layout = () => {
   const { user, loading } = useAuth();
   const location = useLocation();
+  const isLanding = location.pathname === '/landing' || location.pathname === '/';
   const isCommunity = location.pathname === '/community';
   const isProfile = location.pathname === '/profile';
   const isJobs = location.pathname.startsWith('/jobs');
@@ -26,9 +27,9 @@ export const Layout = () => {
       {/* Main Content */}
       <div className="main-content">
         {/* Page Content */}
-        <main className={`page-content ${isCommunity ? 'page-content-full' : ''} ${isProfile || isResume ? 'page-content-profile' : ''} ${isJobs ? 'page-content-jobs' : ''}`}>
+        <main className={`page-content ${isCommunity ? 'page-content-full' : ''} ${isProfile || isResume ? 'page-content-profile' : ''} ${isJobs || isLanding ? 'page-content-jobs' : ''}`}>
           <Outlet />
-          {!isCommunity && !isJobs && (
+          {!isCommunity && !isJobs && !isLanding && (
             <section className="adsense-wrap" aria-label="Advertisement">
               <AdSenseSlot slot={adSlotMain} />
             </section>

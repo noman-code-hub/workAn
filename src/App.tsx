@@ -10,7 +10,6 @@ import { ResumeEditorLayout } from './components/ResumeEditorLayout';
 import { useParams } from 'react-router-dom';
 
 const LAST_ROUTE_STORAGE_KEY = 'careerpilot:last-route';
-const LandingPage = lazy(() => import('./pages/LandingPage').then((m) => ({ default: m.LandingPage })));
 const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
 const Register = lazy(() => import('./pages/Register').then((m) => ({ default: m.Register })));
 const ResetPassword = lazy(() => import('./pages/ResetPassword').then((m) => ({ default: m.ResetPassword })));
@@ -28,6 +27,7 @@ const SeoJobsPage = lazy(() => import('./pages/SeoJobsPage').then((m) => ({ defa
 const Resume = lazy(() => import('./pages/Resume').then((m) => ({ default: m.Resume })));
 const ResumeBuilderLanding = lazy(() => import('./pages/ResumeBuilderLanding').then((m) => ({ default: m.ResumeBuilderLanding })));
 const ResumeBuilderTemplates = lazy(() => import('./pages/ResumeBuilderTemplates').then((m) => ({ default: m.ResumeBuilderTemplates })));
+const JobSearchLanding = lazy(() => import('./pages/JobSearchLanding').then((m) => ({ default: m.JobSearchLanding })));
 
 const CareerTrends = lazy(() => import('./pages/CareerTrends').then((m) => ({ default: m.CareerTrends })));
 const AICopilot = lazy(() => import('./pages/AICopilot').then((m) => ({ default: m.AICopilot })));
@@ -138,10 +138,6 @@ function App() {
     window.sessionStorage.setItem(LAST_ROUTE_STORAGE_KEY, currentFullPath);
   }, [location.pathname, location.search, location.hash]);
 
-  // if (loading) {
-  //   return <AppLoader variant="full" />;
-  // }
-
   const homeRoute = !user
     ? '/landing'
     : !user.role
@@ -155,11 +151,9 @@ function App() {
   return (
     <>
       <SeoManager />
-      {/* {(bootLoading || routeLoading) && <AppLoader variant="overlay" />} */}
       <Suspense fallback={<AppLoader variant="full" />}>
         <Routes>
           <Route path="/" element={<Navigate to={homeRoute} replace />} />
-          <Route path="/landing" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/reset-password" element={<ResetPassword />} />
@@ -167,8 +161,9 @@ function App() {
 
           {/* App Routes with Flat Layout (No Sidebar) */}
           <Route element={<Layout />}>
+            <Route path="/landing" element={<JobSearchLanding />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/jobs" element={<Jobs />} />
+            <Route path="/jobs" element={<JobSearchLanding />} />
             <Route path="/jobs/results" element={<Jobs />} />
             <Route path="/market-jobs" element={<MarketJobs />} />
             <Route path="/jobs/:id" element={<JobDetails />} />
@@ -213,20 +208,20 @@ function App() {
 
             {/* Recruiter-Only Routes */}
             <Route
-              path="/recruiter"
-              element={
-                <RoleGuard allowedRoles={['admin', 'recruiter']}>
-                  <RecruiterDashboard />
-                </RoleGuard>
-              }
+                path="/recruiter"
+                element={
+                    <RoleGuard allowedRoles={['admin', 'recruiter']}>
+                        <RecruiterDashboard />
+                    </RoleGuard>
+                }
             />
             <Route
-              path="/recruiter/job/:id/applicants"
-              element={
-                <RoleGuard allowedRoles={['admin', 'recruiter']}>
-                  <JobApplicants />
-                </RoleGuard>
-              }
+                path="/recruiter/job/:id/applicants"
+                element={
+                    <RoleGuard allowedRoles={['admin', 'recruiter']}>
+                        <JobApplicants />
+                    </RoleGuard>
+                }
             />
           </Route>
 

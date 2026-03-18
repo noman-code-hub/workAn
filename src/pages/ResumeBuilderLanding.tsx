@@ -282,16 +282,12 @@ export const ResumeBuilderLanding = () => {
               [...Array(6)].map((_, i) => <div key={i} className="rb-tpl-sk" style={{width:174}} />)
             )}
             {!templateLoading && previews.map(t => (
-              <div key={t.slug} className="rb-tpl-card">
+              <div key={t.slug} className="rb-tpl-card" onClick={goTpl}>
                 <div className="rb-tpl-thumb">
                   {t.thumb
                     ? <img src={t.thumb} alt={t.name} loading="lazy" decoding="async" />
                     : <div className="rb-tpl-thumb-ph" />
                   }
-                </div>
-                <div className="rb-tpl-foot">
-                  <span>{t.name}</span>
-                  <button type="button" onClick={goTpl}>Use template</button>
                 </div>
               </div>
             ))}

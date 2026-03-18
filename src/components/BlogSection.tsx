@@ -19,7 +19,7 @@ interface BlogSectionProps {
     isFeed?: boolean;
 }
 
-export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limit, type = 'community', isFeed = false }: BlogSectionProps) => {
+export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limit, type, isFeed = false }: BlogSectionProps) => {
     const navigate = useNavigate();
     const [posts, setPosts] = useState<BlogPost[]>([]);
     const [newPostContent, setNewPostContent] = useState('');
@@ -86,7 +86,9 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
         try {
             if (!user) return;
             setIsPosting(true);
-            const newPost = await createPost(user, postTitle, newPostContent, selectedImage || undefined, type);
+            // Default to 'community' type if none specified for new posts via the feed creation box
+            const postType = type || 'community';
+            const newPost = await createPost(user, postTitle, newPostContent, selectedImage || undefined, postType);
             setPosts([newPost, ...posts]);
             setNewPostContent('');
             setPostTitle('');
@@ -138,11 +140,58 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
                 />
             )}
 
+            {/* LinkedIn-style Create Box for Feed */}
+            {isFeed && user && (
+                <div style={styles.createBox}>
+                    <div style={styles.inputRow}>
+                        <div style={styles.miniAvatar}>
+                            {user.photoURL ? (
+                                <img
+                                    src={user.photoURL}
+                                    alt={user.name ? `${user.name} avatar` : 'User avatar'}
+                                    style={styles.avatarImg}
+                                    loading="lazy"
+                                    decoding="async"
+                                    width={48}
+                                    height={48}
+                                />
+                            ) : (
+                                user.name.charAt(0)
+                            )}
+                        </div>
+                        <button 
+                            style={styles.pillInput}
+                            onClick={() => setShowCreateModal(true)}
+                        >
+                            Start a post
+                        </button>
+                    </div>
+                    <div style={styles.createActions}>
+                        <button style={styles.actionBtn} onClick={() => fileInputRef.current?.click()}>
+                            <ImageIcon size={20} color="#378fe9" />
+                            <span>Media</span>
+                        </button>
+                        <button style={styles.actionBtn} onClick={() => setShowCreateModal(true)}>
+                            <div style={{ color: '#e7a33e', fontSize: '18px' }}>📄</div>
+                            <span>Article</span>
+                        </button>
+                        <button style={styles.actionBtn} onClick={() => setShowCreateModal(true)}>
+                            <div style={{ color: '#7fc15e', fontSize: '18px' }}>✨</div>
+                            <span>Event</span>
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {!isFeedMode && (
                 <div style={styles.gridHeader}>
-                    <h2 style={styles.gridTitle}>{type === 'blog' ? 'Blog' : 'Community'}</h2>
+                    <h2 style={styles.gridTitle}>
+                        {type === 'blog' ? 'Blog' : type === 'community' ? 'Community' : 'Activity'}
+                    </h2>
                     {(isOwnProfile && user) && (
-                        <button style={styles.gridCreateBtn} onClick={() => setShowCreateModal(true)}>New {type === 'blog' ? 'Article' : 'Update'}</button>
+                        <button style={styles.gridCreateBtn} onClick={() => setShowCreateModal(true)}>
+                            New {type === 'blog' ? 'Article' : 'Update'}
+                        </button>
                     )}
                 </div>
             )}
@@ -267,7 +316,7 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
                                     </div>
                                 )}
 
-                                <h3 style={styles.modernTitle}>{post.title || (type === 'community' ? "Update" : "Untitled Article")}</h3>
+                                <h3 style={styles.modernTitle}>{post.title || (post.type === 'community' ? "Update" : "Untitled Article")}</h3>
 
                                 <p style={styles.modernExcerpt}>{post.content}</p>
 

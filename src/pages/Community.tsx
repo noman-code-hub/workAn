@@ -216,7 +216,7 @@ export const Community = () => {
                         <h1 style={styles.feedTitle}>Community Feed</h1>
                         <p style={styles.feedSubtitle}>Share your achievements, job updates, and career milestones with others.</p>
                     </div>
-                    <BlogSection user={user || undefined} isOwnProfile={true} viewMode="list" type="community" isFeed={true} />
+                    <BlogSection user={user || undefined} isOwnProfile={true} viewMode="list" isFeed={true} />
                 </main>
 
                 {/* --- RIGHT SIDEBAR --- */}
@@ -356,9 +356,9 @@ export const Community = () => {
                     right: 0;
                     bottom: 0;
                     background-image: 
-                        radial-gradient(circle at 20% 30%, rgba(0, 212, 170, 0.03) 0%, transparent 50%),
-                        radial-gradient(circle at 80% 70%, rgba(0, 212, 170, 0.04) 0%, transparent 50%),
-                        radial-gradient(circle at 40% 80%, rgba(0, 212, 170, 0.02) 0%, transparent 40%);
+                    radial-gradient(circle at 20% 30%, rgba(0, 212, 170, 0.03) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 70%, rgba(0, 212, 170, 0.04) 0%, transparent 50%),
+                    radial-gradient(circle at 40% 80%, rgba(0, 212, 170, 0.02) 0%, transparent 40%);
                     pointer-events: none;
                     z-index: 0;
                 }

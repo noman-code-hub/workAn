@@ -19,8 +19,6 @@ const PAGE_SIZES = {
   letter: { label: 'Letter', width: 816, height: 1056 },
 } as const;
 type PreviewPageSize = keyof typeof PAGE_SIZES;
-const PAGE_MARGIN_PX = 72;
-const PAGE_GAP_PX = 24;
 const ENABLE_PREVIEW_PAGINATION = false;
 const PREVIEW_FONT_SCALES = [1, 0.93, 0.86, 0.79, 0.75];
 
@@ -106,7 +104,7 @@ export const Resume = () => {
   const [uploadingResume, setUploadingResume] = useState(false);
   const [isFillingDemo, setIsFillingDemo] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
+  const [, setSaveStatus] = useState<'saved' | 'saving'>('saved');
   const undoStackRef = useRef<string[]>([]);
   const redoStackRef = useRef<string[]>([]);
   const historyTimerRef = useRef<number | null>(null);
@@ -2396,9 +2394,6 @@ export const Resume = () => {
       }, 0);
     }
   }, []);
-
-  const canUndo = undoStackRef.current.length > 1;
-  const canRedo = redoStackRef.current.length > 0;
 
   const handleUndo = useCallback(() => {
     if (!isEditorRoute) return;
