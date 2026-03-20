@@ -37,6 +37,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     const syncUser = async (supabaseUser: SupabaseUser | null, isMounted: () => boolean) => {
         if (!supabaseUser) {
+            userService.clearLocalUserProfile();
             if (isMounted()) {
                 setUser(null);
                 setLoading(false);
@@ -77,9 +78,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             if (!isMounted()) return;
             await syncUser(data?.session?.user ?? null, isMounted);
 
-            const { data: subscriptionData } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            const { data: subscriptionData } = supabase.auth.onAuthStateChange((event, session) => {
                 if (!isMounted()) return;
-                await syncUser(session?.user ?? null, isMounted);
+
+                if (event === 'SIGNED_OUT') {
+                    userService.clearLocalUserProfile();
+                    setUser(null);
+                    setLoading(false);
+                    return;
+                }
+
+                setLoading(true);
+                window.setTimeout(() => {
+                    void syncUser(session?.user ?? null, isMounted);
+                }, 0);
             });
 
             unsubscribe = subscriptionData?.subscription?.unsubscribe;

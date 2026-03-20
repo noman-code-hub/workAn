@@ -57,6 +57,10 @@ const getFromLocal = (): Partial<User> | null => {
     return data ? JSON.parse(data) : null;
 };
 
+export const clearLocalUserProfile = () => {
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+};
+
 const isGithubProvider = (supabaseUser: SupabaseUser) =>
     supabaseUser.app_metadata?.provider === 'github' ||
     supabaseUser.identities?.some((provider) => provider.provider === 'github');

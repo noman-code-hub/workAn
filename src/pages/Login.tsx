@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useRoleBasedRedirect } from '../hooks/useRoleBasedRedirect';
@@ -16,6 +16,12 @@ export const Login = () => {
 
     // Auto-redirect when user logs in
     useRoleBasedRedirect(user, authLoading);
+
+    useEffect(() => {
+        if (!authLoading) {
+            setLoading(false);
+        }
+    }, [authLoading]);
 
     const handleEmailLogin = async (e: React.FormEvent) => {
         e.preventDefault();
