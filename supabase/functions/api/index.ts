@@ -777,7 +777,24 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      const { rows, total } = await listMarketJobs(supabase, country, role, search, limit);
+      let { rows, total } = await listMarketJobs(supabase, country, role, search, limit);
+
+      // Recover automatically when sync state exists but the market jobs cache is empty.
+      if (!forceSync && total === 0) {
+        const globalCache = await listMarketJobs(supabase, country, "", "", 1);
+        if (globalCache.total === 0) {
+          try {
+            syncSummary = await syncMarketJobs(country);
+            syncState = { last_synced_at: syncSummary.syncedAt };
+            syncError = null;
+            const refreshed = await listMarketJobs(supabase, country, role, search, limit);
+            rows = refreshed.rows;
+            total = refreshed.total;
+          } catch (error) {
+            syncError = error instanceof Error ? error.message : "Unknown sync error";
+          }
+        }
+      }
 
       return json(
         {

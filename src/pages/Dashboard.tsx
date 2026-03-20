@@ -21,7 +21,7 @@ import { useAuth } from '../contexts/AuthContext';
 import type { Job } from '../types';
 import { JobLogo } from '../components/JobLogo';
 import { getApplyLink } from '../utils/jobUtils';
-import { apiUrl, parseApiJson } from '../config/api';
+import { aggregatedJobToJob, fetchMarketJobsResponse } from '../services/jobSearchService';
 
 const getCompanyUrl = (company: string) => {
   const clean = company.toLowerCase()
@@ -111,9 +111,8 @@ export const Dashboard = () => {
         if (user?.country && !user.country.toLowerCase().includes('remote')) {
           params.append('q', `${profession} ${user.country}`);
         }
-        const response = await fetch(apiUrl(`/jobs/market?${params.toString()}`), { signal: controller.signal });
-        const data = await parseApiJson<any>(response);
-        const incomingJobs: Job[] = data.success ? (data.results || []) : [];
+        const data = await fetchMarketJobsResponse(params, { signal: controller.signal });
+        const incomingJobs: Job[] = data.success ? (data.results || []).map(aggregatedJobToJob) : [];
         if (incomingJobs.length > 0) {
           setRecommendedJobs(incomingJobs.slice(0, 3));
         } else {
@@ -122,9 +121,9 @@ export const Dashboard = () => {
             limit: '3',
             q: profession,
           });
-          const fallbackResponse = await fetch(apiUrl(`/jobs/market?${fallbackParams.toString()}`), { signal: controller.signal });
-          const fallbackData = await parseApiJson<any>(fallbackResponse);
-          setRecommendedJobs(fallbackData.success ? (fallbackData.results || []).slice(0, 3) : []);
+          fallbackParams.set('keyword', profession);
+          const fallbackData = await fetchMarketJobsResponse(fallbackParams, { signal: controller.signal });
+          setRecommendedJobs(fallbackData.success ? (fallbackData.results || []).map(aggregatedJobToJob).slice(0, 3) : []);
         }
       } catch (error: any) {
         if (error.name !== 'AbortError') {
@@ -150,10 +149,13 @@ export const Dashboard = () => {
           limit: '6',
         });
 
-        const response = await fetch(apiUrl(`/jobs/market?${params.toString()}`), { signal: controller.signal });
-        const data = await parseApiJson<any>(response);
-        const incomingJobs: Job[] = data.success ? (data.results || []) : [];
-        const totalCount = typeof data.count === 'number' ? data.count : incomingJobs.length;
+        const data = await fetchMarketJobsResponse(params, { signal: controller.signal });
+        const incomingJobs: Job[] = data.success ? (data.results || []).map(aggregatedJobToJob) : [];
+        const totalCount = typeof data.count === 'number'
+          ? data.count
+          : typeof data.total === 'number'
+            ? data.total
+            : incomingJobs.length;
         setHasMoreDatabaseJobs(totalCount > 5 || incomingJobs.length > 5);
         setDatabaseJobs(incomingJobs.slice(0, 5));
       } catch (error: any) {

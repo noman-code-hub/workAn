@@ -97,6 +97,71 @@ const estimateReadTime = (content: string) => {
   return `${minutes} min read`;
 };
 
+const formatCompactSalary = (job: AggregatedJob) => {
+  if (job.salaryText?.trim()) return job.salaryText.trim();
+
+  const min = Number(job.salary?.min || 0);
+  const max = Number(job.salary?.max || 0);
+  if (!min && !max) return 'Competitive';
+  if (min && max) return `$${Math.round(min / 1000)}k-$${Math.round(max / 1000)}k`;
+  return `$${Math.round((max || min) / 1000)}k`;
+};
+
+const formatRelativePostedDate = (value?: string) => {
+  if (!value) return 'Recently posted';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Recently posted';
+  const diffMs = Date.now() - date.getTime();
+  const diffHours = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60)));
+  if (diffHours < 1) return 'Just now';
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return '1d ago';
+  if (diffDays < 30) return `${diffDays}d ago`;
+  return formatDate(value);
+};
+
+const LOGO_COLORS = ['#000', '#10a37f', '#635BFF', '#96BF48', '#F24E1E', '#FF5A5F', '#1DB954', '#F6821F', '#FF7A59'];
+
+const getCompanyAccent = (company: string) => {
+  const hash = Array.from(company || '').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return LOGO_COLORS[hash % LOGO_COLORS.length];
+};
+
+const getCompanyInitial = (company: string) => (company ? company.charAt(0).toUpperCase() : 'J');
+
+const LandingJobLogo = ({
+  company,
+  logoUrl,
+  color,
+}: {
+  company: string;
+  logoUrl?: string | null;
+  color: string;
+}) => {
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = Boolean(logoUrl) && !imageFailed;
+
+  return (
+    <div
+      className={`job-logo-box${showImage ? ' has-image' : ''}`}
+      style={showImage ? undefined : { background: `${color}15`, color, border: 'none' }}
+    >
+      {showImage ? (
+        <img
+          src={logoUrl || ''}
+          alt={`${company} logo`}
+          loading="lazy"
+          decoding="async"
+          onError={() => setImageFailed(true)}
+        />
+      ) : (
+        getCompanyInitial(company)
+      )}
+    </div>
+  );
+};
+
 const normalizeBlogPreview = (row: BlogRow): BlogPreview => {
   const title = row.title?.trim() || 'Untitled story';
   const descriptionSource = row.description || row.meta_description || stripHtml(row.content || '');
@@ -179,6 +244,7 @@ export const JobSearchLanding = () => {
 
   const [featuredJobs, setFeaturedJobs] = useState<AggregatedJob[]>([]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
+  const [featuredError, setFeaturedError] = useState('');
   const [latestBlogs, setLatestBlogs] = useState<BlogPreview[]>([]);
   const [blogsLoading, setBlogsLoading] = useState(true);
   const [blogsLoaded, setBlogsLoaded] = useState(false);
@@ -192,10 +258,17 @@ export const JobSearchLanding = () => {
       remote: false,
       salaryMin: 0,
       page: 1,
-      limit: 9
+      limit: 12
     }).then(res => {
-      if (mounted) setFeaturedJobs(res.results || []);
-    }).catch(console.error)
+      if (!mounted) return;
+      const nextJobs = Array.isArray(res.results) ? res.results : [];
+      setFeaturedJobs(nextJobs);
+      setFeaturedError('');
+      window.localStorage.setItem('aggregated_jobs_recent', JSON.stringify(nextJobs.slice(0, 200)));
+    }).catch((error) => {
+      console.error(error);
+      if (mounted) setFeaturedError(error instanceof Error ? error.message : 'Failed to load live jobs.');
+    })
     .finally(() => {
       if (mounted) setFeaturedLoading(false);
     });
@@ -241,11 +314,30 @@ export const JobSearchLanding = () => {
     return templates.filter((t) => t.thumbnailUrl).slice(0, 3);
   }, [templates]);
 
-  const handleSearch = () => {
+  const jobsForYou = useMemo(() => featuredJobs.slice(0, Math.max(5, RECOMMENDED_JOBS.length)), [featuredJobs]);
+
+  const openJobSearch = (keyword?: string, nextLocation?: string) => {
     const params = new URLSearchParams();
-    if (searchQuery) params.set('q', searchQuery);
-    if (location) params.set('location', location);
-    navigate(`/jobs/results?${params.toString()}`);
+    if (keyword?.trim()) params.set('keyword', keyword.trim());
+    if (nextLocation?.trim()) params.set('location', nextLocation.trim());
+    params.set('page', '1');
+    const query = params.toString();
+    navigate(query ? `/job-search?${query}` : '/job-search');
+  };
+
+  const openJobApplication = (job: AggregatedJob) => {
+    const applyUrl = job.url?.trim();
+
+    if (applyUrl) {
+      window.open(applyUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    navigate(`/job-search/${encodeURIComponent(job.id)}`);
+  };
+
+  const handleSearch = () => {
+    openJobSearch(searchQuery, location);
   };
 
   const blogCards = latestBlogs.length > 0 ? latestBlogs : (blogsLoaded ? [] : BLOG_FALLBACKS);
@@ -307,9 +399,9 @@ export const JobSearchLanding = () => {
           <div className="jsl-hero-popular">
             <span>Popular:</span>
             <div className="chips">
-              <button onClick={() => { setSearchQuery('Remote Engineer'); navigate('/jobs/results?q=Remote Engineer'); }}>Remote Engineer</button>
-              <button onClick={() => { setSearchQuery('Product Manager'); navigate('/jobs/results?q=Product Manager'); }}>Product Manager</button>
-              <button onClick={() => { setSearchQuery('Data Scientist'); navigate('/jobs/results?q=Data Scientist'); }}>Data Scientist</button>
+              <button onClick={() => { setSearchQuery('Remote Engineer'); openJobSearch('Remote Engineer', location); }}>Remote Engineer</button>
+              <button onClick={() => { setSearchQuery('Product Manager'); openJobSearch('Product Manager', location); }}>Product Manager</button>
+              <button onClick={() => { setSearchQuery('Data Scientist'); openJobSearch('Data Scientist', location); }}>Data Scientist</button>
             </div>
           </div>
 
@@ -465,28 +557,44 @@ export const JobSearchLanding = () => {
       <section className="jsl-section">
         <div className="section-header">
           <h2>Jobs For You</h2>
-          <button className="view-all">View all <ChevronRight size={16} /></button>
+          <button className="view-all" onClick={() => navigate('/job-search')}>View all <ChevronRight size={16} /></button>
         </div>
         <div className="jsl-job-scroll">
-          {RECOMMENDED_JOBS.map(job => (
-            <div key={job.id} className="jsl-job-card-h">
-              <div className="job-logo-box" style={{ background: job.logoImg ? '#fff' : job.color + '15', color: job.color, border: job.logoImg ? '1px solid var(--border)' : 'none' }}>
-                {job.logoImg ? <img src={job.logoImg} alt={job.company} style={{ width: '28px', height: '28px', objectFit: 'contain' }} /> : job.logo}
-              </div>
-              <div className="job-info">
-                <h3>{job.title}</h3>
-                <p className="company">{job.company}</p>
-                <div className="meta">
-                  <span><MapPin size={12} /> {job.location}</span>
-                  <span><TrendingUp size={12} /> {job.posted}</span>
-                </div>
-                <div className="card-h-footer">
-                  <span className="salary">{job.salary}</span>
-                  <span className="type-pill">{job.type}</span>
-                </div>
-              </div>
+          {featuredLoading ? (
+            <div style={{ width: '100%', textAlign: 'center', padding: '32px', color: '#64748b' }}>
+              Loading real jobs...
             </div>
-          ))}
+          ) : jobsForYou.length === 0 ? (
+            <div style={{ width: '100%', textAlign: 'center', padding: '32px', color: '#64748b' }}>
+              {featuredError || 'No live jobs available right now.'}
+            </div>
+          ) : jobsForYou.map((job) => {
+            const color = getCompanyAccent(job.company || '');
+            const jobLocation = job.location || (job.remote ? 'Remote' : 'Anywhere');
+
+            return (
+              <button
+                key={job.id}
+                type="button"
+                className="jsl-job-card-h"
+                onClick={() => navigate(`/job-search/${encodeURIComponent(job.id)}`)}
+              >
+                <LandingJobLogo company={job.company} logoUrl={job.logoUrl} color={color} />
+                <div className="job-info">
+                  <h3>{job.title}</h3>
+                  <p className="company">{job.company}</p>
+                  <div className="meta">
+                    <span><MapPin size={12} /> {jobLocation}</span>
+                    <span><TrendingUp size={12} /> {formatRelativePostedDate(job.postedDate)}</span>
+                  </div>
+                  <div className="card-h-footer">
+                    <span className="salary">{formatCompactSalary(job)}</span>
+                    <span className="type-pill">{job.type || (job.remote ? 'Remote' : 'Full-time')}</span>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -557,13 +665,10 @@ export const JobSearchLanding = () => {
             </div>
           ) : featuredJobs.length === 0 ? (
             <div style={{ textAlign: 'center', gridColumn: '1 / -1', padding: '40px', color: '#64748b' }}>
-              No jobs found.
+              {featuredError || 'No jobs found.'}
             </div>
           ) : featuredJobs.map((job, idx) => {
-            const letter = job.company ? job.company.charAt(0).toUpperCase() : 'J';
-            const hash = Array.from(job.company || '').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-            const colors = ['#000', '#10a37f', '#635BFF', '#96BF48', '#F24E1E', '#FF5A5F', '#1DB954', '#F6821F', '#FF7A59'];
-            const color = colors[hash % colors.length];
+            const color = getCompanyAccent(job.company || '');
             const isFeatured = idx < 2; 
             const tags = job.tags && job.tags.length > 0 ? job.tags.slice(0, 3) : [];
             const salaryText = job.salaryText || (job.salary?.min ? `$${Math.round(job.salary.min / 1000)}k–$${Math.round(job.salary.max / 1000)}k / yr` : 'Competitive');
@@ -573,9 +678,7 @@ export const JobSearchLanding = () => {
               <div key={job.id} className={`jsl-job-card-v ${isFeatured ? 'featured-card' : ''}`}>
                 {isFeatured && <div className="featured-ribbon">⭐ Featured</div>}
                 <div className="card-top">
-                  <div className="job-logo-box" style={{ background: color + '15', color: color, border: 'none' }}>
-                    {letter}
-                  </div>
+                  <LandingJobLogo company={job.company} logoUrl={job.logoUrl} color={color} />
                   <button className="save-btn"><Bookmark size={16} /></button>
                 </div>
                 <h3>{job.title}</h3>
@@ -591,7 +694,7 @@ export const JobSearchLanding = () => {
                 <div className="card-footer">
                   <button 
                     className={`apply-btn ${isFeatured ? 'apply-btn-featured' : 'apply-btn-outline'}`}
-                    onClick={() => navigate(`/jobs/${encodeURIComponent(job.id)}`)}
+                    onClick={() => openJobApplication(job)}
                   >
                     Apply Now
                   </button>
@@ -601,7 +704,7 @@ export const JobSearchLanding = () => {
           })}
         </div>
         <div className="jsl-load-more">
-          <button className="jsl-btn-outline" onClick={() => navigate('/market-jobs')}>
+          <button className="jsl-btn-outline" onClick={() => navigate('/job-search')}>
             Browse All Live Jobs
           </button>
         </div>
@@ -1002,6 +1105,19 @@ export const JobSearchLanding = () => {
           font-weight: 800;
           font-size: 1.2rem;
           color: var(--primary);
+          overflow: hidden;
+          flex-shrink: 0;
+        }
+        .job-logo-box.has-image {
+          background: #fff;
+          padding: 8px;
+          border: 1px solid var(--border);
+        }
+        .job-logo-box img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          display: block;
         }
         .job-info h3 { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
         .job-info .company { color: var(--muted); font-size: 0.9rem; margin-bottom: 8px; }

@@ -10,6 +10,7 @@ export interface AggregatedJob {
   sourceJobId?: string;
   title: string;
   company: string;
+  logoUrl?: string | null;
   location: string;
   description: string;
   salary: AggregatedSalary;

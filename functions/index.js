@@ -132,7 +132,7 @@ app.get(["/health", "/api/health"], (req, res) => {
   });
 });
 
-app.get(["/api/jobs/search", "/jobs/search"], async (req, res) => {
+app.get(["/api/jobs/search", "/jobs/search", "/api/jobs/market", "/jobs/market"], async (req, res) => {
   try {
     const serpApiKey = process.env.SERPAPI_KEY;
     if (!serpApiKey) {
@@ -143,10 +143,10 @@ app.get(["/api/jobs/search", "/jobs/search"], async (req, res) => {
       });
     }
 
-    const {query, location, page_token} = req.query;
+    const {query, keyword, q, location, page_token} = req.query;
     const params = {
       engine: "google_jobs",
-      q: String(query || "dev").trim(),
+      q: String(query || keyword || q || "dev").trim(),
       api_key: serpApiKey,
     };
 

@@ -17,7 +17,7 @@ const parseNumber = (value, fallback) => {
 };
 
 const parseCommonQuery = (query) => {
-  const keyword = String(query.keyword || query.query || '').trim() || 'software engineer';
+  const keyword = String(query.keyword || query.query || query.q || '').trim() || 'software engineer';
   const location = String(query.location || '').trim();
   const remote = parseBoolean(query.remote);
   const salaryMin = Math.max(0, parseNumber(query.salary_min, 0));
@@ -54,8 +54,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Compatibility route for existing frontend calls (`/api/jobs/search`)
-router.get('/search', async (req, res) => {
+const handleSearchRoute = async (req, res, endpoint) => {
   try {
     const filters = parseCommonQuery(req.query);
     const data = await searchJobs(filters);
@@ -69,16 +68,25 @@ router.get('/search', async (req, res) => {
       total: data.total,
       sources: data.sources,
       cached: data.cached,
-      endpoint: '/api/jobs/search',
+      endpoint,
     });
   } catch (error) {
-    console.error('Error aggregating jobs for /search:', error?.message || error);
+    console.error(`Error aggregating jobs for ${endpoint}:`, error?.message || error);
     return res.status(500).json({
       success: false,
       error: 'Failed to fetch jobs',
       message: error?.message || 'Unknown server error',
     });
   }
+};
+
+// Compatibility routes for existing frontend calls.
+router.get('/search', async (req, res) => {
+  return handleSearchRoute(req, res, '/api/jobs/search');
+});
+
+router.get('/market', async (req, res) => {
+  return handleSearchRoute(req, res, '/api/jobs/market');
 });
 
 router.get('/:jobId', async (req, res) => {

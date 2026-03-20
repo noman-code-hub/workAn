@@ -3,15 +3,7 @@ import { Briefcase, Clock3, MapPin, Search, TriangleAlert } from 'lucide-react';
 import type { Job } from '../types';
 import { JobLogo } from '../components/JobLogo';
 import { AppLoader } from '../components/AppLoader';
-import { apiUrl, parseApiJson } from '../config/api';
-
-type MarketJobsResponse = {
-  success: boolean;
-  count: number;
-  results: Job[];
-  updated_at?: string | null;
-  sync_error?: string | null;
-};
+import { aggregatedJobToJob, fetchMarketJobsResponse } from '../services/jobSearchService';
 
 const ROLE_GROUPS = [
   {
@@ -175,14 +167,13 @@ export const MarketJobs = () => {
       if (selectedRole) params.set('role', selectedRole);
       if (search.trim()) params.set('q', search.trim());
 
-      const response = await fetch(apiUrl(`/jobs/market?${params.toString()}`));
-      const data = await parseApiJson<MarketJobsResponse>(response);
+      const data = await fetchMarketJobsResponse(params);
 
       if (!data.success) {
         throw new Error('Failed to load market jobs.');
       }
 
-      setJobs(Array.isArray(data.results) ? data.results : []);
+      setJobs(Array.isArray(data.results) ? data.results.map(aggregatedJobToJob) : []);
       setLastUpdatedAt(data.updated_at || null);
       setSyncWarning(data.sync_error || '');
     } catch (fetchError) {
