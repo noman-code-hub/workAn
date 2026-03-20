@@ -35,6 +35,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
 
+    const getAppUrl = () => {
+        const envUrl = (import.meta.env.VITE_SITE_URL || '').trim().replace(/\/+$/, '');
+        if (envUrl) return envUrl;
+        return window.location.origin.replace(/\/+$/, '');
+    };
+
     const syncUser = async (supabaseUser: SupabaseUser | null, isMounted: () => boolean) => {
         if (!supabaseUser) {
             userService.clearLocalUserProfile();
@@ -139,7 +145,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             const { error } = await client.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: `${window.location.origin}/login`,
+                    redirectTo: `${getAppUrl()}/login`,
                 },
             });
             if (error) throw error;
@@ -159,7 +165,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             const { error } = await client.auth.signInWithOAuth({
                 provider: 'github',
                 options: {
-                    redirectTo: `${window.location.origin}/login`,
+                    redirectTo: `${getAppUrl()}/login`,
                 },
             });
             if (error) throw error;
@@ -207,7 +213,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         try {
             const client = requireSupabase();
             const { error } = await client.auth.resetPasswordForEmail(email, {
-                redirectTo: `${window.location.origin}/reset-password`,
+                redirectTo: `${getAppUrl()}/reset-password`,
             });
             if (error) throw error;
             setLoading(false);
