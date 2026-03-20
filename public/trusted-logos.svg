@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="180" viewBox="0 0 1200 180" role="img" aria-label="Trusted companies">
+  <rect width="1200" height="180" fill="#ffffff"/>
+  <g font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#0f172a" font-weight="700">
+    <text x="60" y="100">Google</text>
+    <text x="240" y="100">Microsoft</text>
+    <text x="460" y="100">Amazon</text>
+    <text x="640" y="100">Meta</text>
+    <text x="770" y="100">Stripe</text>
+    <text x="930" y="100">Netflix</text>
+  </g>
+  <g fill="none" stroke="#e2e8f0" stroke-width="1">
+    <rect x="30" y="40" width="150" height="100" rx="16"/>
+    <rect x="210" y="40" width="190" height="100" rx="16"/>
+    <rect x="430" y="40" width="170" height="100" rx="16"/>
+    <rect x="620" y="40" width="130" height="100" rx="16"/>
+    <rect x="760" y="40" width="150" height="100" rx="16"/>
+    <rect x="920" y="40" width="190" height="100" rx="16"/>
+  </g>
+</svg>

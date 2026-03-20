@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { User, UserRole } from '../types';
@@ -9,6 +10,7 @@ import { AdminTemplates } from './AdminTemplates';
 
 export const AdminDashboard = () => {
     const { user: currentUser } = useAuth();
+    const navigate = useNavigate();
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState<string | null>(null);
@@ -159,11 +161,20 @@ export const AdminDashboard = () => {
                         <h1>User & Content Management</h1>
                         <p>Oversee roles, analytics, and community moderation in one place.</p>
                     </div>
-                    {currentUser && (
-                        <div className="header-chip">
-                            Signed in as {currentUser.name || currentUser.email}
-                        </div>
-                    )}
+                    <div className="header-actions">
+                        <button
+                            className="header-link"
+                            onClick={() => navigate('/admin/community')}
+                            type="button"
+                        >
+                            Blog Admin
+                        </button>
+                        {currentUser && (
+                            <div className="header-chip">
+                                Signed in as {currentUser.name || currentUser.email}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className="tabs-container">
@@ -414,6 +425,30 @@ export const AdminDashboard = () => {
                     font-size: var(--font-size-xs);
                     color: var(--color-text-secondary);
                     box-shadow: var(--shadow-xs);
+                }
+
+                .header-actions {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    flex-wrap: wrap;
+                }
+
+                .header-link {
+                    border: none;
+                    background: #0f172a;
+                    color: #ffffff;
+                    padding: 10px 18px;
+                    border-radius: 999px;
+                    font-size: 12px;
+                    font-weight: 700;
+                    cursor: pointer;
+                    transition: transform 0.2s ease, box-shadow 0.2s ease;
+                }
+
+                .header-link:hover {
+                    transform: translateY(-1px);
+                    box-shadow: 0 10px 18px rgba(15, 23, 42, 0.2);
                 }
 
                 .tabs-container {

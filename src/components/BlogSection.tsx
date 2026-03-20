@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Image as ImageIcon,
@@ -19,6 +19,11 @@ interface BlogSectionProps {
     isFeed?: boolean;
 }
 
+type BlogDraft = {
+    title: string;
+    content: string;
+};
+
 export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limit, type, isFeed = false }: BlogSectionProps) => {
     const navigate = useNavigate();
     const [posts, setPosts] = useState<BlogPost[]>([]);
@@ -33,6 +38,10 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
     const [isPhone, setIsPhone] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const draftStorageKey = useMemo(() => {
+        if (!user?.id) return null;
+        return `hirevo:post-draft:${type || 'general'}:${isFeed ? 'feed' : 'profile'}:${user.id}`;
+    }, [isFeed, type, user?.id]);
 
     useEffect(() => {
         let isMounted = true;
@@ -80,6 +89,43 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    useEffect(() => {
+        if (!draftStorageKey) return;
+
+        try {
+            const rawDraft = window.localStorage.getItem(draftStorageKey);
+            if (!rawDraft) return;
+
+            const parsed = JSON.parse(rawDraft) as Partial<BlogDraft>;
+            setPostTitle(typeof parsed.title === 'string' ? parsed.title : '');
+            setNewPostContent(typeof parsed.content === 'string' ? parsed.content : '');
+        } catch (error) {
+            console.error('Failed to restore blog draft:', error);
+            window.localStorage.removeItem(draftStorageKey);
+        }
+    }, [draftStorageKey]);
+
+    useEffect(() => {
+        if (!draftStorageKey) return;
+
+        const hasDraft = postTitle.trim().length > 0 || newPostContent.trim().length > 0;
+
+        try {
+            if (!hasDraft) {
+                window.localStorage.removeItem(draftStorageKey);
+                return;
+            }
+
+            const draft: BlogDraft = {
+                title: postTitle,
+                content: newPostContent,
+            };
+            window.localStorage.setItem(draftStorageKey, JSON.stringify(draft));
+        } catch (error) {
+            console.error('Failed to save blog draft:', error);
+        }
+    }, [draftStorageKey, newPostContent, postTitle]);
+
     const handleCreatePost = async () => {
         if (!newPostContent.trim() && !selectedImage && !postTitle.trim()) return;
 
@@ -94,6 +140,9 @@ export const BlogSection = ({ user, isOwnProfile = true, viewMode = 'grid', limi
             setPostTitle('');
             setSelectedImage(null);
             setShowCreateModal(false);
+            if (draftStorageKey) {
+                window.localStorage.removeItem(draftStorageKey);
+            }
         } catch (error) {
             console.error("Failed to create post", error);
             alert("Failed to post. Please try again.");

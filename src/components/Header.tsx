@@ -138,7 +138,7 @@ export const Header = () => {
           </button>
           <button
             onClick={() => handleNavClick('/community')}
-            className={`nav-link ${location.pathname === '/community' ? 'active' : ''}`}
+            className={`nav-link ${location.pathname.startsWith('/community') ? 'active' : ''}`}
           >
             {copy.community}
           </button>
@@ -244,7 +244,7 @@ export const Header = () => {
             </button>
             <button
               onClick={() => handleNavClick('/community')}
-              className={`mobile-nav-link ${location.pathname === '/community' ? 'active' : ''}`}
+              className={`mobile-nav-link ${location.pathname.startsWith('/community') ? 'active' : ''}`}
             >
               {copy.community}
             </button>

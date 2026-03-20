@@ -17,6 +17,7 @@ const SelectRole = lazy(() => import('./pages/SelectRole').then((m) => ({ defaul
 const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
 const AdminTemplates = lazy(() => import('./pages/AdminTemplates').then((m) => ({ default: m.AdminTemplates })));
+const AdminCommunity = lazy(() => import('./pages/AdminCommunity').then((m) => ({ default: m.AdminCommunity })));
 const RecruiterDashboard = lazy(() => import('./pages/RecruiterDashboard').then((m) => ({ default: m.RecruiterDashboard })));
 const Jobs = lazy(() => import('./pages/Jobs').then((m) => ({ default: m.Jobs })));
 const MarketJobs = lazy(() => import('./pages/MarketJobs').then((m) => ({ default: m.MarketJobs })));
@@ -34,6 +35,7 @@ const AICopilot = lazy(() => import('./pages/AICopilot').then((m) => ({ default:
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
 const Profile = lazy(() => import('./pages/Profile').then((m) => ({ default: m.Profile })));
 const Community = lazy(() => import('./pages/Community').then((m) => ({ default: m.Community })));
+const CommunityBlogDetail = lazy(() => import('./pages/CommunityBlogDetail').then((m) => ({ default: m.CommunityBlogDetail })));
 const BlogDetail = lazy(() => import('./pages/BlogDetail').then((m) => ({ default: m.BlogDetail })));
 const JobApplicants = lazy(() => import('./pages/JobApplicants').then((m) => ({ default: m.JobApplicants })));
 
@@ -184,6 +186,7 @@ function App() {
             <Route path="/settings" element={<Settings />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/community" element={<Community />} />
+            <Route path="/community/:slug" element={<CommunityBlogDetail />} />
             <Route path="/blog/:id" element={<BlogDetail />} />
 
             {/* Admin-Only Routes */}
@@ -200,6 +203,14 @@ function App() {
               element={
                 <RoleGuard allowedRoles={['admin']}>
                   <AdminTemplates />
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/admin/community"
+              element={
+                <RoleGuard allowedRoles={['admin']}>
+                  <AdminCommunity />
                 </RoleGuard>
               }
             />

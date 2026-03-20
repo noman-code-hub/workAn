@@ -1,12 +1,13 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Search, MapPin, Sparkles, Building2, Briefcase, 
   Users, TrendingUp, Heart, ChevronRight, Quote,
   MessageSquare,
   Globe, LayoutGrid, Filter, Bookmark,
-  ArrowRight, Zap, Award, CheckCircle2, Star, Smile, CheckCheck
+  ArrowRight, Zap, Award, CheckCircle2, Star, Smile, CheckCheck, ChevronLeft
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
 import { fetchAggregatedJobs } from '../services/jobSearchService';
 import type { AggregatedJob } from '../types/jobSearch';
@@ -49,30 +50,116 @@ const TESTIMONIALS = [
   },
 ];
 
-const BLOG_POSTS = [
+type BlogRow = {
+  id: string;
+  slug: string | null;
+  title: string | null;
+  description?: string | null;
+  meta_description?: string | null;
+  content?: string | null;
+  category?: string | null;
+  author_name?: string | null;
+  cover_image?: string | null;
+  image_url?: string | null;
+  tags?: string[] | null;
+  featured?: boolean | null;
+  published_at?: string | null;
+  created_at?: string | null;
+};
+
+type BlogPreview = {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  category: string;
+  authorName: string;
+  coverImage: string;
+  publishedAt: string;
+  readTime: string;
+  isFeatured: boolean;
+};
+
+const stripHtml = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+
+const formatDate = (value?: string) => {
+  if (!value) return 'Unpublished';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Unpublished';
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
+};
+
+const estimateReadTime = (content: string) => {
+  const text = stripHtml(content || '');
+  const wordCount = text ? text.split(/\s+/).filter(Boolean).length : 0;
+  if (!wordCount) return '';
+  const minutes = Math.max(2, Math.round(wordCount / 200));
+  return `${minutes} min read`;
+};
+
+const normalizeBlogPreview = (row: BlogRow): BlogPreview => {
+  const title = row.title?.trim() || 'Untitled story';
+  const descriptionSource = row.description || row.meta_description || stripHtml(row.content || '');
+  const description = descriptionSource.trim().slice(0, 160);
+  const category = row.category?.trim() || 'General';
+  const authorName = row.author_name?.trim() || 'Workshour Editorial';
+  const coverImage = row.cover_image || row.image_url || '';
+  const publishedAt = row.published_at || row.created_at || '';
+  const readTime = estimateReadTime(row.content || row.meta_description || '');
+  const tags = Array.isArray(row.tags) ? row.tags : [];
+  const isFeaturedTag = tags.some((tag) => tag.trim().toLowerCase() === 'featured');
+  const isFeatured = Boolean(row.featured) || isFeaturedTag;
+
+  return {
+    id: row.id,
+    slug: row.slug?.trim() || '',
+    title,
+    description,
+    category,
+    authorName,
+    coverImage,
+    publishedAt,
+    readTime,
+    isFeatured,
+  };
+};
+
+const BLOG_FALLBACKS: BlogPreview[] = [
   {
+    id: 'fallback-1',
+    slug: '',
     title: 'How to Master Your Next Interview',
-    desc: 'Top 10 tips from hiring managers at Fortune 500 companies.',
-    date: 'March 15, 2024',
-    image: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=600&q=80',
+    description: 'Top 10 tips from hiring managers at Fortune 500 companies.',
+    publishedAt: 'March 15, 2024',
+    coverImage: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=600&q=80',
     category: 'Career Tips',
     readTime: '6 min read',
+    authorName: 'Workshour Editorial',
+    isFeatured: true,
   },
   {
+    id: 'fallback-2',
+    slug: '',
     title: 'Modernizing Your Resume for AI Screening',
-    desc: 'Learn how to make your resume pass ATS filters with expert-backed techniques.',
-    date: 'March 12, 2024',
-    image: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&w=600&q=80',
+    description: 'Learn how to make your resume pass ATS filters with expert-backed techniques.',
+    publishedAt: 'March 12, 2024',
+    coverImage: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&w=600&q=80',
     category: 'AI & Tech',
     readTime: '4 min read',
+    authorName: 'Workshour Editorial',
+    isFeatured: false,
   },
   {
+    id: 'fallback-3',
+    slug: '',
     title: 'Remote Work: The New Normal',
-    desc: 'Why leading companies are permanently embracing distributed teams in 2024.',
-    date: 'March 10, 2024',
-    image: 'https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?auto=format&fit=crop&w=600&q=80',
+    description: 'Why leading companies are permanently embracing distributed teams in 2024.',
+    publishedAt: 'March 10, 2024',
+    coverImage: 'https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?auto=format&fit=crop&w=600&q=80',
     category: 'Remote Work',
     readTime: '5 min read',
+    authorName: 'Workshour Editorial',
+    isFeatured: false,
   },
 ];
 
@@ -92,6 +179,10 @@ export const JobSearchLanding = () => {
 
   const [featuredJobs, setFeaturedJobs] = useState<AggregatedJob[]>([]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
+  const [latestBlogs, setLatestBlogs] = useState<BlogPreview[]>([]);
+  const [blogsLoading, setBlogsLoading] = useState(true);
+  const [blogsLoaded, setBlogsLoaded] = useState(false);
+  const blogScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -111,6 +202,40 @@ export const JobSearchLanding = () => {
     return () => { mounted = false; };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const loadLatestBlogs = async () => {
+      if (!isSupabaseConfigured || !supabase) {
+        if (mounted) setBlogsLoading(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('blogs')
+          .select('*')
+          .eq('published', true)
+          .order('published_at', { ascending: false })
+          .limit(8);
+
+        if (error) throw error;
+        const normalized = (data || []).map((row: BlogRow) => normalizeBlogPreview(row));
+        if (mounted) setLatestBlogs(normalized);
+        if (mounted) setBlogsLoaded(true);
+      } catch (err) {
+        console.error('Failed to load latest blogs:', err);
+      } finally {
+        if (mounted) setBlogsLoading(false);
+      }
+    };
+
+    void loadLatestBlogs();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const { templates, templateLoading } = useResumeTemplate(undefined, { autoSelectFirst: false });
   const showcaseTemplates = useMemo(() => {
     return templates.filter((t) => t.thumbnailUrl).slice(0, 3);
@@ -121,6 +246,14 @@ export const JobSearchLanding = () => {
     if (searchQuery) params.set('q', searchQuery);
     if (location) params.set('location', location);
     navigate(`/jobs/results?${params.toString()}`);
+  };
+
+  const blogCards = latestBlogs.length > 0 ? latestBlogs : (blogsLoaded ? [] : BLOG_FALLBACKS);
+
+  const handleBlogScroll = (direction: 'left' | 'right') => {
+    if (!blogScrollRef.current) return;
+    const scrollAmount = direction === 'left' ? -360 : 360;
+    blogScrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
   };
 
   return (
@@ -200,7 +333,7 @@ export const JobSearchLanding = () => {
         <div className="jsl-logo-strip">
           <p>Trusted by world-class teams</p>
           <div className="logo-strip-inner">
-            <img src="file:///C:/Users/Nomi/.gemini/antigravity/brain/e8d33e13-d973-429c-b990-a18d8393d27e/company_logos_premium_grid_1773732463411.png" alt="Trusted Companies" />
+            <img src="/trusted-logos.svg" alt="Trusted Companies" />
           </div>
         </div>
       </header>
@@ -478,27 +611,75 @@ export const JobSearchLanding = () => {
       <section className="jsl-section jsl-blog">
         <div className="section-header">
           <h2>Latest from Our Blog</h2>
-          <button className="view-all">View articles <ChevronRight size={16} /></button>
-        </div>
-        <div className="jsl-blog-grid">
-          {BLOG_POSTS.map(post => (
-            <div key={post.title} className="jsl-blog-card">
-              <div className="blog-img">
-                <img src={post.image} alt={post.title} />
-                <span className="blog-category">{post.category}</span>
-              </div>
-              <div className="blog-content">
-                <div className="blog-meta-row">
-                  <span className="date">{post.date}</span>
-                  <span className="read-time">{post.readTime}</span>
-                </div>
-                <h3>{post.title}</h3>
-                <p>{post.desc}</p>
-                <button className="read-more">Read more <ArrowRight size={14} /></button>
-              </div>
+          <div className="blog-actions">
+            <div className="blog-slider-controls">
+              <button
+                type="button"
+                className="blog-scroll-btn"
+                onClick={() => handleBlogScroll('left')}
+                aria-label="Scroll blog posts left"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                type="button"
+                className="blog-scroll-btn"
+                onClick={() => handleBlogScroll('right')}
+                aria-label="Scroll blog posts right"
+              >
+                <ChevronRight size={16} />
+              </button>
             </div>
-          ))}
+            <button className="view-all" onClick={() => navigate('/community')}>
+              View articles <ChevronRight size={16} />
+            </button>
+          </div>
         </div>
+        <div className="jsl-blog-carousel" ref={blogScrollRef}>
+          {blogsLoading && latestBlogs.length === 0 ? (
+            BLOG_FALLBACKS.map((post) => (
+              <div key={post.id} className="jsl-blog-card is-loading" aria-hidden="true">
+                <div className="blog-img" />
+                <div className="blog-content">
+                  <div className="blog-meta-row">
+                    <span className="date">Loading...</span>
+                  </div>
+                  <h3>&nbsp;</h3>
+                  <p>&nbsp;</p>
+                  <span className="read-more">Read more <ArrowRight size={14} /></span>
+                </div>
+              </div>
+            ))
+          ) : (
+            blogCards.map((post) => (
+              <button
+                key={post.id}
+                type="button"
+                className={`jsl-blog-card ${post.isFeatured ? 'featured' : ''}`}
+                onClick={() => navigate(post.slug ? `/community/${post.slug}` : '/community')}
+              >
+                <div className="blog-img">
+                  {post.coverImage ? <img src={post.coverImage} alt={post.title} loading="lazy" decoding="async" /> : null}
+                  {post.isFeatured ? <span className="blog-featured">Featured</span> : null}
+                  <span className="blog-category">{post.category}</span>
+                </div>
+                <div className="blog-content">
+                  <div className="blog-meta-row">
+                    <span className="date">{formatDate(post.publishedAt)}</span>
+                    {post.readTime ? <span className="read-time">{post.readTime}</span> : null}
+                  </div>
+                  <h3>{post.title}</h3>
+                  <p>{post.description}</p>
+                  <div className="blog-author">By {post.authorName}</div>
+                  <span className="read-more">Read more <ArrowRight size={14} /></span>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+        {!blogsLoading && blogCards.length === 0 ? (
+          <div className="jsl-blog-empty">No published blog posts yet.</div>
+        ) : null}
       </section>
 
 
@@ -971,22 +1152,72 @@ export const JobSearchLanding = () => {
         .jsl-load-more { text-align: center; margin-top: 48px; }
 
         /* BLOG */
-        .jsl-blog-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-          gap: 24px;
+        .blog-actions {
+          display: flex;
+          align-items: center;
+          gap: 16px;
         }
+        .blog-slider-controls {
+          display: flex;
+          gap: 8px;
+        }
+        .blog-scroll-btn {
+          width: 36px;
+          height: 36px;
+          border-radius: 999px;
+          border: 1px solid var(--border);
+          background: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .blog-scroll-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .jsl-blog-carousel {
+          display: flex;
+          gap: 24px;
+          overflow-x: auto;
+          scroll-snap-type: x mandatory;
+          padding-bottom: 6px;
+          scrollbar-width: none;
+        }
+        .jsl-blog-carousel::-webkit-scrollbar { display: none; }
         .jsl-blog-card {
           background: #fff;
           border-radius: 20px;
           overflow: hidden;
           border: 1px solid var(--border);
           transition: all 0.3s;
+          padding: 0;
+          text-align: left;
+          cursor: pointer;
+          font: inherit;
+          min-width: 320px;
+          max-width: 360px;
+          scroll-snap-align: start;
         }
         .jsl-blog-card:hover { transform: translateY(-4px); box-shadow: 0 15px 30px rgba(0,0,0,0.08); }
-        .blog-img { height: 220px; overflow: hidden; position: relative; }
+        .jsl-blog-card.featured {
+          border-color: rgba(23, 201, 176, 0.5);
+          box-shadow: 0 18px 32px rgba(23, 201, 176, 0.18);
+        }
+        .blog-img { height: 220px; overflow: hidden; position: relative; background: #e5e7eb; }
         .blog-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s; }
         .jsl-blog-card:hover .blog-img img { transform: scale(1.05); }
+        .blog-featured {
+          position: absolute;
+          top: 12px;
+          left: 12px;
+          background: rgba(23, 201, 176, 0.95);
+          color: #fff;
+          font-size: 0.7rem;
+          font-weight: 800;
+          padding: 4px 10px;
+          border-radius: 999px;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
         .blog-category {
           position: absolute; bottom: 12px; left: 12px;
           background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
@@ -999,8 +1230,40 @@ export const JobSearchLanding = () => {
         .read-time { font-size: 0.78rem; color: var(--muted); font-weight: 500; }
         .blog-content h3 { font-size: 1.2rem; font-weight: 800; margin-bottom: 10px; line-height: 1.4; }
         .blog-content p { color: var(--muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 20px; }
+        .blog-author { font-size: 0.82rem; color: var(--muted); font-weight: 600; margin-bottom: 12px; }
         .read-more { display: flex; align-items: center; gap: 6px; color: var(--text); font-weight: 700; font-size: 0.9rem; }
         .read-more:hover { color: var(--primary); }
+        .jsl-blog-empty {
+          text-align: center;
+          color: var(--muted);
+          font-weight: 600;
+          padding: 24px 0 4px;
+        }
+        .jsl-blog-card.is-loading { cursor: default; }
+        .jsl-blog-card.is-loading .blog-img,
+        .jsl-blog-card.is-loading h3,
+        .jsl-blog-card.is-loading p,
+        .jsl-blog-card.is-loading .blog-author,
+        .jsl-blog-card.is-loading .read-more {
+          background: linear-gradient(90deg, #eef2f7 25%, #f7f9fc 50%, #eef2f7 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.2s ease-in-out infinite;
+          color: transparent;
+        }
+        .jsl-blog-card.is-loading .blog-img { height: 220px; }
+        .jsl-blog-card.is-loading h3,
+        .jsl-blog-card.is-loading p,
+        .jsl-blog-card.is-loading .read-more,
+        .jsl-blog-card.is-loading .blog-author { border-radius: 8px; }
+        .jsl-blog-card.is-loading h3 { height: 22px; margin-bottom: 12px; }
+        .jsl-blog-card.is-loading p { height: 44px; margin-bottom: 18px; }
+        .jsl-blog-card.is-loading .read-more { height: 16px; width: 120px; }
+        .jsl-blog-card.is-loading .blog-author { height: 14px; width: 140px; }
+
+        @keyframes shimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
 
         .jsl-footer { background: #fff; border-top: 1px solid var(--border); padding: 80px 40px 40px; }
         .jsl-footer-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1.5fr 3fr; gap: 80px; margin-bottom: 60px; }
@@ -1374,8 +1637,8 @@ export const JobSearchLanding = () => {
           .footer-links { flex-wrap: wrap; gap: 24px; }
           .jsl-hero h1 { font-size: 3rem; }
           .jsl-job-grid { grid-template-columns: repeat(2, 1fr); }
-          .jsl-blog-grid { grid-template-columns: repeat(2, 1fr); }
           .filters-mini { flex-wrap: wrap; }
+          .jsl-blog-card { min-width: 280px; max-width: 320px; }
         }
         @media (max-width: 768px) {
           .hero-avatar { display: none; }
@@ -1389,7 +1652,7 @@ export const JobSearchLanding = () => {
           .jsl-job-card-h { width: 240px; }
           .jsl-search-btn { width: 100%; text-align: center; justify-content: center; margin-top: 8px; }
           .jsl-job-grid { grid-template-columns: 1fr; }
-          .jsl-blog-grid { grid-template-columns: 1fr; }
+          .jsl-blog-card { min-width: 260px; max-width: 300px; }
           .jsl-testi-scroll-wrapper { padding: 20px 0; }
           .jsl-testi-card { width: 300px; padding: 30px; }
           .jsl-cat-grid { grid-template-columns: repeat(2, 1fr); }
