@@ -164,6 +164,13 @@ export const AdminDashboard = () => {
                     <div className="header-actions">
                         <button
                             className="header-link"
+                            onClick={() => navigate('/admin/community?new=1')}
+                            type="button"
+                        >
+                            New Blog
+                        </button>
+                        <button
+                            className="header-link"
                             onClick={() => navigate('/admin/community')}
                             type="button"
                         >

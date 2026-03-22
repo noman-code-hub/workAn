@@ -1,6 +1,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { uploadImage } from '../services/supabaseStorage';
@@ -135,6 +135,7 @@ type AdminCommunityDraft = {
 export const AdminCommunity = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [blogId, setBlogId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
@@ -166,6 +167,7 @@ export const AdminCommunity = () => {
     if (!user?.id) return null;
     return `hirevo:admin-community-draft:${user.id}`;
   }, [user?.id]);
+  const createNewRequested = searchParams.get('new') === '1';
 
   useEffect(() => {
     restoredDraftRef.current = false;
@@ -211,7 +213,7 @@ export const AdminCommunity = () => {
   }, [contentHtml, editor]);
 
   useEffect(() => {
-    if (!draftStorageKey || !editor || restoredDraftRef.current) return;
+    if (!draftStorageKey || !editor || restoredDraftRef.current || createNewRequested) return;
 
     restoredDraftRef.current = true;
 
@@ -259,7 +261,7 @@ export const AdminCommunity = () => {
       console.error('Failed to restore admin blog draft:', error);
       window.localStorage.removeItem(draftStorageKey);
     }
-  }, [draftStorageKey, editor]);
+  }, [createNewRequested, draftStorageKey, editor]);
 
   useEffect(() => {
     if (!notice) return;
@@ -291,6 +293,14 @@ export const AdminCommunity = () => {
       window.localStorage.removeItem(draftStorageKey);
     }
   }, [draftStorageKey, editor]);
+
+  useEffect(() => {
+    if (!createNewRequested || !editor) return;
+
+    resetForm();
+    showNotice('info', 'Ready to write a new article.');
+    navigate('/admin/community', { replace: true });
+  }, [createNewRequested, editor, navigate, resetForm]);
 
   useEffect(() => {
     if (!draftStorageKey || !restoredDraftRef.current) return;
@@ -648,7 +658,7 @@ export const AdminCommunity = () => {
           <p className="admin-community-sub">Create, publish, and manage long-form content with live preview.</p>
         </div>
         <div className="admin-community-actions">
-          <button className="ghost" onClick={resetForm} type="button">New Draft</button>
+          <button className="ghost" onClick={resetForm} type="button">New Blog</button>
           <button className="ghost" onClick={() => saveBlog(false)} disabled={saving} type="button">
             {saving ? 'Saving...' : 'Save Draft'}
           </button>

@@ -6,7 +6,7 @@ import {
   Globe, LayoutGrid, Filter, Bookmark,
   ArrowRight, Zap, Award, CheckCircle2, Star, Smile, CheckCheck, ChevronLeft
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
 import { fetchAggregatedJobs } from '../services/jobSearchService';
@@ -236,9 +236,43 @@ const RECOMMENDED_JOBS = [
   { id: 5, title: 'DevOps Engineer', company: 'Microsoft', location: 'Remote', salary: '$125k–$155k', type: 'Remote', posted: '8h ago', logo: 'M', logoImg: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg', color: '#00A4EF' },
 ];
 
+const LANDING_FAQS = [
+  {
+    question: 'What is ChatGPT and how does it work?',
+    answer:
+      'ChatGPT is an AI chatbot that understands and generates human-like text using machine learning and large language models.',
+  },
+  {
+    question: 'What are the best AI tools for jobs?',
+    answer:
+      'Popular AI tools include ChatGPT for writing, Grammarly for grammar, and Canva for design.',
+  },
+  {
+    question: 'Which AI is best for business?',
+    answer:
+      'Tools like ChatGPT, Jasper AI, and Zoho CRM help automate tasks, marketing, and customer support.',
+  },
+  {
+    question: 'Can AI tools replace human workers?',
+    answer:
+      'AI tools can automate repetitive tasks but still need humans for creativity, decision-making, and emotional intelligence.',
+  },
+  {
+    question: 'Are AI tools free or paid?',
+    answer:
+      'Many AI tools offer free versions, but advanced features usually require paid subscriptions.',
+  },
+  {
+    question: 'How to choose the right AI tool?',
+    answer:
+      'Choose based on your needs, such as writing, design, coding, or marketing, and compare features, pricing, and ease of use.',
+  },
+];
+
 
 export const JobSearchLanding = () => {
   const navigate = useNavigate();
+  const routeLocation = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState('');
 
@@ -347,6 +381,44 @@ export const JobSearchLanding = () => {
     const scrollAmount = direction === 'left' ? -360 : 360;
     blogScrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    const scriptId = 'job-search-landing-faq-jsonld';
+    const canonicalUrl = typeof window !== 'undefined'
+      ? `${window.location.origin}${routeLocation.pathname}`
+      : routeLocation.pathname;
+    const jsonLd = {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: LANDING_FAQS.map((item) => ({
+        '@type': 'Question',
+        name: item.question,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: item.answer,
+        },
+      })),
+      url: canonicalUrl,
+    };
+
+    let script = document.getElementById(scriptId) as HTMLScriptElement | null;
+    if (!script) {
+      script = document.createElement('script');
+      script.type = 'application/ld+json';
+      script.id = scriptId;
+      document.head.appendChild(script);
+    }
+
+    script.textContent = JSON.stringify(jsonLd);
+
+    return () => {
+      if (script?.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
+  }, [routeLocation.pathname]);
 
   return (
     <div className="jsl">
@@ -785,7 +857,21 @@ export const JobSearchLanding = () => {
         ) : null}
       </section>
 
-
+      <section className="jsl-section jsl-faq" aria-labelledby="job-search-faq-heading">
+        <div className="section-header centered">
+          <span className="badge">FAQ</span>
+          <h2 id="job-search-faq-heading">Frequently Asked Questions</h2>
+          <p>Key answers about job search, remote roles, resumes, and how Hirevo works.</p>
+        </div>
+        <div className="jsl-faq-list">
+          {LANDING_FAQS.map((item) => (
+            <article key={item.question} className="jsl-faq-item">
+              <h3>{item.question}</h3>
+              <p>{item.answer}</p>
+            </article>
+          ))}
+        </div>
+      </section>
 
       {/* Floating Feedback */}
       <button className="jsl-feedback-btn">
@@ -1355,6 +1441,34 @@ export const JobSearchLanding = () => {
           font-weight: 600;
           padding: 24px 0 4px;
         }
+        .jsl-faq {
+          padding-top: 24px;
+        }
+        .jsl-faq-list {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 18px;
+          margin-top: 28px;
+        }
+        .jsl-faq-item {
+          background: linear-gradient(180deg, #ffffff 0%, #f8fffd 100%);
+          border: 1px solid rgba(23, 201, 176, 0.12);
+          border-radius: 20px;
+          padding: 24px;
+          box-shadow: 0 20px 40px rgba(15, 23, 42, 0.04);
+        }
+        .jsl-faq-item h3 {
+          font-size: 1.05rem;
+          font-weight: 800;
+          line-height: 1.4;
+          margin-bottom: 10px;
+          color: #0f172a;
+        }
+        .jsl-faq-item p {
+          color: var(--muted);
+          line-height: 1.7;
+          margin: 0;
+        }
         .jsl-blog-card.is-loading { cursor: default; }
         .jsl-blog-card.is-loading .blog-img,
         .jsl-blog-card.is-loading h3,
@@ -1783,6 +1897,7 @@ export const JobSearchLanding = () => {
           .jsl-footer-inner { gap: 32px; }
           .footer-links { gap: 20px; }
           .jsl-footer-bottom { flex-direction: column; gap: 16px; text-align: center; }
+          .jsl-faq-list { grid-template-columns: 1fr; }
         }
         @media (max-width: 480px) {
           .jsl-cat-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }

@@ -11,7 +11,6 @@ import { useParams } from 'react-router-dom';
 
 const LAST_ROUTE_STORAGE_KEY = 'careerpilot:last-route';
 const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
-const Register = lazy(() => import('./pages/Register').then((m) => ({ default: m.Register })));
 const ResetPassword = lazy(() => import('./pages/ResetPassword').then((m) => ({ default: m.ResetPassword })));
 const SelectRole = lazy(() => import('./pages/SelectRole').then((m) => ({ default: m.SelectRole })));
 const Dashboard = lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
@@ -127,7 +126,7 @@ function App() {
 
     if (!savedFullPath || savedFullPath === currentFullPath || !savedFullPath.startsWith('/')) return;
 
-    const canRestoreFrom = ['/', '/login', '/register', '/select-role'];
+    const canRestoreFrom = ['/', '/login', '/select-role'];
     if (canRestoreFrom.includes(location.pathname)) {
       navigate(savedFullPath, { replace: true });
     }
@@ -157,7 +156,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to={homeRoute} replace />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/register" element={<Navigate to="/login" replace />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/select-role" element={<SelectRole />} />
 

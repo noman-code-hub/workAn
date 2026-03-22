@@ -1,18 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useRoleBasedRedirect } from '../hooks/useRoleBasedRedirect';
-import { Eye, EyeOff, Mail, Lock, AlertCircle, Github } from 'lucide-react';
+import { AlertCircle, Github } from 'lucide-react';
 import { BRAND } from '../config/brand';
 
 export const Login = () => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
-    const [notice, setNotice] = useState('');
     const [loading, setLoading] = useState(false);
-    const { login, loginWithGoogle, loginWithGithub, resetPassword, user, loading: authLoading } = useAuth();
+    const { loginWithGoogle, loginWithGithub, user, loading: authLoading } = useAuth();
 
     // Auto-redirect when user logs in
     useRoleBasedRedirect(user, authLoading);
@@ -23,24 +18,8 @@ export const Login = () => {
         }
     }, [authLoading]);
 
-    const handleEmailLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
-        setNotice('');
-        setLoading(true);
-
-        try {
-            await login(email, password);
-            // Navigation will be handled by AuthContext after user data is loaded
-        } catch (err: any) {
-            setError(err.message || 'Login failed. Please check your credentials.');
-            setLoading(false);
-        }
-    };
-
     const handleGoogleLogin = async () => {
         setError('');
-        setNotice('');
         setLoading(true);
 
         try {
@@ -54,7 +33,6 @@ export const Login = () => {
 
     const handleGithubLogin = async () => {
         setError('');
-        setNotice('');
         setLoading(true);
 
         try {
@@ -62,23 +40,6 @@ export const Login = () => {
             // Navigation will be handled by AuthContext after user data is loaded
         } catch (err: any) {
             setError(err.message || 'GitHub login failed.');
-            setLoading(false);
-        }
-    };
-
-    const handleResetPassword = async () => {
-        setError('');
-        setNotice('');
-        const targetEmail = email || window.prompt('Enter your email to reset your password');
-        if (!targetEmail) return;
-
-        setLoading(true);
-        try {
-            await resetPassword(targetEmail);
-            setNotice('Password reset email sent. Check your inbox and spam folder.');
-        } catch (err: any) {
-            setError(err.message || 'Failed to send reset email.');
-        } finally {
             setLoading(false);
         }
     };
@@ -146,74 +107,8 @@ export const Login = () => {
                                 <span>{error}</span>
                             </div>
                         )}
-                        {notice && (
-                            <div className="info-message">
-                                <AlertCircle size={18} />
-                                <span>{notice}</span>
-                            </div>
-                        )}
-
-                        <form onSubmit={handleEmailLogin}>
-                            <div className="form-group">
-                                <label>Email Address</label>
-                                <div className="input-wrapper">
-                                    <Mail size={20} />
-                                    <input
-                                        type="email"
-                                        placeholder="your.email@example.com"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        required
-                                        disabled={loading}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="form-group">
-                                <label>Password</label>
-                                <div className="input-wrapper">
-                                    <Lock size={20} />
-                                    <input
-                                        type={showPassword ? 'text' : 'password'}
-                                        placeholder="Enter your password"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        required
-                                        disabled={loading}
-                                    />
-                                    <button
-                                        type="button"
-                                        className="toggle-password"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        tabIndex={-1}
-                                    >
-                                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="form-options">
-                                <label className="remember-me">
-                                    <input type="checkbox" />
-                                    <span>Remember me</span>
-                                </label>
-                                <button
-                                    type="button"
-                                    className="forgot-password"
-                                    onClick={handleResetPassword}
-                                    disabled={loading}
-                                >
-                                    Forgot password?
-                                </button>
-                            </div>
-
-                            <button type="submit" className="btn-primary" disabled={loading}>
-                                {loading ? 'Signing in...' : 'Sign In'}
-                            </button>
-                        </form>
-
-                        <div className="divider">
-                            <span>OR</span>
+                        <div className="oauth-intro">
+                            Sign in with your Google or GitHub account to continue.
                         </div>
 
                         <button
@@ -240,10 +135,6 @@ export const Login = () => {
                             <Github size={20} />
                             Continue with GitHub
                         </button>
-
-                        <div className="signup-link">
-                            Don't have an account? <Link to="/register">Sign up</Link>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -459,164 +350,11 @@ export const Login = () => {
                     font-size: 14px;
                 }
 
-                .info-message {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    background: #dbeafe;
-                    color: #1d4ed8;
-                    padding: 12px 16px;
-                    border-radius: 8px;
-                    margin-bottom: 20px;
+                .oauth-intro {
                     font-size: 14px;
-                }
-
-                .form-group {
-                    margin-bottom: 20px;
-                }
-
-                .form-group label {
-                    display: block;
-                    font-size: 14px;
-                    font-weight: 700;
-                    color: #0f172a;
-                    margin-bottom: 8px;
-                }
-
-                .input-wrapper {
-                    position: relative;
-                    display: flex;
-                    align-items: center;
-                }
-
-                .input-wrapper svg {
-                    position: absolute;
-                    left: 16px;
-                    color: #94a3b8;
-                    pointer-events: none;
-                }
-
-                .input-wrapper input {
-                    width: 100%;
-                    padding: 12px 16px 12px 48px;
-                    border: 1px solid #d6e0ea;
-                    border-radius: 12px;
-                    font-size: 15px;
-                    background: #f8fafc;
-                    transition: all 0.2s;
-                }
-
-                .input-wrapper input:focus {
-                    outline: none;
-                    border-color: #17c9b0;
-                    box-shadow: 0 0 0 4px rgba(23, 201, 176, 0.18);
-                    background: #ffffff;
-                }
-
-                .input-wrapper input:disabled {
-                    background: #f9fafb;
-                    cursor: not-allowed;
-                }
-
-                .toggle-password {
-                    position: absolute;
-                    right: 12px;
-                    background: none;
-                    border: none;
-                    color: #94a3b8;
-                    cursor: pointer;
-                    padding: 4px;
-                    display: flex;
-                    align-items: center;
-                }
-
-                .toggle-password:hover {
-                    color: #6b7280;
-                }
-
-                .form-options {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
+                    line-height: 1.6;
+                    color: #64748b;
                     margin-bottom: 24px;
-                }
-
-                .remember-me {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    font-size: 14px;
-                    color: #374151;
-                    cursor: pointer;
-                }
-
-                .remember-me input {
-                    cursor: pointer;
-                }
-
-                .forgot-password {
-                    font-size: 14px;
-                    color: #17c9b0;
-                    text-decoration: none;
-                    font-weight: 600;
-                    background: none;
-                    border: none;
-                    padding: 0;
-                    cursor: pointer;
-                }
-
-                .forgot-password:hover {
-                    text-decoration: underline;
-                }
-
-                .btn-primary {
-                    width: 100%;
-                    padding: 14px;
-                    background: linear-gradient(135deg, #17c9b0 0%, #38d7c2 100%);
-                    color: white;
-                    border: none;
-                    border-radius: 12px;
-                    font-size: 16px;
-                    font-weight: 700;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    box-shadow: 0 10px 20px rgba(23, 201, 176, 0.28);
-                }
-
-                .btn-primary:hover:not(:disabled) {
-                    background: linear-gradient(135deg, #12b69f 0%, #2ed1bf 100%);
-                    transform: translateY(-2px);
-                    box-shadow: 0 14px 26px rgba(23, 201, 176, 0.35);
-                }
-
-                .btn-primary:disabled {
-                    opacity: 0.6;
-                    cursor: not-allowed;
-                }
-
-                .divider {
-                    text-align: center;
-                    margin: 24px 0;
-                    position: relative;
-                }
-
-                .divider::before {
-                    content: '';
-                    position: absolute;
-                    top: 50%;
-                    left: 0;
-                    right: 0;
-                    height: 1px;
-                    background: linear-gradient(90deg, transparent, #d7e1ec, transparent);
-                }
-
-                .divider span {
-                    position: relative;
-                    background: white;
-                    padding: 0 16px;
-                    color: #94a3b8;
-                    font-size: 14px;
-                    font-weight: 600;
                 }
 
                 .btn-google {
@@ -674,23 +412,6 @@ export const Login = () => {
                 .btn-github:disabled {
                     opacity: 0.6;
                     cursor: not-allowed;
-                }
-
-                .signup-link {
-                    text-align: center;
-                    margin-top: 24px;
-                    color: #6b7280;
-                    font-size: 14px;
-                }
-
-                .signup-link a {
-                    color: #17c9b0;
-                    text-decoration: none;
-                    font-weight: 700;
-                }
-
-                .signup-link a:hover {
-                    text-decoration: underline;
                 }
 
                 @media (max-width: 1200px) {
@@ -801,13 +522,6 @@ export const Login = () => {
                         border-radius: 20px;
                     }
 
-                    .form-options {
-                        flex-direction: column;
-                        align-items: flex-start;
-                        gap: 8px;
-                    }
-
-                    .btn-primary,
                     .btn-google {
                         font-size: 15px;
                     }
@@ -898,27 +612,9 @@ export const Login = () => {
                         font-size: 14px;
                     }
 
-                    .form-group {
-                        margin-bottom: 14px;
-                    }
-
-                    .input-wrapper input {
-                        padding: 10px 14px 10px 44px;
-                        font-size: 14px;
-                    }
-
-                    .btn-primary,
                     .btn-google {
                         padding: 12px;
                         font-size: 14px;
-                    }
-
-                    .divider {
-                        margin: 18px 0;
-                    }
-
-                    .signup-link {
-                        margin-top: 18px;
                     }
                 }
             `}</style>
