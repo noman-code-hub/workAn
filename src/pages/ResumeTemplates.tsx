@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
+import { BUILT_IN_RESUME_TEMPLATE_CARDS } from '../data/templates/builtInResumeTemplates';
 
 const slugifyTemplate = (value: string) =>
   value
@@ -18,7 +19,19 @@ export const ResumeTemplates = () => {
   const { templates, templateLoading, templateError } = useResumeTemplate(user, { autoSelectFirst: false });
 
   const templatesWithSlugs = useMemo(
-    () => templates.map((t) => ({ ...t, slug: getTemplateSlug(t.name) })),
+    () => {
+      const htmlTemplates = templates.map((t) => ({ ...t, slug: getTemplateSlug(t.name) }));
+      const merged = new Map<string, { name: string; displayName: string; thumbnailUrl?: string; slug: string }>();
+      BUILT_IN_RESUME_TEMPLATE_CARDS.forEach((template) => {
+        merged.set(template.slug, template);
+      });
+      htmlTemplates.forEach((template) => {
+        if (!merged.has(template.slug)) {
+          merged.set(template.slug, template);
+        }
+      });
+      return Array.from(merged.values());
+    },
     [templates]
   );
 
@@ -161,13 +174,16 @@ export const ResumeTemplates = () => {
         .template-card-compact-preview {
           border-bottom: 1px solid #e2e8f0;
           background: #f8fafc;
+          aspect-ratio: 210 / 297;
+          overflow: hidden;
         }
 
         .template-card-compact-preview img {
           width: 100%;
-          height: auto;
+          height: 100%;
           display: block;
           object-fit: cover;
+          object-position: top center;
         }
 
         .template-card-compact-content {

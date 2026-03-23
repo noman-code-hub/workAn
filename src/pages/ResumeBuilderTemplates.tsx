@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
+import { BUILT_IN_RESUME_TEMPLATE_CARDS } from '../data/templates/builtInResumeTemplates';
 
 const slugify = (v: string) =>
   v.toLowerCase().replace(/\.html$/i, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
@@ -15,9 +16,22 @@ export const ResumeBuilderTemplates = () => {
   const { templates, templateLoading, templateError } = useResumeTemplate(user, { autoSelectFirst: false });
 
   const templatesWithSlugs = useMemo(
-    () => templates
-      .filter(t => t.thumbnailUrl)
-      .map(t => ({ ...t, slug: slugify(t.name) })),
+    () => {
+      const htmlTemplates = templates
+        .filter(t => t.thumbnailUrl)
+        .map(t => ({ ...t, slug: slugify(t.name) }));
+
+      const merged = new Map<string, { name: string; displayName: string; thumbnailUrl?: string; slug: string }>();
+      BUILT_IN_RESUME_TEMPLATE_CARDS.forEach((template) => {
+        merged.set(template.slug, template);
+      });
+      htmlTemplates.forEach((template) => {
+        if (!merged.has(template.slug)) {
+          merged.set(template.slug, template);
+        }
+      });
+      return Array.from(merged.values());
+    },
     [templates],
   );
 
@@ -232,8 +246,20 @@ export const ResumeBuilderTemplates = () => {
         }
         @keyframes rbt-shimmer { to { background-position: -200% center; } }
 
-        .rbt-card-preview { position: relative; background: #ffffff; flex-grow: 1; }
-        .rbt-card-preview img { width: 100%; height: auto; display: block; object-fit: cover; }
+        .rbt-card-preview {
+          position: relative;
+          background: #ffffff;
+          flex-grow: 1;
+          aspect-ratio: 210 / 297;
+          overflow: hidden;
+        }
+        .rbt-card-preview img {
+          width: 100%;
+          height: 100%;
+          display: block;
+          object-fit: cover;
+          object-position: top center;
+        }
 
         .rbt-card-placeholder { padding: 32px; height: 100%; display: flex; flex-direction: column; }
         .rbt-paper {

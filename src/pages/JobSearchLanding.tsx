@@ -11,6 +11,7 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
 import { fetchAggregatedJobs } from '../services/jobSearchService';
 import type { AggregatedJob } from '../types/jobSearch';
+import { BUILT_IN_RESUME_TEMPLATE_CARDS } from '../data/templates/builtInResumeTemplates';
 
 const JOB_CATEGORIES = [
   { name: 'Real Estate', icon: <Building2 className="cat-icon" />, count: '1,200 jobs' },
@@ -345,7 +346,21 @@ export const JobSearchLanding = () => {
 
   const { templates, templateLoading } = useResumeTemplate(undefined, { autoSelectFirst: false });
   const showcaseTemplates = useMemo(() => {
-    return templates.filter((t) => t.thumbnailUrl).slice(0, 3);
+    const htmlTemplates = templates.filter((t) => t.thumbnailUrl);
+    const merged = new Map<string, { name: string; thumbnailUrl?: string }>();
+
+    BUILT_IN_RESUME_TEMPLATE_CARDS.forEach((template) => {
+      merged.set(template.slug, { name: template.displayName, thumbnailUrl: template.thumbnailUrl });
+    });
+
+    htmlTemplates.forEach((template) => {
+      const slug = template.name.toLowerCase().replace(/\.html$/i, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+      if (!merged.has(slug)) {
+        merged.set(slug, { name: template.displayName, thumbnailUrl: template.thumbnailUrl });
+      }
+    });
+
+    return Array.from(merged.values()).slice(0, 3);
   }, [templates]);
 
   const jobsForYou = useMemo(() => featuredJobs.slice(0, Math.max(5, RECOMMENDED_JOBS.length)), [featuredJobs]);
@@ -626,9 +641,13 @@ export const JobSearchLanding = () => {
       </section>
 
       {/* Jobs For You */}
-      <section className="jsl-section">
-        <div className="section-header">
-          <h2>Jobs For You</h2>
+      <section className="jsl-section jobs-shell jobs-shell-spotlight">
+        <div className="section-header jobs-section-header">
+          <div className="section-copy">
+            <span className="section-eyebrow">Curated Matches</span>
+            <h2>Jobs For You</h2>
+            <p>Fresh roles with clear compensation, hiring signals, and faster paths to apply.</p>
+          </div>
           <button className="view-all" onClick={() => navigate('/job-search')}>View all <ChevronRight size={16} /></button>
         </div>
         <div className="jsl-job-scroll">
@@ -651,7 +670,10 @@ export const JobSearchLanding = () => {
                 className="jsl-job-card-h"
                 onClick={() => navigate(`/job-search/${encodeURIComponent(job.id)}`)}
               >
-                <LandingJobLogo company={job.company} logoUrl={job.logoUrl} color={color} />
+                <div className="job-card-h-top">
+                  <LandingJobLogo company={job.company} logoUrl={job.logoUrl} color={color} />
+                  <span className="job-card-h-badge">Recommended</span>
+                </div>
                 <div className="job-info">
                   <h3>{job.title}</h3>
                   <p className="company">{job.company}</p>
@@ -660,9 +682,16 @@ export const JobSearchLanding = () => {
                     <span><TrendingUp size={12} /> {formatRelativePostedDate(job.postedDate)}</span>
                   </div>
                   <div className="card-h-footer">
-                    <span className="salary">{formatCompactSalary(job)}</span>
+                    <div className="salary-stack">
+                      <span className="salary-label">Compensation</span>
+                      <span className="salary">{formatCompactSalary(job)}</span>
+                    </div>
                     <span className="type-pill">{job.type || (job.remote ? 'Remote' : 'Full-time')}</span>
                   </div>
+                </div>
+                <div className="job-card-h-cta">
+                  <span>View role</span>
+                  <ChevronRight size={16} />
                 </div>
               </button>
             );
@@ -716,9 +745,13 @@ export const JobSearchLanding = () => {
       </section>
 
       {/* All Live Jobs */}
-      <section className="jsl-section jsl-featured">
-        <div className="section-header">
-          <h2>All Live Jobs</h2>
+      <section className="jsl-section jsl-featured jobs-shell jobs-shell-board">
+        <div className="section-header jobs-section-header">
+          <div className="section-copy">
+            <span className="section-eyebrow">Live Hiring Board</span>
+            <h2>All Live Jobs</h2>
+            <p>A polished live board with role, location, employment type, pay range, and recent activity.</p>
+          </div>
           <div className="filters-mini">
             <div className="filter-input">
               <Search size={14} />
@@ -745,30 +778,45 @@ export const JobSearchLanding = () => {
             const tags = job.tags && job.tags.length > 0 ? job.tags.slice(0, 3) : [];
             const salaryText = job.salaryText || (job.salary?.min ? `$${Math.round(job.salary.min / 1000)}k–$${Math.round(job.salary.max / 1000)}k / yr` : 'Competitive');
             const jobLocation = job.location || (job.remote ? 'Remote' : 'Anywhere');
+            const displayTags = tags.length > 0 ? tags : [job.remote ? 'Remote ready' : 'Live opportunity'];
             
             return (
               <div key={job.id} className={`jsl-job-card-v ${isFeatured ? 'featured-card' : ''}`}>
-                {isFeatured && <div className="featured-ribbon">⭐ Featured</div>}
+                {isFeatured && <div className="featured-ribbon">Featured Pick</div>}
                 <div className="card-top">
-                  <LandingJobLogo company={job.company} logoUrl={job.logoUrl} color={color} />
-                  <button className="save-btn"><Bookmark size={16} /></button>
+                  <div className="card-brand">
+                    <LandingJobLogo company={job.company} logoUrl={job.logoUrl} color={color} />
+                    <div className="card-brand-copy">
+                      <span className="card-brand-label">Company</span>
+                      <p className="company" style={{ color }}>{job.company}</p>
+                    </div>
+                  </div>
+                  <button className="save-btn" type="button" aria-label={`Save ${job.title}`}>
+                    <Bookmark size={16} />
+                  </button>
                 </div>
                 <h3>{job.title}</h3>
-                <p className="company" style={{ color: color }}>{job.company}</p>
-                <div className="card-meta">
+                <div className="card-meta card-meta-grid">
                   <span><MapPin size={14} /> {jobLocation}</span>
                   <span><Briefcase size={14} /> {job.type || 'Full-time'}</span>
+                  <span><TrendingUp size={14} /> {formatRelativePostedDate(job.postedDate)}</span>
                 </div>
-                <div className="card-salary">{salaryText}</div>
+                <div className="card-bottom-row">
+                  <div className="card-salary-block">
+                    <span className="salary-caption">Estimated pay</span>
+                    <div className="card-salary">{salaryText}</div>
+                  </div>
+                  <span className="job-posted-pill">{formatRelativePostedDate(job.postedDate)}</span>
+                </div>
                 <div className="card-tags">
-                  {tags.map(tag => <span key={tag} className="tag">{tag}</span>)}
+                  {displayTags.map(tag => <span key={tag} className="tag">{tag}</span>)}
                 </div>
                 <div className="card-footer">
                   <button 
                     className={`apply-btn ${isFeatured ? 'apply-btn-featured' : 'apply-btn-outline'}`}
                     onClick={() => openJobApplication(job)}
                   >
-                    Apply Now
+                    Apply Now <ArrowRight size={15} />
                   </button>
                 </div>
               </div>
@@ -1158,33 +1206,101 @@ export const JobSearchLanding = () => {
           color: var(--primary);
           font-weight: 700;
         }
+        .jobs-shell {
+          border: 1px solid rgba(15, 23, 42, 0.06);
+          border-radius: 32px;
+          background: linear-gradient(180deg, #ffffff 0%, #fbfeff 100%);
+          box-shadow: 0 24px 60px rgba(15, 23, 42, 0.05);
+        }
+        .jobs-shell-spotlight {
+          background:
+            radial-gradient(circle at top left, rgba(23, 201, 176, 0.1), transparent 32%),
+            linear-gradient(180deg, #ffffff 0%, #fbfffe 100%);
+        }
+        .jobs-shell-board {
+          background:
+            radial-gradient(circle at top right, rgba(14, 165, 233, 0.09), transparent 28%),
+            linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        }
+        .jobs-section-header {
+          gap: 24px;
+        }
+        .section-copy {
+          max-width: 640px;
+        }
+        .section-copy p {
+          margin: 10px 0 0;
+          color: var(--muted);
+          line-height: 1.7;
+          font-size: 0.98rem;
+        }
+        .section-eyebrow {
+          display: inline-flex;
+          align-items: center;
+          padding: 6px 12px;
+          border-radius: 999px;
+          background: rgba(23, 201, 176, 0.1);
+          color: var(--primary-dark);
+          font-size: 0.74rem;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          margin-bottom: 12px;
+        }
 
         /* JOB SCROLL */
         .jsl-job-scroll {
           display: flex;
-          gap: 20px;
+          gap: 22px;
           overflow-x: auto;
-          padding-bottom: 12px;
+          padding: 4px 2px 12px;
           scrollbar-width: thin;
+          scroll-snap-type: x proximity;
         }
         .jsl-job-card-h {
           flex-shrink: 0;
-          width: 300px;
-          background: #fff;
-          padding: 20px;
-          border-radius: 16px;
-          border: 1px solid var(--border);
+          width: 320px;
+          background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+          padding: 22px;
+          border-radius: 24px;
+          border: 1px solid rgba(15, 23, 42, 0.08);
           display: flex;
-          gap: 16px;
-          transition: all 0.3s;
+          flex-direction: column;
+          gap: 18px;
+          transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
           cursor: pointer;
+          text-align: left;
+          scroll-snap-align: start;
+          box-shadow: 0 16px 34px rgba(15, 23, 42, 0.05);
         }
-        .jsl-job-card-h:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.08); border-color: var(--primary); }
+        .jsl-job-card-h:hover {
+          transform: translateY(-6px);
+          box-shadow: 0 24px 42px rgba(15, 23, 42, 0.1);
+          border-color: rgba(23, 201, 176, 0.45);
+        }
+        .job-card-h-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+        }
+        .job-card-h-badge {
+          display: inline-flex;
+          align-items: center;
+          border-radius: 999px;
+          padding: 6px 12px;
+          background: rgba(15, 118, 110, 0.08);
+          color: #0f766e;
+          font-size: 0.72rem;
+          font-weight: 800;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+        }
         .job-logo-box {
-          width: 50px;
-          height: 50px;
+          width: 56px;
+          height: 56px;
           background: #f1f5f9;
-          border-radius: 12px;
+          border-radius: 16px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1205,13 +1321,78 @@ export const JobSearchLanding = () => {
           object-fit: contain;
           display: block;
         }
-        .job-info h3 { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
-        .job-info .company { color: var(--muted); font-size: 0.9rem; margin-bottom: 8px; }
-        .job-info .meta { display: flex; gap: 12px; color: var(--muted); font-size: 0.8rem; margin-bottom: 10px; }
-        .job-info .meta span { display: flex; align-items: center; gap: 4px; }
-        .card-h-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
-        .salary { font-size: 0.85rem; font-weight: 700; color: var(--primary-dark); }
-        .type-pill { font-size: 0.75rem; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: rgba(23, 201, 176, 0.1); color: var(--primary-dark); border: 1px solid rgba(23, 201, 176, 0.3); }
+        .job-info h3 {
+          font-size: 1.08rem;
+          font-weight: 800;
+          line-height: 1.45;
+          margin-bottom: 6px;
+        }
+        .job-info .company {
+          color: #334155;
+          font-size: 0.92rem;
+          font-weight: 700;
+          margin-bottom: 14px;
+        }
+        .job-info .meta {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 10px;
+          color: var(--muted);
+          font-size: 0.85rem;
+          margin-bottom: 16px;
+        }
+        .job-info .meta span {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-width: 0;
+        }
+        .card-h-footer {
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 12px;
+          margin-top: 6px;
+          padding-top: 16px;
+          border-top: 1px solid rgba(15, 23, 42, 0.08);
+        }
+        .salary-stack {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .salary-label {
+          font-size: 0.72rem;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: #94a3b8;
+          font-weight: 700;
+        }
+        .salary {
+          font-size: 1rem;
+          font-weight: 800;
+          color: var(--primary-dark);
+        }
+        .type-pill {
+          font-size: 0.76rem;
+          font-weight: 700;
+          padding: 6px 12px;
+          border-radius: 999px;
+          background: rgba(23, 201, 176, 0.1);
+          color: var(--primary-dark);
+          border: 1px solid rgba(23, 201, 176, 0.22);
+          white-space: nowrap;
+        }
+        .job-card-h-cta {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          color: #0f172a;
+          font-size: 0.9rem;
+          font-weight: 700;
+          padding-top: 2px;
+        }
 
         /* CATEGORIES */
         .jsl-cat-grid {
@@ -1325,32 +1506,173 @@ export const JobSearchLanding = () => {
           grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
           gap: 24px;
         }
-        .jsl-job-card-v {
-          background: #fff;
-          padding: 24px;
-          border-radius: 24px;
-          border: 1px solid var(--border);
-          transition: all 0.3s;
+        .featured-card {
+          border-color: rgba(23, 201, 176, 0.38);
+          background: linear-gradient(180deg, #ffffff 0%, #f3fffb 100%);
         }
-        .featured-card { border-color: rgba(23, 201, 176, 0.4); background: linear-gradient(135deg, #fff 0%, #f0fdfa 100%); }
-        .featured-ribbon { position: absolute; top: 0; right: 0; background: linear-gradient(135deg, #17c9b0, #0f9a87); color: #fff; font-size: 0.7rem; font-weight: 800; padding: 4px 14px; border-radius: 0 24px 0 12px; letter-spacing: 0.02em; }
-        .jsl-job-card-v { position: relative; background: #fff; padding: 24px; border-radius: 24px; border: 1px solid var(--border); transition: all 0.3s; overflow: hidden; }
-        .card-salary { font-size: 1rem; font-weight: 800; color: var(--primary-dark); margin-bottom: 16px; }
-        .jsl-job-card-v:hover { transform: translateY(-6px); box-shadow: 0 20px 40px rgba(0,0,0,0.06); border-color: var(--primary); }
-        .card-top { display: flex; justify-content: space-between; margin-bottom: 16px; }
-        .save-btn { color: var(--muted); transition: color 0.2s; }
-        .save-btn:hover { color: var(--primary); }
-        .jsl-job-card-v h3 { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; }
-        .jsl-job-card-v .company { color: var(--primary); font-weight: 700; margin-bottom: 12px; }
-        .card-meta { display: flex; gap: 16px; color: var(--muted); font-size: 0.9rem; margin-bottom: 16px; }
-        .card-meta span { display: flex; align-items: center; gap: 6px; }
-        .card-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
-        .tag { background: #f1f5f9; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; color: #475569; }
-        .apply-btn { width: 100%; padding: 12px; border-radius: 12px; font-weight: 700; transition: all 0.2s; }
+        .featured-ribbon {
+          position: absolute;
+          top: 16px;
+          right: 16px;
+          background: linear-gradient(135deg, #17c9b0, #0f9a87);
+          color: #fff;
+          font-size: 0.68rem;
+          font-weight: 800;
+          padding: 6px 12px;
+          border-radius: 999px;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          box-shadow: 0 10px 20px rgba(15, 154, 135, 0.2);
+        }
+        .jsl-job-card-v {
+          position: relative;
+          background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
+          padding: 24px;
+          border-radius: 28px;
+          border: 1px solid rgba(15, 23, 42, 0.08);
+          transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+          overflow: hidden;
+          box-shadow: 0 18px 44px rgba(15, 23, 42, 0.05);
+        }
+        .jsl-job-card-v:hover {
+          transform: translateY(-8px);
+          box-shadow: 0 26px 56px rgba(15, 23, 42, 0.1);
+          border-color: rgba(23, 201, 176, 0.45);
+        }
+        .card-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 16px;
+          margin-bottom: 18px;
+        }
+        .card-brand {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          min-width: 0;
+        }
+        .card-brand-copy {
+          min-width: 0;
+        }
+        .card-brand-label {
+          display: block;
+          font-size: 0.72rem;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: #94a3b8;
+          margin-bottom: 4px;
+        }
+        .save-btn {
+          width: 40px;
+          height: 40px;
+          border-radius: 999px;
+          border: 1px solid rgba(15, 23, 42, 0.08);
+          background: rgba(255, 255, 255, 0.92);
+          color: var(--muted);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+        }
+        .save-btn:hover { color: var(--primary); border-color: rgba(23, 201, 176, 0.35); background: #fff; }
+        .jsl-job-card-v h3 {
+          font-size: 1.28rem;
+          font-weight: 800;
+          line-height: 1.4;
+          margin-bottom: 16px;
+          max-width: calc(100% - 20px);
+        }
+        .jsl-job-card-v .company {
+          color: var(--primary);
+          font-weight: 800;
+          margin: 0;
+          font-size: 0.98rem;
+        }
+        .card-meta {
+          color: var(--muted);
+          font-size: 0.9rem;
+        }
+        .card-meta span {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-width: 0;
+        }
+        .card-meta-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px 16px;
+          margin-bottom: 18px;
+          padding: 16px 0;
+          border-top: 1px solid rgba(15, 23, 42, 0.08);
+          border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+        }
+        .card-bottom-row {
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 16px;
+          margin-bottom: 16px;
+        }
+        .card-salary-block {
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+        }
+        .salary-caption {
+          font-size: 0.72rem;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: #94a3b8;
+          font-weight: 700;
+        }
+        .card-salary {
+          font-size: 1.08rem;
+          font-weight: 800;
+          color: var(--primary-dark);
+        }
+        .job-posted-pill {
+          font-size: 0.78rem;
+          font-weight: 700;
+          padding: 7px 12px;
+          border-radius: 999px;
+          background: #f8fafc;
+          color: #475569;
+          border: 1px solid rgba(15, 23, 42, 0.08);
+          white-space: nowrap;
+        }
+        .card-tags {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          margin-bottom: 20px;
+        }
+        .tag {
+          background: #f8fafc;
+          padding: 6px 12px;
+          border-radius: 999px;
+          font-size: 0.77rem;
+          font-weight: 700;
+          color: #475569;
+          border: 1px solid rgba(15, 23, 42, 0.06);
+        }
+        .apply-btn {
+          width: 100%;
+          padding: 13px 16px;
+          border-radius: 14px;
+          font-weight: 800;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          transition: all 0.2s;
+        }
         .apply-btn-featured { background: var(--primary); color: #fff; }
         .apply-btn-featured:hover { background: var(--primary-dark); }
-        .apply-btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
-        .apply-btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .apply-btn-outline { background: transparent; border: 1.5px solid rgba(15, 23, 42, 0.1); color: var(--text); }
+        .apply-btn-outline:hover { border-color: var(--primary); color: var(--primary); background: rgba(23, 201, 176, 0.04); }
         .jsl-load-more { text-align: center; margin-top: 48px; }
 
         /* BLOG */
@@ -1869,6 +2191,7 @@ export const JobSearchLanding = () => {
           .jsl-job-grid { grid-template-columns: repeat(2, 1fr); }
           .filters-mini { flex-wrap: wrap; }
           .jsl-blog-card { min-width: 280px; max-width: 320px; }
+          .card-meta-grid { grid-template-columns: 1fr; }
         }
         @media (max-width: 768px) {
           .hero-avatar { display: none; }
@@ -1879,7 +2202,7 @@ export const JobSearchLanding = () => {
           .jsl-hero { padding: 60px 20px; }
           .jsl-hero h1 { font-size: 2.2rem; }
           .hero-sub { font-size: 1rem; }
-          .jsl-job-card-h { width: 240px; }
+          .jsl-job-card-h { width: 280px; }
           .jsl-search-btn { width: 100%; text-align: center; justify-content: center; margin-top: 8px; }
           .jsl-job-grid { grid-template-columns: 1fr; }
           .jsl-blog-card { min-width: 260px; max-width: 300px; }
@@ -1898,11 +2221,17 @@ export const JobSearchLanding = () => {
           .footer-links { gap: 20px; }
           .jsl-footer-bottom { flex-direction: column; gap: 16px; text-align: center; }
           .jsl-faq-list { grid-template-columns: 1fr; }
+          .jobs-shell { border-radius: 24px; }
+          .card-bottom-row { flex-direction: column; align-items: flex-start; }
+          .job-posted-pill { white-space: normal; }
         }
         @media (max-width: 480px) {
           .jsl-cat-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
           .jsl-section { padding: 32px 16px; }
           .stat-item { padding: 10px 12px; }
+          .jsl-job-card-h { width: 250px; padding: 18px; }
+          .job-card-h-badge { padding: 5px 10px; font-size: 0.66rem; }
+          .jsl-job-card-v { padding: 20px; border-radius: 22px; }
         }
       `}</style>
     </div>

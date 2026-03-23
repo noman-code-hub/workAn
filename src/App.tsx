@@ -178,8 +178,6 @@ function App() {
             <Route path="/resume/templates" element={<Navigate to="/resume-builder/templates" replace />} />
             <Route path="/resume-builder" element={<ResumeBuilderLanding />} />
             <Route path="/resume-builder/templates" element={<ResumeBuilderTemplates />} />
-            <Route path="/resume-builder/editor" element={<Resume />} />
-            <Route path="/resume-editor/:templateId" element={<Resume />} />
             <Route path="/trends" element={<CareerTrends />} />
             <Route path="/ai-copilot" element={<AICopilot />} />
             <Route path="/settings" element={<Settings />} />

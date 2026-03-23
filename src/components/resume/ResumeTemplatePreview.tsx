@@ -12,6 +12,7 @@ import type {
   ResumeTemplateRichTextBlock,
   ResumeTemplateImageBlock,
   ResumeTemplateDividerBlock,
+  ResumeTemplateGroupBlock,
   ResumeTemplateStyle,
 } from '../../types/resumeTemplate';
 
@@ -89,15 +90,47 @@ const resolveStyle = (
   if (style.color) base.color = style.color;
   if (style.font) base.fontFamily = style.font;
   if (style.paddingPx !== undefined) base.padding = style.paddingPx;
+  if (style.paddingXpx !== undefined) {
+    base.paddingLeft = style.paddingXpx;
+    base.paddingRight = style.paddingXpx;
+  }
+  if (style.paddingYpx !== undefined) {
+    base.paddingTop = style.paddingYpx;
+    base.paddingBottom = style.paddingYpx;
+  }
+  if (style.paddingTopPx !== undefined) base.paddingTop = style.paddingTopPx;
+  if (style.paddingRightPx !== undefined) base.paddingRight = style.paddingRightPx;
+  if (style.paddingBottomPx !== undefined) base.paddingBottom = style.paddingBottomPx;
+  if (style.paddingLeftPx !== undefined) base.paddingLeft = style.paddingLeftPx;
+  if (style.fontSizePx !== undefined) base.fontSize = style.fontSizePx;
+  if (style.fontWeight !== undefined) base.fontWeight = style.fontWeight;
+  if (style.lineHeight !== undefined) base.lineHeight = style.lineHeight;
+  if (style.letterSpacingPx !== undefined) base.letterSpacing = style.letterSpacingPx;
   if (style.textTransform) base.textTransform = style.textTransform;
   if (style.borderWidthPx || style.borderColor) {
     base.borderStyle = 'solid';
     base.borderWidth = style.borderWidthPx ?? 1;
     base.borderColor = style.borderColor ?? 'transparent';
   }
+  if (style.borderLeftWidthPx || style.borderLeftColor) {
+    base.borderLeftStyle = 'solid';
+    base.borderLeftWidth = style.borderLeftWidthPx ?? 1;
+    base.borderLeftColor = style.borderLeftColor ?? style.borderColor ?? 'transparent';
+  }
   if (style.borderRadiusPx !== undefined) base.borderRadius = style.borderRadiusPx;
   if (style.columns) base.columnCount = style.columns;
   if (style.columnGapPx !== undefined) base.columnGap = style.columnGapPx;
+  if (style.width) base.width = style.width;
+  if (style.minWidthPx !== undefined) base.minWidth = style.minWidthPx;
+  if (style.maxWidthPx !== undefined) base.maxWidth = style.maxWidthPx;
+  if (style.display) base.display = style.display;
+  if (style.gapPx !== undefined) base.gap = style.gapPx;
+  if (style.justifyContent) base.justifyContent = style.justifyContent;
+  if (style.alignItems) base.alignItems = style.alignItems;
+  if (style.marginTopPx !== undefined) base.marginTop = style.marginTopPx;
+  if (style.marginBottomPx !== undefined) base.marginBottom = style.marginBottomPx;
+  if (style.marginLeft) base.marginLeft = style.marginLeft;
+  if (style.marginRight) base.marginRight = style.marginRight;
 
   return base;
 };
@@ -221,6 +254,49 @@ const renderDivider = (block: ResumeTemplateDividerBlock, theme: ResumeTemplateD
   return <hr style={style} />;
 };
 
+const renderGroup = (
+  block: ResumeTemplateGroupBlock,
+  data: Record<string, any>,
+  theme: ResumeTemplateDefinition['theme'],
+  options?: RenderBlockOptions
+) => {
+  if (!block.items || block.items.length === 0) return null;
+
+  const style = resolveStyle(block.style, theme);
+  const isRow = block.direction === 'row';
+  const templateColumns = isRow
+    ? block.items.map((item) => item.width || 'minmax(0, 1fr)').join(' ')
+    : undefined;
+
+  return (
+    <div
+      style={{
+        ...style,
+        display: 'grid',
+        gap: block.gapPx ?? theme.spacing.itemGapPx,
+        gridTemplateColumns: templateColumns,
+      }}
+    >
+      {block.items.map((item, index) => (
+        <div
+          key={`${block.kind}-${index}`}
+          style={{
+            display: 'grid',
+            gap: theme.spacing.itemGapPx,
+            ...resolveStyle(item.style, theme),
+          }}
+        >
+          {item.blocks.map((child, childIndex) => (
+            <div key={`${child.kind}-${('key' in child ? child.key : childIndex) ?? childIndex}-${index}`}>
+              {renderBlock(child, data, theme, options)}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const renderTable = (
   block: ResumeTemplateTableBlock,
   rowsValue: any,
@@ -304,13 +380,19 @@ const renderBlock = (
     return <div key={`divider-${block.thicknessPx ?? 1}-${block.color ?? 'default'}`}>{renderDivider(block, theme)}</div>;
   }
 
-  const path = options?.pathPrefix ? `${options.pathPrefix}.${block.key}` : block.key;
+  const blockKey = 'key' in block ? block.key : undefined;
+  const path = blockKey
+    ? (options?.pathPrefix ? `${options.pathPrefix}.${blockKey}` : blockKey)
+    : options?.pathPrefix;
   const hasOverride =
-    options?.blockOverrides
-    && Object.prototype.hasOwnProperty.call(options.blockOverrides, block.key);
+    blockKey
+    && options?.blockOverrides
+    && Object.prototype.hasOwnProperty.call(options.blockOverrides, blockKey);
   const value = hasOverride
-    ? options?.blockOverrides?.[block.key]
-    : resolveValueByKey(data, block.key);
+    ? options?.blockOverrides?.[blockKey]
+    : blockKey
+      ? resolveValueByKey(data, blockKey)
+      : undefined;
   switch (block.kind) {
     case 'text':
       {
@@ -347,6 +429,11 @@ const renderBlock = (
       {
         const content = renderTable(block, value, theme);
         return content ? <div key={block.key}>{content}</div> : null;
+      }
+    case 'group':
+      {
+        const content = renderGroup(block, data, theme, options);
+        return content ? <div key={`${block.kind}-${path ?? 'group'}`}>{content}</div> : null;
       }
     default:
       return null;

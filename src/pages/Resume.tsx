@@ -8,6 +8,7 @@ import { normalizeFieldKey, renderTemplateWithSchema } from '../services/resumeT
 import { ResumeTemplatePreview } from '../components/resume/ResumeTemplatePreview';
 import { listResumeTemplateDefinitions } from '../services/resumeTemplateService';
 import type { ResumeTemplateRecord } from '../types/resumeTemplate';
+import { mergeResumeTemplateRecords } from '../data/templates/builtInResumeTemplates';
 import { API_BASE, apiUrl } from '../config/api';
 import { AppLoader } from '../components/AppLoader';
 import { RichTextEditor } from '../components/RichTextEditor';
@@ -22,6 +23,31 @@ type PreviewPageSize = keyof typeof PAGE_SIZES;
 const ENABLE_PREVIEW_PAGINATION = false;
 const PAGE_GAP_PX = 24;
 const PREVIEW_FONT_SCALES = [1, 0.93, 0.86, 0.79, 0.75];
+const TEMPLATE_COLOR_PRESETS = [
+  { id: 'gold', label: 'Gold', accent: '#c3aa72' },
+  { id: 'navy', label: 'Navy', accent: '#1d4d8f' },
+  { id: 'emerald', label: 'Emerald', accent: '#0f8b6d' },
+  { id: 'burgundy', label: 'Burgundy', accent: '#8b3a4b' },
+] as const;
+const DEFAULT_CUSTOM_TEMPLATE_COLOR = '#c3aa72';
+const COLOR_PRESET_TEMPLATE_SLUGS = new Set(['accounting-executive', 'minimalist-modern']);
+type TemplateColorPresetId = (typeof TEMPLATE_COLOR_PRESETS)[number]['id'] | 'custom';
+
+const clampColorChannel = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
+
+const mixHexColor = (hex: string, target: string, weight: number) => {
+  const safeHex = hex.replace('#', '');
+  const safeTarget = target.replace('#', '');
+  if (!/^[0-9a-f]{6}$/i.test(safeHex) || !/^[0-9a-f]{6}$/i.test(safeTarget)) return hex;
+
+  const channels = [0, 2, 4].map((offset) => Number.parseInt(safeHex.slice(offset, offset + 2), 16));
+  const targetChannels = [0, 2, 4].map((offset) => Number.parseInt(safeTarget.slice(offset, offset + 2), 16));
+  const mixed = channels.map((channel, index) =>
+    clampColorChannel(channel + (targetChannels[index] - channel) * weight)
+  );
+
+  return `#${mixed.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
+};
 
 type TemplateListItem = {
   kind: 'html' | 'json';
@@ -102,6 +128,8 @@ export const Resume = () => {
   const jsonTemplateLoadIdRef = useRef(0);
   const [jsonSectionOrder, setJsonSectionOrder] = useState<string[]>([]);
   const [templateStep, setTemplateStep] = useState<'choose' | 'edit'>('choose');
+  const [selectedColorPreset, setSelectedColorPreset] = useState<TemplateColorPresetId>('gold');
+  const [customTemplateColor, setCustomTemplateColor] = useState(DEFAULT_CUSTOM_TEMPLATE_COLOR);
   const [uploadingResume, setUploadingResume] = useState(false);
   const [isFillingDemo, setIsFillingDemo] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
@@ -139,11 +167,11 @@ export const Resume = () => {
     try {
       const data = await listResumeTemplateDefinitions({ activeOnly: true });
       if (jsonTemplateLoadIdRef.current !== loadId) return;
-      setJsonTemplates(data);
+      setJsonTemplates(mergeResumeTemplateRecords(data));
     } catch (error) {
       if (jsonTemplateLoadIdRef.current !== loadId) return;
       console.error('Failed to load JSON resume templates:', error);
-      setJsonTemplates([]);
+      setJsonTemplates(mergeResumeTemplateRecords([]));
       setJsonTemplateError('Failed to load JSON templates.');
     } finally {
       if (jsonTemplateLoadIdRef.current === loadId) {
@@ -255,6 +283,26 @@ export const Resume = () => {
     const match = templates.find((t) => t.name === selectedTemplate);
     return match?.displayName || selectedTemplate || 'Template';
   }, [selectedJsonTemplate, selectedTemplate, templates]);
+
+  const selectedColorPresetValue = useMemo(
+    () => TEMPLATE_COLOR_PRESETS.find((preset) => preset.id === selectedColorPreset) || TEMPLATE_COLOR_PRESETS[0],
+    [selectedColorPreset]
+  );
+
+  const normalizedCustomTemplateColor = useMemo(
+    () => (/^#[0-9a-f]{6}$/i.test(customTemplateColor) ? customTemplateColor : DEFAULT_CUSTOM_TEMPLATE_COLOR),
+    [customTemplateColor]
+  );
+
+  const activeTemplateAccentColor = useMemo(
+    () => (selectedColorPreset === 'custom' ? normalizedCustomTemplateColor : selectedColorPresetValue.accent),
+    [normalizedCustomTemplateColor, selectedColorPreset, selectedColorPresetValue.accent]
+  );
+
+  const jsonTemplateSupportsColorPreset = useMemo(
+    () => Boolean(selectedJsonTemplate && COLOR_PRESET_TEMPLATE_SLUGS.has(selectedJsonTemplate.slug)),
+    [selectedJsonTemplate]
+  );
 
   const templateFilters = [
     'All templates',
@@ -898,7 +946,7 @@ export const Resume = () => {
   ]);
 
   const buildJsonResumeData = useCallback(() => {
-    const skills = parseCommaOrNewline(skillsText).map((name) => ({ name, value: name }));
+    const skills = parseCommaOrNewline(skillsText).map((name) => ({ name, value: name, bullet: '\u2022' }));
     const projects = parseNewline(projectsText).map((title) => ({ title, name: title, value: title }));
     const additional = parseNewline(additionalText);
     const customDetailItems = customDetails
@@ -909,6 +957,11 @@ export const Resume = () => {
       }))
       .filter((item) => item.label || item.value);
 
+    const languageSource = [templateFieldValues.languages, templateFieldValues.language, 'English\nSpanish']
+      .map((value) => (value ?? '').toString().trim())
+      .find(Boolean) || '';
+    const languages = parseCommaOrNewline(languageSource).map((name) => ({ name, value: name }));
+
     const experience = experienceItems
       .map((item) => ({
         id: item.id,
@@ -916,8 +969,9 @@ export const Resume = () => {
         company: item.company,
         dates: item.dates,
         date_range: item.dates,
+        marker: '\u25cb',
         highlights: item.details,
-        bullets: parseNewline(item.details),
+        bullets: parseNewline(item.details).map((line) => `- ${line}`),
       }))
       .filter((item) =>
         [item.role, item.company, item.dates, item.highlights].some((value) => value && value.toString().trim())
@@ -931,7 +985,7 @@ export const Resume = () => {
         dates: item.dates,
         date_range: item.dates,
         highlights: item.details,
-        bullets: parseNewline(item.details),
+        bullets: parseNewline(item.details).map((line) => `- ${line}`),
       }))
       .filter((item) =>
         [item.degree, item.school, item.dates, item.highlights].some((value) => value && value.toString().trim())
@@ -950,7 +1004,30 @@ export const Resume = () => {
       ...(github ? [{ label: 'GitHub', value: github }] : []),
     ].filter((item) => item.value && item.value.toString().trim());
 
+    const headerContact = [
+      {
+        left: contactLocation || linkedIn || '',
+        center: contactPhone || website || '',
+        right: contactEmail || github || '',
+      },
+    ].filter((item) => item.left || item.center || item.right);
+
+    const referencePrimaryName = (templateFieldValues.reference_primary_name || 'Harumi Kobayashi').toString().trim();
+    const referencePrimaryTitle = (templateFieldValues.reference_primary_title || 'Wardiere Inc. / CEO').toString().trim();
+    const referencePrimaryPhone = (templateFieldValues.reference_primary_phone || '123-456-7890').toString().trim();
+    const referencePrimaryEmail = (
+      templateFieldValues.reference_primary_email || 'hello@reallygreatsite.com'
+    ).toString().trim();
+    const referenceSecondaryName = (templateFieldValues.reference_secondary_name || 'Bailey Dupont').toString().trim();
+    const referenceSecondaryTitle = (templateFieldValues.reference_secondary_title || 'Wardiere Inc. / CEO').toString().trim();
+    const referenceSecondaryPhone = (templateFieldValues.reference_secondary_phone || '123-456-7890').toString().trim();
+    const referenceSecondaryEmail = (
+      templateFieldValues.reference_secondary_email || 'hello@reallygreatsite.com'
+    ).toString().trim();
+
     return {
+      first_name: contactNameParts.first,
+      last_name: contactNameParts.last,
       name: contactName,
       full_name: contactName,
       fullname: contactName,
@@ -966,6 +1043,8 @@ export const Resume = () => {
       objective: summaryText,
       skills,
       skills_text: skillsText,
+      languages,
+      languages_text: languageSource,
       projects,
       projects_text: projectsText,
       experience,
@@ -974,6 +1053,30 @@ export const Resume = () => {
       custom_details: customDetailItems,
       customdetails: customDetailItems,
       contact,
+      about_heading: 'About Me',
+      contact_heading: 'Contact',
+      career_summary_heading: 'Career Summary',
+      experience_marker: 'o',
+      skills_heading: 'Skills',
+      custom_heading: 'Additional Details',
+      education_heading: 'Education',
+      language_heading: 'Language',
+      profile_heading: 'Personal Profile',
+      experience_heading: 'Work Experience',
+      minimalist_experience_heading: 'Experience',
+      awards_heading: 'Awards',
+      reference_heading: 'Reference',
+      reference_phone_label: 'Phone:',
+      reference_email_label: 'Email:',
+      reference_primary_name: referencePrimaryName,
+      reference_primary_title: referencePrimaryTitle,
+      reference_primary_phone: referencePrimaryPhone,
+      reference_primary_email: referencePrimaryEmail,
+      reference_secondary_name: referenceSecondaryName,
+      reference_secondary_title: referenceSecondaryTitle,
+      reference_secondary_phone: referenceSecondaryPhone,
+      reference_secondary_email: referenceSecondaryEmail,
+      header_contact: headerContact,
       links: contact,
     };
   }, [
@@ -981,6 +1084,8 @@ export const Resume = () => {
     contactEmail,
     contactLocation,
     contactName,
+    contactNameParts.first,
+    contactNameParts.last,
     contactPhone,
     contactPhotoUrl,
     contactRole,
@@ -994,6 +1099,54 @@ export const Resume = () => {
   ]);
 
   const jsonPreviewData = useMemo(() => buildJsonResumeData(), [buildJsonResumeData]);
+
+  const previewJsonTemplateDefinition = useMemo(() => {
+    if (!selectedJsonTemplate) return null;
+    if (!COLOR_PRESET_TEMPLATE_SLUGS.has(selectedJsonTemplate.slug)) {
+      return selectedJsonTemplate.definition;
+    }
+
+    const cloned = JSON.parse(JSON.stringify(selectedJsonTemplate.definition)) as typeof selectedJsonTemplate.definition;
+    const replaceMap: Record<string, string> = {};
+
+    if (selectedJsonTemplate.slug === 'accounting-executive') {
+      replaceMap['#c3aa72'] = activeTemplateAccentColor;
+    }
+
+    if (selectedJsonTemplate.slug === 'minimalist-modern') {
+      replaceMap['#eecdc0'] = mixHexColor(activeTemplateAccentColor, '#ffffff', 0.68);
+      replaceMap['#edd8d1'] = mixHexColor(activeTemplateAccentColor, '#ffffff', 0.8);
+    }
+
+    const visit = (value: unknown): unknown => {
+      if (Array.isArray(value)) {
+        return value.map((entry) => visit(entry));
+      }
+      if (!value || typeof value !== 'object') {
+        if (typeof value === 'string') {
+          const direct = replaceMap[value.toLowerCase()];
+          return direct ?? value;
+        }
+        return value;
+      }
+
+      const next: Record<string, unknown> = {};
+      Object.entries(value as Record<string, unknown>).forEach(([key, entryValue]) => {
+        next[key] = visit(entryValue);
+      });
+      return next;
+    };
+
+    const themed = visit(cloned) as typeof cloned;
+    if (selectedJsonTemplate.slug === 'minimalist-modern') {
+      themed.theme.colors.primary = mixHexColor(activeTemplateAccentColor, '#ffffff', 0.68);
+      themed.theme.colors.accent = mixHexColor(activeTemplateAccentColor, '#ffffff', 0.8);
+    } else {
+      themed.theme.colors.primary = activeTemplateAccentColor;
+      themed.theme.colors.accent = activeTemplateAccentColor;
+    }
+    return themed;
+  }, [activeTemplateAccentColor, selectedJsonTemplate]);
 
   const handleInlineFieldChange = useCallback((path: string, value: string) => {
     const listMatch = path.match(/^([a-zA-Z0-9_]+)\[(\d+)\](?:\.(.+))?$/);
@@ -1025,6 +1178,10 @@ export const Resume = () => {
       }
       if (key === 'skills' || key === 'skillset' || key === 'skills_text') {
         setSkillsText(value);
+        return;
+      }
+      if (key === 'language' || key === 'languages' || key === 'languages_text') {
+        setTemplateFieldValue('languages', value);
         return;
       }
       if (key === 'projects' || key === 'projects_text') {
@@ -1090,6 +1247,16 @@ export const Resume = () => {
       return;
     }
 
+    if (listKey === 'languages') {
+      const languages = parseCommaOrNewline(
+        (templateFieldValues.languages || templateFieldValues.language || '').toString()
+      );
+      if (index >= languages.length) return;
+      languages[index] = value;
+      setTemplateFieldValue('languages', languages.join('\n'));
+      return;
+    }
+
     if (listKey === 'projects') {
       const projects = parseNewline(projectsText);
       if (index >= projects.length) return;
@@ -1128,6 +1295,7 @@ export const Resume = () => {
     projectsText,
     setTemplateFieldValue,
     skillsText,
+    templateFieldValues,
   ]);
 
   const handleDragStart = (id: string) => setDraggingSection(id);
@@ -1646,10 +1814,25 @@ export const Resume = () => {
     setPreviewPage((prev) => Math.min(Math.max(prev, 1), count));
   }, [activePageSize.height, selectedJsonTemplate]);
 
+  const updatePreviewShellScale = useCallback((pageWidth: number, pageHeight: number) => {
+    const shell = previewShellRef.current;
+    const body = previewBodyRef.current;
+    if (!shell) return;
+
+    const availableWidth = Math.max((body?.clientWidth ?? pageWidth) - 32, 0);
+    const scale = pageWidth > 0 ? Math.min(1, availableWidth / pageWidth) : 1;
+
+    previewScaleRef.current = scale;
+    shell.style.setProperty('--preview-scale', `${scale}`);
+    shell.style.setProperty('--preview-shell-width', `${pageWidth}px`);
+    shell.style.setProperty('--preview-shell-height', `${pageHeight}px`);
+    shell.style.setProperty('--preview-shell-scaled-width', `${Math.round(pageWidth * scale)}px`);
+    shell.style.setProperty('--preview-shell-scaled-height', `${Math.round(pageHeight * scale)}px`);
+  }, []);
+
   const updatePreviewFrameSize = useCallback(() => {
     if (selectedJsonTemplate) return;
     const frame = previewFrameRef.current;
-    const shell = previewShellRef.current;
     if (!frame) return;
     const pageWidth = activePageSize.width;
     const pageHeight = activePageSize.height;
@@ -1672,7 +1855,6 @@ export const Resume = () => {
       }
       autoDetectLockedRef.current = true;
     }
-    previewScaleRef.current = 1;
     const pages = doc.querySelector('.resume-preview-pages');
     const pageCount = pages
       ? Math.max(
@@ -1686,10 +1868,7 @@ export const Resume = () => {
     previewContentHeightRef.current = ENABLE_PREVIEW_PAGINATION ? pageCount * activePageSize.height : height;
     frame.style.height = `${height}px`;
     frame.style.width = `${width}px`;
-    if (shell) {
-      shell.style.setProperty('--preview-shell-height', `${height}px`);
-      shell.style.setProperty('--preview-shell-width', `${width}px`);
-    }
+    updatePreviewShellScale(width, height);
     updatePreviewPaging();
   }, [
     activePageSize.height,
@@ -1697,20 +1876,17 @@ export const Resume = () => {
     autoDetectedPageSize,
     previewPageSizeMode,
     selectedJsonTemplate,
+    updatePreviewShellScale,
     updatePreviewPaging,
   ]);
 
   const updateJsonPreviewScale = useCallback(() => {
     const template = selectedJsonTemplate?.definition;
-    const shell = previewShellRef.current;
     if (!template) return;
     const pageWidth = template.page.widthPx;
     const pageHeight = template.page.heightPx;
-    if (shell) {
-      shell.style.setProperty('--preview-shell-width', `${pageWidth}px`);
-      shell.style.setProperty('--preview-shell-height', `${pageHeight}px`);
-    }
-  }, [selectedJsonTemplate]);
+    updatePreviewShellScale(pageWidth, pageHeight);
+  }, [selectedJsonTemplate, updatePreviewShellScale]);
 
   const syncPreviewPagePosition = useCallback((targetPage: number) => {
     if (selectedJsonTemplate) return;
@@ -2271,7 +2447,7 @@ export const Resume = () => {
   }, [applyPreviewPagination, resolvedPageSize, updatePreviewFrameSize]);
 
   useEffect(() => {
-    const onResize = () => {
+    const refreshScale = () => {
       if (selectedJsonTemplate) {
         updateJsonPreviewScale();
       } else {
@@ -2279,8 +2455,27 @@ export const Resume = () => {
         fitPreviewToPage();
       }
     };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+
+    const body = previewBodyRef.current;
+    const hasResizeObserver = typeof ResizeObserver !== 'undefined';
+
+    refreshScale();
+
+    if (!body || !hasResizeObserver) {
+      window.addEventListener('resize', refreshScale);
+      return () => window.removeEventListener('resize', refreshScale);
+    }
+
+    const observer = new ResizeObserver(() => {
+      refreshScale();
+    });
+    observer.observe(body);
+    window.addEventListener('resize', refreshScale);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', refreshScale);
+    };
   }, [fitPreviewToPage, selectedJsonTemplate, updateJsonPreviewScale, updatePreviewFrameSize]);
 
   useEffect(() => {
@@ -2325,6 +2520,8 @@ export const Resume = () => {
       activeSectionId,
       selectedTemplate,
       selectedJsonTemplate: selectedJsonTemplate?.slug ?? null,
+      selectedColorPreset,
+      customTemplateColor,
       templateFieldValues,
     });
   }, [
@@ -2341,6 +2538,8 @@ export const Resume = () => {
     experienceItems,
     projectsText,
     sectionOrder,
+    customTemplateColor,
+    selectedColorPreset,
     selectedJsonTemplate,
     selectedTemplate,
     skillsText,
@@ -2380,6 +2579,17 @@ export const Resume = () => {
       if (typeof next.summaryText === 'string') setSummaryText(next.summaryText);
       if (typeof next.skillsText === 'string') setSkillsText(next.skillsText);
       if (typeof next.projectsText === 'string') setProjectsText(next.projectsText);
+      if (typeof next.selectedColorPreset === 'string') {
+        if (next.selectedColorPreset === 'custom') {
+          setSelectedColorPreset('custom');
+        } else {
+          const match = TEMPLATE_COLOR_PRESETS.find((preset) => preset.id === next.selectedColorPreset);
+          if (match) setSelectedColorPreset(match.id);
+        }
+      }
+      if (typeof next.customTemplateColor === 'string' && /^#[0-9a-f]{6}$/i.test(next.customTemplateColor)) {
+        setCustomTemplateColor(next.customTemplateColor);
+      }
       if (Array.isArray(next.customDetails)) setCustomDetails(next.customDetails as any);
       if (Array.isArray(next.educationItems)) setEducationItems(next.educationItems as any);
       if (Array.isArray(next.experienceItems)) setExperienceItems(next.experienceItems as any);
@@ -2583,7 +2793,7 @@ export const Resume = () => {
               <div className="preview-iframe-shell" ref={previewShellRef}>
                 <div className="preview-json-frame">
                   <ResumeTemplatePreview
-                    template={selectedJsonTemplate.definition}
+                    template={previewJsonTemplateDefinition ?? selectedJsonTemplate.definition}
                     data={jsonPreviewData}
                     currentPage={previewPage}
                     onPageChange={setPreviewPage}
@@ -2836,6 +3046,32 @@ export const Resume = () => {
                 </button>
               </div>
               <div className="resume-topbar-right">
+                {jsonTemplateSupportsColorPreset && (
+                  <div className="resume-topbar-colorbar" aria-label="Template color presets">
+                    {TEMPLATE_COLOR_PRESETS.map((preset) => (
+                      <button
+                        key={`topbar-preset:${preset.id}`}
+                        type="button"
+                        className={`topbar-color-swatch ${selectedColorPreset === preset.id ? 'is-selected' : ''}`}
+                        style={{ backgroundColor: preset.accent }}
+                        title={preset.label}
+                        aria-label={`Use ${preset.label} color`}
+                        onClick={() => setSelectedColorPreset(preset.id)}
+                      />
+                    ))}
+                    <label className={`topbar-color-custom ${selectedColorPreset === 'custom' ? 'is-selected' : ''}`} title="Choose custom color">
+                      <input
+                        type="color"
+                        value={normalizedCustomTemplateColor}
+                        aria-label="Choose custom template color"
+                        onChange={(e) => {
+                          setCustomTemplateColor(e.target.value);
+                          setSelectedColorPreset('custom');
+                        }}
+                      />
+                    </label>
+                  </div>
+                )}
                 <button
                   type="button"
                   className="resume-topbar-outline"
@@ -3516,6 +3752,66 @@ export const Resume = () => {
                           </div>
                         )}
                       </div>
+                      {jsonTemplateSupportsColorPreset && (
+                        <div className="tab-section">
+                          <h3>Color preset</h3>
+                          <div className="color-preset-grid">
+                            {TEMPLATE_COLOR_PRESETS.map((preset) => (
+                              <button
+                                key={preset.id}
+                                type="button"
+                                className={`color-preset-card ${selectedColorPreset === preset.id ? 'is-selected' : ''}`}
+                                onClick={() => setSelectedColorPreset(preset.id)}
+                              >
+                                <span className="color-preset-swatch" style={{ backgroundColor: preset.accent }} />
+                                <span className="color-preset-label">{preset.label}</span>
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              className={`color-preset-card ${selectedColorPreset === 'custom' ? 'is-selected' : ''}`}
+                              onClick={() => setSelectedColorPreset('custom')}
+                            >
+                              <span className="color-preset-swatch" style={{ backgroundColor: normalizedCustomTemplateColor }} />
+                              <span className="color-preset-label">Custom</span>
+                            </button>
+                          </div>
+                          <div className="color-custom-controls">
+                            <label className="color-custom-label" htmlFor="template-color-picker">Choose your own color</label>
+                            <div className="color-custom-inputs">
+                              <input
+                                id="template-color-picker"
+                                type="color"
+                                className="color-picker-input"
+                                value={normalizedCustomTemplateColor}
+                                onChange={(e) => {
+                                  setCustomTemplateColor(e.target.value);
+                                  setSelectedColorPreset('custom');
+                                }}
+                              />
+                              <input
+                                type="text"
+                                className="color-hex-input"
+                                value={customTemplateColor}
+                                onChange={(e) => {
+                                  const next = e.target.value.trim();
+                                  setCustomTemplateColor(next);
+                                  setSelectedColorPreset('custom');
+                                }}
+                                onBlur={(e) => {
+                                  const value = e.target.value.trim();
+                                  if (/^#[0-9a-f]{6}$/i.test(value)) {
+                                    setCustomTemplateColor(value);
+                                    return;
+                                  }
+                                  setCustomTemplateColor(DEFAULT_CUSTOM_TEMPLATE_COLOR);
+                                }}
+                                placeholder="#c3aa72"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       <div className="tab-section">
                         <h3>Preview settings</h3>
                         <div className="preview-settings">
@@ -3878,6 +4174,94 @@ export const Resume = () => {
           gap: 12px;
         }
 
+        .color-preset-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+          gap: 12px;
+        }
+
+        .color-preset-card {
+          border: 1px solid #dbe5ef;
+          border-radius: 14px;
+          background: #ffffff;
+          padding: 12px 14px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          cursor: pointer;
+          transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+        }
+
+        .color-preset-card:hover {
+          border-color: #94a3b8;
+          box-shadow: 0 10px 22px -18px rgba(15, 23, 42, 0.35);
+          transform: translateY(-1px);
+        }
+
+        .color-preset-card.is-selected {
+          border-color: #0f172a;
+          box-shadow: 0 14px 28px -20px rgba(15, 23, 42, 0.45);
+        }
+
+        .color-preset-swatch {
+          width: 18px;
+          height: 18px;
+          border-radius: 999px;
+          flex: 0 0 18px;
+          box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.7), 0 0 0 1px rgba(15, 23, 42, 0.12);
+        }
+
+        .color-preset-label {
+          color: #0f172a;
+          font-size: 0.92rem;
+          font-weight: 700;
+        }
+
+        .color-custom-controls {
+          margin-top: 14px;
+          display: grid;
+          gap: 8px;
+        }
+
+        .color-custom-label {
+          color: #475569;
+          font-size: 0.88rem;
+          font-weight: 700;
+        }
+
+        .color-custom-inputs {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .color-picker-input {
+          width: 52px;
+          height: 42px;
+          border: 1px solid #dbe5ef;
+          border-radius: 10px;
+          background: #ffffff;
+          padding: 4px;
+          cursor: pointer;
+        }
+
+        .color-hex-input {
+          flex: 1;
+          min-width: 0;
+          border: 1px solid #dbe5ef;
+          border-radius: 10px;
+          padding: 10px 12px;
+          font-size: 0.92rem;
+          font-weight: 600;
+          color: #0f172a;
+          outline: none;
+        }
+
+        .color-hex-input:focus {
+          border-color: #94a3b8;
+          box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.12);
+        }
+
         .setting-card {
           border: 1px solid #e2e8f0;
           border-radius: 12px;
@@ -4228,6 +4612,56 @@ export const Resume = () => {
           justify-content: flex-end;
           align-items: center;
           gap: 10px;
+        }
+
+        .resume-topbar-colorbar {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 8px;
+          border: 1px solid #e2e8f0;
+          border-radius: 999px;
+          background: #ffffff;
+          box-shadow: 0 8px 16px -14px rgba(15, 23, 42, 0.35);
+        }
+
+        .topbar-color-swatch,
+        .topbar-color-custom {
+          width: 22px;
+          height: 22px;
+          border-radius: 999px;
+          border: 2px solid transparent;
+          padding: 0;
+          cursor: pointer;
+          position: relative;
+          box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+          transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+        }
+
+        .topbar-color-swatch:hover,
+        .topbar-color-custom:hover {
+          transform: translateY(-1px);
+          box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.1), 0 6px 14px -10px rgba(15, 23, 42, 0.45);
+        }
+
+        .topbar-color-swatch.is-selected,
+        .topbar-color-custom.is-selected {
+          border-color: #0f172a;
+          box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.92);
+        }
+
+        .topbar-color-custom {
+          overflow: hidden;
+          background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+
+        .topbar-color-custom input {
+          position: absolute;
+          inset: -4px;
+          width: calc(100% + 8px);
+          height: calc(100% + 8px);
+          opacity: 0;
+          cursor: pointer;
         }
 
         .resume-topbar-outline {
@@ -4697,17 +5131,14 @@ export const Resume = () => {
           height: auto;
           overflow: hidden;
           background: var(--color-bg-secondary);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 8px;
+          display: block;
           width: 100%;
         }
 
         .template-card-compact-preview img {
           width: 100%;
           height: 100%;
-          object-fit: contain;
+          object-fit: cover;
           object-position: top center;
           transition: transform 0.3s ease;
         }
@@ -5228,12 +5659,12 @@ export const Resume = () => {
         .preview-scroll {
           flex: 1;
           min-height: 0;
-          padding: 0 0 140px;
+          padding: 16px 16px 140px;
           overflow: auto;
-          overflow-x: hidden;
+          overflow-x: auto;
           display: flex;
-          align-items: stretch;
-          justify-content: flex-start;
+          align-items: flex-start;
+          justify-content: center;
           overscroll-behavior: contain;
           scrollbar-width: none;
         }
@@ -5244,22 +5675,30 @@ export const Resume = () => {
         }
 
         .preview-iframe-shell {
-          width: var(--preview-shell-width, 100%);
-          height: var(--preview-shell-height, auto);
-          margin: 0;
+          width: var(--preview-shell-scaled-width, var(--preview-shell-width, 100%));
+          height: var(--preview-shell-scaled-height, var(--preview-shell-height, auto));
+          margin: 0 auto;
+          flex: 0 0 auto;
+          position: relative;
         }
 
         .preview-iframe {
-          width: 100%;
-          height: 100%;
+          width: var(--preview-shell-width, 100%);
+          height: var(--preview-shell-height, 100%);
           min-height: 720px;
           border: none;
           border-radius: 0;
           background: transparent;
+          transform: scale(var(--preview-scale, 1));
+          transform-origin: top left;
         }
 
         .preview-json-frame {
           display: inline-block;
+          width: var(--preview-shell-width, auto);
+          height: var(--preview-shell-height, auto);
+          transform: scale(var(--preview-scale, 1));
+          transform-origin: top left;
         }
 
         .preview-empty {
@@ -5703,6 +6142,10 @@ export const Resume = () => {
             justify-content: flex-start;
           }
 
+          .resume-topbar-right {
+            flex-wrap: wrap;
+          }
+
           .page-header {
             flex-direction: column;
             gap: var(--spacing-md);
@@ -5799,7 +6242,7 @@ export const Resume = () => {
           }
 
           .template-card-compact-preview img {
-            object-fit: contain;
+            object-fit: cover;
             background: #f0f0f0;
           }
 
@@ -5909,7 +6352,7 @@ export const Resume = () => {
           }
           
           .template-card-compact-preview img {
-            object-fit: contain;
+            object-fit: cover;
             background: #f0f0f0;
           }
 

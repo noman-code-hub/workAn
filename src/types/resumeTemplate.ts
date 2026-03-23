@@ -11,7 +11,7 @@ export type ResumeSectionType =
     | 'additional'
     | 'custom';
 
-export type ResumeBlockKind = 'text' | 'richText' | 'image' | 'list' | 'table' | 'divider';
+export type ResumeBlockKind = 'text' | 'richText' | 'image' | 'list' | 'table' | 'divider' | 'group';
 
 export interface ResumeTemplateDefinition {
     schemaVersion: 1;
@@ -86,13 +86,36 @@ export interface ResumeTemplateStyle {
     columns?: number;
     columnGapPx?: number;
     paddingPx?: number;
+    paddingXpx?: number;
+    paddingYpx?: number;
+    paddingTopPx?: number;
+    paddingRightPx?: number;
+    paddingBottomPx?: number;
+    paddingLeftPx?: number;
     background?: string;
     color?: string;
     font?: string;
+    fontSizePx?: number;
+    fontWeight?: number | string;
+    lineHeight?: number | string;
+    letterSpacingPx?: number;
     textTransform?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
     borderColor?: string;
     borderWidthPx?: number;
+    borderLeftColor?: string;
+    borderLeftWidthPx?: number;
     borderRadiusPx?: number;
+    width?: string;
+    minWidthPx?: number;
+    maxWidthPx?: number;
+    display?: 'block' | 'inline-block' | 'inline-flex' | 'flex' | 'grid';
+    gapPx?: number;
+    justifyContent?: string;
+    alignItems?: string;
+    marginTopPx?: number;
+    marginBottomPx?: number;
+    marginLeft?: string;
+    marginRight?: string;
 }
 
 export type ResumeTemplateBlock =
@@ -101,7 +124,8 @@ export type ResumeTemplateBlock =
     | ResumeTemplateImageBlock
     | ResumeTemplateListBlock
     | ResumeTemplateTableBlock
-    | ResumeTemplateDividerBlock;
+    | ResumeTemplateDividerBlock
+    | ResumeTemplateGroupBlock;
 
 export interface ResumeTemplateTextBlock {
     kind: 'text';
@@ -154,6 +178,20 @@ export interface ResumeTemplateDividerBlock {
     color?: string;
     marginTopPx?: number;
     marginBottomPx?: number;
+}
+
+export interface ResumeTemplateGroupBlock {
+    kind: 'group';
+    direction?: 'row' | 'column';
+    gapPx?: number;
+    items: ResumeTemplateGroupItem[];
+    style?: ResumeTemplateStyle;
+}
+
+export interface ResumeTemplateGroupItem {
+    width?: string;
+    style?: ResumeTemplateStyle;
+    blocks: ResumeTemplateBlock[];
 }
 
 export interface ResumeTemplateRow {

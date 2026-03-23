@@ -1,0 +1,96 @@
+<svg width="420" height="594" viewBox="0 0 420 594" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="420" height="594" rx="20" fill="#EEE8DF"/>
+  <rect x="41" y="24" width="338" height="546" rx="3" fill="#FFFCF8"/>
+
+  <text x="210" y="51" text-anchor="middle" fill="#201B17" font-family="Georgia, 'Times New Roman', serif" font-size="14" font-weight="700">Christopher Carter, Accountant</text>
+  <text x="210" y="64" text-anchor="middle" fill="#746C62" font-family="Georgia, 'Times New Roman', serif" font-size="5.6">Bohemianska 35, Moscow, Rostov on Don, Rostov obl., Russia</text>
+  <text x="210" y="73" text-anchor="middle" fill="#746C62" font-family="Georgia, 'Times New Roman', serif" font-size="5.6">+96 232 123 32  •  abc@gmail.com</text>
+
+  <text x="56" y="99" fill="#524B43" font-family="Georgia, 'Times New Roman', serif" font-size="6.6" font-weight="700" letter-spacing="1.1">PROFILE</text>
+  <line x1="95" y1="96.5" x2="362" y2="96.5" stroke="#D0C8BE" stroke-width="1"/>
+  <rect x="124" y="103" width="214" height="2.1" rx="1.05" fill="#D2CAC1"/>
+  <rect x="124" y="109" width="226" height="2.1" rx="1.05" fill="#DBD3CA"/>
+  <rect x="124" y="115" width="220" height="2.1" rx="1.05" fill="#E2DBD1"/>
+  <rect x="124" y="121" width="212" height="2.1" rx="1.05" fill="#D7D0C7"/>
+  <rect x="124" y="127" width="198" height="2.1" rx="1.05" fill="#E8E2DA"/>
+
+  <text x="56" y="157" fill="#524B43" font-family="Georgia, 'Times New Roman', serif" font-size="6.6" font-weight="700" letter-spacing="1.1">EDUCATION</text>
+  <line x1="111" y1="154.5" x2="362" y2="154.5" stroke="#D0C8BE" stroke-width="1"/>
+
+  <text x="56" y="176" fill="#877E74" font-family="Georgia, 'Times New Roman', serif" font-size="5.4">06/2019/23 - 10/2023/23</text>
+  <text x="126" y="173" fill="#27211C" font-family="Georgia, 'Times New Roman', serif" font-size="7.6">UX/UI courses, British Design High School</text>
+  <text x="352" y="173" text-anchor="end" fill="#655D54" font-family="Georgia, 'Times New Roman', serif" font-size="5.6">Moscow, Russia</text>
+  <rect x="126" y="180" width="90" height="2" rx="1" fill="#B7AEA3"/>
+
+  <text x="56" y="199" fill="#877E74" font-family="Georgia, 'Times New Roman', serif" font-size="5.4">01/2018/20 - 10/2018/21</text>
+  <text x="126" y="196" fill="#27211C" font-family="Georgia, 'Times New Roman', serif" font-size="7.6">Institute of Art &amp; Design</text>
+  <text x="352" y="196" text-anchor="end" fill="#655D54" font-family="Georgia, 'Times New Roman', serif" font-size="5.6">Rostov-on-Don, Russia</text>
+  <text x="126" y="205" fill="#6B635A" font-family="Georgia, 'Times New Roman', serif" font-size="5.7">Master, The Art</text>
+  <circle cx="130" cy="214" r="1.2" fill="#5B534A"/>
+  <rect x="135" y="212.5" width="92" height="1.9" rx="0.95" fill="#C8BFB6"/>
+  <circle cx="130" cy="221" r="1.2" fill="#5B534A"/>
+  <rect x="135" y="219.5" width="86" height="1.9" rx="0.95" fill="#D8D0C6"/>
+
+  <text x="56" y="257" fill="#524B43" font-family="Georgia, 'Times New Roman', serif" font-size="6.6" font-weight="700" letter-spacing="1.1">EXPERIENCE</text>
+  <line x1="116" y1="254.5" x2="362" y2="254.5" stroke="#D0C8BE" stroke-width="1"/>
+
+  <text x="56" y="277" fill="#877E74" font-family="Georgia, 'Times New Roman', serif" font-size="5.4">May 2021 - Present time</text>
+  <text x="126" y="274" fill="#27211C" font-family="Georgia, 'Times New Roman', serif" font-size="7.6">UX designer, Pentagram Group</text>
+  <text x="352" y="274" text-anchor="end" fill="#655D54" font-family="Georgia, 'Times New Roman', serif" font-size="5.6">Moscow, Russia</text>
+  <rect x="126" y="282" width="210" height="1.9" rx="0.95" fill="#D0C8BE"/>
+  <rect x="126" y="287" width="202" height="1.9" rx="0.95" fill="#D9D2C9"/>
+  <rect x="126" y="292" width="216" height="1.9" rx="0.95" fill="#E2DBD2"/>
+  <circle cx="130" cy="301" r="1.2" fill="#5B534A"/>
+  <rect x="135" y="299.5" width="84" height="1.9" rx="0.95" fill="#C8BFB6"/>
+  <circle cx="130" cy="308" r="1.2" fill="#5B534A"/>
+  <rect x="135" y="306.5" width="80" height="1.9" rx="0.95" fill="#D8D0C6"/>
+
+  <text x="56" y="329" fill="#877E74" font-family="Georgia, 'Times New Roman', serif" font-size="5.4">Oct 2019 - Apr 2021</text>
+  <text x="126" y="326" fill="#27211C" font-family="Georgia, 'Times New Roman', serif" font-size="7.6">Graphic designer, Grizzly Agency</text>
+  <text x="352" y="326" text-anchor="end" fill="#655D54" font-family="Georgia, 'Times New Roman', serif" font-size="5.6">Rostov-on-Don, Russia</text>
+  <rect x="126" y="334" width="210" height="1.9" rx="0.95" fill="#D0C8BE"/>
+  <rect x="126" y="339" width="194" height="1.9" rx="0.95" fill="#D9D2C9"/>
+  <rect x="126" y="344" width="180" height="1.9" rx="0.95" fill="#E2DBD2"/>
+
+  <text x="56" y="366" fill="#877E74" font-family="Georgia, 'Times New Roman', serif" font-size="5.4">Nov 2018 - Sept 2019</text>
+  <text x="126" y="363" fill="#27211C" font-family="Georgia, 'Times New Roman', serif" font-size="7.6">Flash animator &amp; graphic designer, Chulkov Studio</text>
+  <text x="352" y="363" text-anchor="end" fill="#655D54" font-family="Georgia, 'Times New Roman', serif" font-size="5.6">Rostov-on-Don, Russia</text>
+  <rect x="126" y="371" width="214" height="1.9" rx="0.95" fill="#D0C8BE"/>
+  <rect x="126" y="376" width="220" height="1.9" rx="0.95" fill="#D9D2C9"/>
+  <rect x="126" y="381" width="206" height="1.9" rx="0.95" fill="#E2DBD2"/>
+  <rect x="126" y="386" width="196" height="1.9" rx="0.95" fill="#D5CDC4"/>
+
+  <text x="56" y="425" fill="#524B43" font-family="Georgia, 'Times New Roman', serif" font-size="6.6" font-weight="700" letter-spacing="1.1">SKILLS</text>
+  <line x1="89" y1="422.5" x2="362" y2="422.5" stroke="#D0C8BE" stroke-width="1"/>
+  <text x="56" y="442" fill="#877E74" font-family="Georgia, 'Times New Roman', serif" font-size="5.4">In descending order</text>
+  <text x="151" y="442" fill="#27211C" font-family="Georgia, 'Times New Roman', serif" font-size="6.4">UX/UI</text>
+  <text x="236" y="442" fill="#6A6259" font-family="Georgia, 'Times New Roman', serif" font-size="5.5">Perfectly</text>
+  <text x="288" y="442" fill="#27211C" font-family="Georgia, 'Times New Roman', serif" font-size="6.4">Front-end development</text>
+  <text x="352" y="442" text-anchor="end" fill="#6A6259" font-family="Georgia, 'Times New Roman', serif" font-size="5.5">Good</text>
+
+  <text x="151" y="453" fill="#27211C" font-family="Georgia, 'Times New Roman', serif" font-size="6.4">Branding &amp; identity</text>
+  <text x="236" y="453" fill="#6A6259" font-family="Georgia, 'Times New Roman', serif" font-size="5.5">Very good</text>
+  <text x="288" y="453" fill="#27211C" font-family="Georgia, 'Times New Roman', serif" font-size="6.4">Sculpting</text>
+  <text x="352" y="453" text-anchor="end" fill="#6A6259" font-family="Georgia, 'Times New Roman', serif" font-size="5.5">Normal</text>
+
+  <text x="151" y="464" fill="#27211C" font-family="Georgia, 'Times New Roman', serif" font-size="6.4">Wayfinding systems</text>
+  <text x="236" y="464" fill="#6A6259" font-family="Georgia, 'Times New Roman', serif" font-size="5.5">Good</text>
+
+  <text x="56" y="493" fill="#524B43" font-family="Georgia, 'Times New Roman', serif" font-size="6.6" font-weight="700" letter-spacing="1.1">LANGUAGES</text>
+  <line x1="111" y1="490.5" x2="362" y2="490.5" stroke="#D0C8BE" stroke-width="1"/>
+  <text x="56" y="509" fill="#877E74" font-family="Georgia, 'Times New Roman', serif" font-size="5.4">In descending order</text>
+  <text x="151" y="509" fill="#27211C" font-family="Georgia, 'Times New Roman', serif" font-size="6.4">English</text>
+  <text x="236" y="509" fill="#6A6259" font-family="Georgia, 'Times New Roman', serif" font-size="5.5">Perfectly</text>
+  <text x="288" y="509" fill="#27211C" font-family="Georgia, 'Times New Roman', serif" font-size="6.4">Russian</text>
+  <text x="352" y="509" text-anchor="end" fill="#6A6259" font-family="Georgia, 'Times New Roman', serif" font-size="5.5">Good</text>
+
+  <text x="56" y="538" fill="#524B43" font-family="Georgia, 'Times New Roman', serif" font-size="6.6" font-weight="700" letter-spacing="1.1">HOBBIES</text>
+  <line x1="95" y1="535.5" x2="362" y2="535.5" stroke="#D0C8BE" stroke-width="1"/>
+  <text x="56" y="553" fill="#877E74" font-family="Georgia, 'Times New Roman', serif" font-size="5.4">Draw / Music / sports</text>
+  <text x="151" y="553" fill="#6A6259" font-family="Georgia, 'Times New Roman', serif" font-size="5.5">04/07/1996</text>
+  <text x="243" y="553" fill="#6A6259" font-family="Georgia, 'Times New Roman', serif" font-size="5.5">Martial status</text>
+  <text x="352" y="553" text-anchor="end" fill="#6A6259" font-family="Georgia, 'Times New Roman', serif" font-size="5.5">Married</text>
+  <text x="56" y="564" fill="#877E74" font-family="Georgia, 'Times New Roman', serif" font-size="5.4">Nationality / Gender</text>
+  <text x="151" y="564" fill="#6A6259" font-family="Georgia, 'Times New Roman', serif" font-size="5.5">Rostov on Don, Russia</text>
+  <text x="243" y="564" fill="#6A6259" font-family="Georgia, 'Times New Roman', serif" font-size="5.5">man / Male</text>
+</svg>
