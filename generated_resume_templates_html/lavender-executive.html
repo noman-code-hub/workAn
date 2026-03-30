@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lavender Executive - {{full_name}}</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #eef2f7;
+      color: #222222;
+    }
+
+    body {
+      padding: 24px;
+      font-family: "Aptos", "Segoe UI", Arial, sans-serif;
+    }
+
+    .legacy-template-page {
+      margin: 0 auto;
+      width:794px;min-height:1123px;background:#ffffff;color:#222222;font-family:"Aptos", "Segoe UI", Arial, sans-serif;line-height:1.55;padding-top:50px;padding-right:50px;padding-bottom:44px;padding-left:50px;display:grid;gap:18px;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.10);
+    }
+
+    .legacy-template-page img {
+      display: block;
+      max-width: 100%;
+    }
+
+    .legacy-template-page p {
+      margin: 0 0 6px;
+    }
+
+    .legacy-template-page p:last-child {
+      margin-bottom: 0;
+    }
+
+    .legacy-richtext ul,
+    .legacy-richtext ol {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .legacy-richtext li + li {
+      margin-top: 4px;
+    }
+
+    @media print {
+      body {
+        padding: 0;
+        background: #ffffff;
+      }
+
+      .legacy-template-page {
+        box-shadow: none;
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="legacy-template-page" data-template-slug="lavender-executive">
+    
+    <section class="legacy-section legacy-section-lavender-executive-header" style="display:grid;gap:8px">
+      
+      <div class="legacy-section-body" style="display:grid;gap:8px">
+        <div class="legacy-block"><div style="color:#8a63b1;font-family:&quot;Aptos Display&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;font-size:46px;font-weight:900;text-align:center;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:14px">{{full_name}}</div></div><div class="legacy-block"><div style="color:#232323;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;font-size:17px;text-align:center;margin-bottom:4px">{{contact_line}}</div></div><div class="legacy-block"><div style="color:#232323;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;font-size:17px;text-align:center;margin-bottom:16px">{{website_line}}</div></div><div class="legacy-block"><hr style="border:none;border-top:1px solid #b89fd0;margin-top:8px;margin-bottom:18px" /></div>
+      </div>
+    </section>
+  
+
+    <section class="legacy-section legacy-section-lavender-executive-summary" style="display:grid;gap:8px">
+      
+      <div class="legacy-section-body" style="display:grid;gap:8px">
+        <div class="legacy-block"><div style="color:#8a63b1;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;font-size:22px;font-weight:800;text-transform:uppercase;margin-bottom:10px">{{summary_heading}}</div></div><div class="legacy-block"><div class="legacy-richtext" style="color:#232323;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.62;font-size:14px;margin-bottom:16px;white-space:pre-line">{{{summary}}}</div></div><div class="legacy-block"><hr style="border:none;border-top:1px solid #b89fd0;margin-top:8px;margin-bottom:18px" /></div>
+      </div>
+    </section>
+  
+
+    <section class="legacy-section legacy-section-lavender-executive-experience" style="display:grid;gap:8px">
+      
+      <div class="legacy-section-body" style="display:grid;gap:8px">
+        <div class="legacy-block"><div style="color:#8a63b1;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;font-size:22px;font-weight:800;text-transform:uppercase;margin-bottom:12px">{{experience_heading}}</div></div>{{#has_experience_items}}<div class="legacy-block">
+    <div style="color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;display:grid;gap:26px">
+      {{#experience_items}}
+        <div style="display:grid;gap:4px"><div class="legacy-block"><div style="color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;display:grid;gap:20px;grid-template-columns:minmax(0, 1fr) 190px"><div style="display:grid;gap:8px;color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55"><div class="legacy-block"><div style="color:#222222;font-family:&quot;Aptos Display&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;font-size:15px;font-weight:800">{{role_company}}</div></div></div><div style="display:grid;gap:8px;color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55"><div class="legacy-block"><div style="color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;font-size:15px;text-align:right;font-weight:800">{{date_range}}</div></div></div></div></div>{{#has_bullet_lines}}<div class="legacy-block">
+    <div style="color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;margin-top:8px;display:grid;gap:6px">
+      {{#bullet_lines}}
+        <div style="display:grid;gap:4px"><div class="legacy-block"><div style="color:#232323;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.58;font-size:14px">{{value}}</div></div></div>
+      {{/bullet_lines}}
+    </div>
+  </div>{{/has_bullet_lines}}</div>
+      {{/experience_items}}
+    </div>
+  </div>{{/has_experience_items}}<div class="legacy-block"><hr style="border:none;border-top:1px solid #b89fd0;margin-top:14px;margin-bottom:18px" /></div>
+      </div>
+    </section>
+  
+
+    <section class="legacy-section legacy-section-lavender-executive-education" style="display:grid;gap:8px">
+      
+      <div class="legacy-section-body" style="display:grid;gap:8px">
+        <div class="legacy-block"><div style="color:#8a63b1;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;font-size:22px;font-weight:800;text-transform:uppercase;margin-bottom:12px">{{education_heading}}</div></div>{{#has_education_items}}<div class="legacy-block">
+    <div style="color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;display:grid;gap:24px">
+      {{#education_items}}
+        <div style="display:grid;gap:4px"><div class="legacy-block"><div style="color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;display:grid;gap:20px;grid-template-columns:minmax(0, 1fr) 190px"><div style="display:grid;gap:8px;color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55"><div class="legacy-block"><div style="color:#222222;font-family:&quot;Aptos Display&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;font-size:15px;font-weight:800;margin-bottom:4px">{{degree}}</div></div></div><div style="display:grid;gap:8px;color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55"><div class="legacy-block"><div style="color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;font-size:15px;text-align:right;font-weight:800">{{date_range}}</div></div></div></div></div><div class="legacy-block"><div style="color:#2f2f2f;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;font-size:14px;margin-bottom:4px">{{school}}</div></div>{{#has_bullet_lines}}<div class="legacy-block">
+    <div style="color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;display:grid;gap:6px">
+      {{#bullet_lines}}
+        <div style="display:grid;gap:4px"><div class="legacy-block"><div style="color:#232323;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.58;font-size:14px">{{value}}</div></div></div>
+      {{/bullet_lines}}
+    </div>
+  </div>{{/has_bullet_lines}}</div>
+      {{/education_items}}
+    </div>
+  </div>{{/has_education_items}}<div class="legacy-block"><hr style="border:none;border-top:1px solid #b89fd0;margin-top:14px;margin-bottom:18px" /></div>
+      </div>
+    </section>
+  
+
+    <section class="legacy-section legacy-section-lavender-executive-additional" style="display:grid;gap:8px">
+      
+      <div class="legacy-section-body" style="display:grid;gap:8px">
+        <div class="legacy-block"><div style="color:#8a63b1;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;font-size:22px;font-weight:800;text-transform:uppercase;margin-bottom:12px">{{additional_heading}}</div></div>{{#has_custom_detail_items}}<div class="legacy-block">
+    <div style="color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;display:grid;gap:8px">
+      {{#custom_detail_items}}
+        <div style="display:grid;gap:4px"><div class="legacy-block"><div style="color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;display:grid;gap:8px;grid-template-columns:14px minmax(0, 1fr)"><div style="display:grid;gap:8px;color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55"><div class="legacy-block"><div style="color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.2;font-size:15px">{{bullet}}</div></div></div><div style="display:grid;gap:8px;color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55"><div class="legacy-block"><div style="color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;display:grid;gap:8px;grid-template-columns:176px minmax(0, 1fr)"><div style="display:grid;gap:8px;color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55"><div class="legacy-block"><div style="color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55;font-size:14px;font-weight:800">{{label_with_colon}}</div></div></div><div style="display:grid;gap:8px;color:#222222;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.55"><div class="legacy-block"><div style="color:#232323;font-family:&quot;Aptos&quot;, &quot;Segoe UI&quot;, Arial, sans-serif;line-height:1.58;font-size:14px">{{value}}</div></div></div></div></div></div></div></div></div>
+      {{/custom_detail_items}}
+    </div>
+  </div>{{/has_custom_detail_items}}
+      </div>
+    </section>
+  
+  </div>
+</body>
+</html>

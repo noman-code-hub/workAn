@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
-import { BUILT_IN_RESUME_TEMPLATE_CARDS } from '../data/templates/builtInResumeTemplates';
 
 const slugifyTemplate = (value: string) =>
   value
@@ -19,19 +18,7 @@ export const ResumeTemplates = () => {
   const { templates, templateLoading, templateError } = useResumeTemplate(user, { autoSelectFirst: false });
 
   const templatesWithSlugs = useMemo(
-    () => {
-      const htmlTemplates = templates.map((t) => ({ ...t, slug: getTemplateSlug(t.name) }));
-      const merged = new Map<string, { name: string; displayName: string; thumbnailUrl?: string; slug: string }>();
-      BUILT_IN_RESUME_TEMPLATE_CARDS.forEach((template) => {
-        merged.set(template.slug, template);
-      });
-      htmlTemplates.forEach((template) => {
-        if (!merged.has(template.slug)) {
-          merged.set(template.slug, template);
-        }
-      });
-      return Array.from(merged.values());
-    },
+    () => templates.map((template) => ({ ...template, slug: getTemplateSlug(template.name) })),
     [templates]
   );
 

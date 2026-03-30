@@ -1,0 +1,37 @@
+[
+  {
+    "name": "Black & White Professional",
+    "slug": "black-white-professional",
+    "fileName": "black-white-professional.html"
+  },
+  {
+    "name": "Blue Gray Professional",
+    "slug": "blue-gray-professional",
+    "fileName": "blue-gray-professional.html"
+  },
+  {
+    "name": "Carter Classic",
+    "slug": "carter-classic",
+    "fileName": "carter-classic.html"
+  },
+  {
+    "name": "Clean Manager",
+    "slug": "clean-manager",
+    "fileName": "clean-manager.html"
+  },
+  {
+    "name": "Lavender Executive",
+    "slug": "lavender-executive",
+    "fileName": "lavender-executive.html"
+  },
+  {
+    "name": "Marketing Manager CV",
+    "slug": "marketing-manager-cv",
+    "fileName": "marketing-manager-cv.html"
+  },
+  {
+    "name": "Minimalist Modern",
+    "slug": "minimalist-modern",
+    "fileName": "minimalist-modern.html"
+  }
+]

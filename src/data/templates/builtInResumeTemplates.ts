@@ -3,6 +3,9 @@ import blackWhiteProfessionalThumbnail from '../../assets/images/black and White
 import blueGraySimpleProfessionalThumbnail from '../../assets/images/Blue and Gray Simple Professional CV Resume.jpg';
 import accountingExecutiveThumbnail from '../../assets/images/Simple Professional Accounting Executive CV Resume - Copy.jpg';
 import minimalistModernProfessionalThumbnail from '../../assets/images/Minimalist Modern Professional CV Resume.jpg';
+import simpleProfessionalMarketingManagerThumbnail from '../../assets/images/Simple Professional Marketing Manager CV Resume.jpg';
+import lavenderExecutiveThumbnail from '../../assets/images/image.png';
+import cleanSimpleProfessionalManagerThumbnail from '../../assets/images/Clean Simple Professional  Manager Resume.jpg';
 import type { ResumeTemplateDefinition, ResumeTemplateRecord } from '../../types/resumeTemplate';
 
 const CREATED_AT = '2026-03-22T00:00:00.000Z';
@@ -2067,6 +2070,1478 @@ const minimalistModernProfessionalDefinition: ResumeTemplateDefinition = {
   ],
 };
 
+const simpleProfessionalMarketingManagerDefinition: ResumeTemplateDefinition = {
+  schemaVersion: 1,
+  metadata: {
+    name: 'Marketing Manager CV',
+    slug: 'marketing-manager-cv',
+    description: 'Minimal professional CV with a light editorial sidebar, bold name treatment, and structured work timeline.',
+    category: 'Professional',
+    tags: ['marketing', 'professional', 'sidebar', 'timeline', 'photo'],
+    thumbnailUrl: simpleProfessionalMarketingManagerThumbnail,
+  },
+  page: {
+    size: 'A4',
+    widthPx: 794,
+    heightPx: 1123,
+    margin: {
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+    },
+  },
+  theme: {
+    fonts: {
+      heading: '"Aptos Display", "Segoe UI", Arial, sans-serif',
+      body: '"Aptos", "Segoe UI", Arial, sans-serif',
+      mono: '"Cascadia Mono", "Courier New", monospace',
+    },
+    colors: {
+      text: '#232323',
+      muted: '#727272',
+      primary: '#202020',
+      secondary: '#f1f1ef',
+      background: '#ffffff',
+      accent: '#bcbcbc',
+    },
+    spacing: {
+      sectionGapPx: 20,
+      itemGapPx: 8,
+      lineHeight: 1.55,
+    },
+  },
+  layout: {
+    columns: 1,
+    columnGapPx: 0,
+  },
+  sections: [
+    {
+      id: 'marketing-manager-cv-layout',
+      type: 'custom',
+      blocks: [
+        {
+          kind: 'group',
+          direction: 'row',
+          gapPx: 0,
+          items: [
+            {
+              width: '232px',
+              style: {
+                background: '#f1f1ef',
+                paddingTopPx: 42,
+                paddingRightPx: 28,
+                paddingBottomPx: 34,
+                paddingLeftPx: 28,
+                minWidthPx: 232,
+              },
+              blocks: [
+                {
+                  kind: 'image',
+                  key: 'photo_url',
+                  width: 116,
+                  height: 116,
+                  shape: 'circle',
+                  style: {
+                    display: 'block',
+                    marginLeft: 'auto',
+                    marginRight: 'auto',
+                    marginBottomPx: 42,
+                  },
+                },
+                {
+                  kind: 'text',
+                  key: 'contact_heading',
+                  variant: 'label',
+                  style: {
+                    color: '#242424',
+                    fontSizePx: 20,
+                    fontWeight: 400,
+                    letterSpacingPx: 1.2,
+                    textTransform: 'none',
+                    marginBottomPx: 18,
+                  },
+                },
+                {
+                  kind: 'list',
+                  key: 'contact',
+                  itemGapPx: 14,
+                  itemBlocks: [
+                    {
+                      kind: 'group',
+                      direction: 'row',
+                      gapPx: 10,
+                      items: [
+                        {
+                          width: '64px',
+                          blocks: [
+                            {
+                              kind: 'text',
+                              key: 'label',
+                              variant: 'body',
+                              style: {
+                                color: '#4a4a4a',
+                                fontSizePx: 12,
+                                fontWeight: 700,
+                              },
+                            },
+                          ],
+                        },
+                        {
+                          width: 'minmax(0, 1fr)',
+                          blocks: [
+                            {
+                              kind: 'text',
+                              key: 'value',
+                              variant: 'body',
+                              style: {
+                                color: '#5a5a5a',
+                                fontSizePx: 12.5,
+                                lineHeight: 1.45,
+                              },
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+                {
+                  kind: 'divider',
+                  thicknessPx: 1,
+                  color: '#aaaaaa',
+                  marginTopPx: 22,
+                  marginBottomPx: 18,
+                },
+                {
+                  kind: 'text',
+                  key: 'education_heading',
+                  variant: 'label',
+                  style: {
+                    color: '#242424',
+                    fontSizePx: 20,
+                    fontWeight: 400,
+                    letterSpacingPx: 1.2,
+                    textTransform: 'none',
+                    marginBottomPx: 18,
+                  },
+                },
+                {
+                  kind: 'list',
+                  key: 'education',
+                  itemGapPx: 18,
+                  itemBlocks: [
+                    {
+                      kind: 'text',
+                      key: 'degree',
+                      variant: 'body',
+                      style: {
+                        color: '#242424',
+                        fontSizePx: 14,
+                        fontWeight: 800,
+                        marginBottomPx: 4,
+                      },
+                    },
+                    {
+                      kind: 'text',
+                      key: 'school',
+                      variant: 'body',
+                      style: {
+                        color: '#454545',
+                        fontSizePx: 14,
+                        marginBottomPx: 4,
+                      },
+                    },
+                    {
+                      kind: 'text',
+                      key: 'date_range',
+                      variant: 'body',
+                      style: {
+                        color: '#555555',
+                        fontSizePx: 13,
+                      },
+                    },
+                  ],
+                },
+                {
+                  kind: 'divider',
+                  thicknessPx: 1,
+                  color: '#aaaaaa',
+                  marginTopPx: 22,
+                  marginBottomPx: 18,
+                },
+                {
+                  kind: 'text',
+                  key: 'skills_heading',
+                  variant: 'label',
+                  style: {
+                    color: '#242424',
+                    fontSizePx: 20,
+                    fontWeight: 400,
+                    letterSpacingPx: 1.2,
+                    textTransform: 'none',
+                    marginBottomPx: 18,
+                  },
+                },
+                {
+                  kind: 'list',
+                  key: 'skills',
+                  itemGapPx: 12,
+                  itemBlocks: [
+                    {
+                      kind: 'group',
+                      direction: 'row',
+                      gapPx: 10,
+                      items: [
+                        {
+                          width: '12px',
+                          blocks: [
+                            {
+                              kind: 'text',
+                              key: 'bullet',
+                              variant: 'body',
+                              style: {
+                                color: '#232323',
+                                fontSizePx: 15,
+                                lineHeight: 1,
+                              },
+                            },
+                          ],
+                        },
+                        {
+                          width: 'minmax(0, 1fr)',
+                          blocks: [
+                            {
+                              kind: 'text',
+                              key: 'name',
+                              variant: 'body',
+                              style: {
+                                color: '#333333',
+                                fontSizePx: 13.5,
+                                lineHeight: 1.5,
+                              },
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              width: 'minmax(0, 1fr)',
+              style: {
+                background: '#ffffff',
+                paddingTopPx: 54,
+                paddingRightPx: 48,
+                paddingBottomPx: 40,
+                paddingLeftPx: 48,
+              },
+              blocks: [
+                {
+                  kind: 'text',
+                  key: 'first_name',
+                  variant: 'heading',
+                  style: {
+                    color: '#1f1f1f',
+                    fontSizePx: 34,
+                    fontWeight: 300,
+                    letterSpacingPx: 1.5,
+                    textTransform: 'uppercase',
+                    marginBottomPx: 0,
+                  },
+                },
+                {
+                  kind: 'text',
+                  key: 'last_name',
+                  variant: 'heading',
+                  style: {
+                    color: '#1f1f1f',
+                    fontSizePx: 38,
+                    fontWeight: 900,
+                    letterSpacingPx: 1,
+                    textTransform: 'uppercase',
+                    marginBottomPx: 8,
+                  },
+                },
+                {
+                  kind: 'text',
+                  key: 'title',
+                  variant: 'body',
+                  style: {
+                    color: '#353535',
+                    fontSizePx: 16,
+                    fontWeight: 500,
+                    letterSpacingPx: 1.1,
+                    marginBottomPx: 42,
+                  },
+                },
+                {
+                  kind: 'text',
+                  key: 'experience_heading',
+                  variant: 'label',
+                  style: {
+                    color: '#242424',
+                    fontSizePx: 22,
+                    fontWeight: 400,
+                    letterSpacingPx: 1.2,
+                    textTransform: 'none',
+                    marginBottomPx: 18,
+                  },
+                },
+                {
+                  kind: 'list',
+                  key: 'experience',
+                  itemGapPx: 24,
+                  itemBlocks: [
+                    {
+                      kind: 'group',
+                      direction: 'row',
+                      gapPx: 16,
+                      items: [
+                        {
+                          width: '46px',
+                          blocks: [
+                            {
+                              kind: 'text',
+                              key: 'date_range',
+                              variant: 'body',
+                              style: {
+                                color: '#262626',
+                                fontSizePx: 12.5,
+                                fontWeight: 800,
+                                lineHeight: 1.5,
+                              },
+                            },
+                          ],
+                        },
+                        {
+                          width: '12px',
+                          style: {
+                            borderLeftWidthPx: 1,
+                            borderLeftColor: '#8b8b8b',
+                          },
+                          blocks: [],
+                        },
+                        {
+                          width: 'minmax(0, 1fr)',
+                          blocks: [
+                            {
+                              kind: 'text',
+                              key: 'role',
+                              variant: 'subheading',
+                              style: {
+                                color: '#232323',
+                                fontSizePx: 15,
+                                fontWeight: 800,
+                                marginBottomPx: 4,
+                              },
+                            },
+                            {
+                              kind: 'text',
+                              key: 'company',
+                              variant: 'body',
+                              style: {
+                                color: '#444444',
+                                fontSizePx: 13,
+                                marginBottomPx: 6,
+                              },
+                            },
+                            {
+                              kind: 'richText',
+                              key: 'highlights',
+                              style: {
+                                color: '#444444',
+                                fontSizePx: 12.5,
+                                lineHeight: 1.55,
+                              },
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+                {
+                  kind: 'text',
+                  key: 'references_heading',
+                  variant: 'label',
+                  style: {
+                    color: '#242424',
+                    fontSizePx: 22,
+                    fontWeight: 400,
+                    letterSpacingPx: 1.2,
+                    textTransform: 'none',
+                    marginTopPx: 18,
+                    marginBottomPx: 18,
+                  },
+                },
+                {
+                  kind: 'group',
+                  direction: 'row',
+                  gapPx: 40,
+                  items: [
+                    {
+                      width: 'minmax(0, 1fr)',
+                      blocks: [
+                        {
+                          kind: 'text',
+                          key: 'reference_primary_name',
+                          variant: 'subheading',
+                          style: {
+                            color: '#232323',
+                            fontSizePx: 16,
+                            fontWeight: 800,
+                            marginBottomPx: 4,
+                          },
+                        },
+                        {
+                          kind: 'text',
+                          key: 'reference_primary_title',
+                          variant: 'body',
+                          style: {
+                            color: '#454545',
+                            fontSizePx: 14,
+                            marginBottomPx: 10,
+                          },
+                        },
+                        {
+                          kind: 'group',
+                          direction: 'row',
+                          gapPx: 6,
+                          items: [
+                            {
+                              width: '42px',
+                              blocks: [
+                                {
+                                  kind: 'text',
+                                  key: 'reference_phone_label',
+                                  variant: 'body',
+                                  style: {
+                                    color: '#232323',
+                                    fontSizePx: 12,
+                                    fontWeight: 800,
+                                  },
+                                },
+                              ],
+                            },
+                            {
+                              width: 'minmax(0, 1fr)',
+                              blocks: [
+                                {
+                                  kind: 'text',
+                                  key: 'reference_primary_phone',
+                                  variant: 'body',
+                                  style: {
+                                    color: '#5a5a5a',
+                                    fontSizePx: 12,
+                                  },
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                        {
+                          kind: 'group',
+                          direction: 'row',
+                          gapPx: 6,
+                          items: [
+                            {
+                              width: '42px',
+                              blocks: [
+                                {
+                                  kind: 'text',
+                                  key: 'reference_email_label',
+                                  variant: 'body',
+                                  style: {
+                                    color: '#232323',
+                                    fontSizePx: 12,
+                                    fontWeight: 800,
+                                  },
+                                },
+                              ],
+                            },
+                            {
+                              width: 'minmax(0, 1fr)',
+                              blocks: [
+                                {
+                                  kind: 'text',
+                                  key: 'reference_primary_email',
+                                  variant: 'body',
+                                  style: {
+                                    color: '#5a5a5a',
+                                    fontSizePx: 12,
+                                  },
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                    {
+                      width: 'minmax(0, 1fr)',
+                      blocks: [
+                        {
+                          kind: 'text',
+                          key: 'reference_secondary_name',
+                          variant: 'subheading',
+                          style: {
+                            color: '#232323',
+                            fontSizePx: 16,
+                            fontWeight: 800,
+                            marginBottomPx: 4,
+                          },
+                        },
+                        {
+                          kind: 'text',
+                          key: 'reference_secondary_title',
+                          variant: 'body',
+                          style: {
+                            color: '#454545',
+                            fontSizePx: 14,
+                            marginBottomPx: 10,
+                          },
+                        },
+                        {
+                          kind: 'group',
+                          direction: 'row',
+                          gapPx: 6,
+                          items: [
+                            {
+                              width: '42px',
+                              blocks: [
+                                {
+                                  kind: 'text',
+                                  key: 'reference_phone_label',
+                                  variant: 'body',
+                                  style: {
+                                    color: '#232323',
+                                    fontSizePx: 12,
+                                    fontWeight: 800,
+                                  },
+                                },
+                              ],
+                            },
+                            {
+                              width: 'minmax(0, 1fr)',
+                              blocks: [
+                                {
+                                  kind: 'text',
+                                  key: 'reference_secondary_phone',
+                                  variant: 'body',
+                                  style: {
+                                    color: '#5a5a5a',
+                                    fontSizePx: 12,
+                                  },
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                        {
+                          kind: 'group',
+                          direction: 'row',
+                          gapPx: 6,
+                          items: [
+                            {
+                              width: '42px',
+                              blocks: [
+                                {
+                                  kind: 'text',
+                                  key: 'reference_email_label',
+                                  variant: 'body',
+                                  style: {
+                                    color: '#232323',
+                                    fontSizePx: 12,
+                                    fontWeight: 800,
+                                  },
+                                },
+                              ],
+                            },
+                            {
+                              width: 'minmax(0, 1fr)',
+                              blocks: [
+                                {
+                                  kind: 'text',
+                                  key: 'reference_secondary_email',
+                                  variant: 'body',
+                                  style: {
+                                    color: '#5a5a5a',
+                                    fontSizePx: 12,
+                                  },
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+const lavenderExecutiveDefinition: ResumeTemplateDefinition = {
+  schemaVersion: 1,
+  metadata: {
+    name: 'Lavender Executive',
+    slug: 'lavender-executive',
+    description: 'Elegant single-column executive resume with centered lavender header and clean section dividers.',
+    category: 'Professional',
+    tags: ['lavender', 'executive', 'single-column', 'minimal', 'engineering'],
+    thumbnailUrl: lavenderExecutiveThumbnail,
+  },
+  page: {
+    size: 'A4',
+    widthPx: 794,
+    heightPx: 1123,
+    margin: {
+      top: 50,
+      right: 50,
+      bottom: 44,
+      left: 50,
+    },
+  },
+  theme: {
+    fonts: {
+      heading: '"Aptos Display", "Segoe UI", Arial, sans-serif',
+      body: '"Aptos", "Segoe UI", Arial, sans-serif',
+      mono: '"Cascadia Mono", "Courier New", monospace',
+    },
+    colors: {
+      text: '#222222',
+      muted: '#6a6a6a',
+      primary: '#8a63b1',
+      secondary: '#ffffff',
+      background: '#ffffff',
+      accent: '#b89fd0',
+    },
+    spacing: {
+      sectionGapPx: 18,
+      itemGapPx: 8,
+      lineHeight: 1.55,
+    },
+  },
+  layout: {
+    columns: 1,
+    columnGapPx: 0,
+  },
+  sections: [
+    {
+      id: 'lavender-executive-header',
+      type: 'header',
+      blocks: [
+        {
+          kind: 'text',
+          key: 'full_name',
+          variant: 'heading',
+          style: {
+            align: 'center',
+            color: '#8a63b1',
+            fontSizePx: 46,
+            fontWeight: 900,
+            letterSpacingPx: 1.2,
+            textTransform: 'uppercase',
+            marginBottomPx: 14,
+          },
+        },
+        {
+          kind: 'text',
+          key: 'contact_line',
+          variant: 'body',
+          style: {
+            align: 'center',
+            color: '#232323',
+            fontSizePx: 17,
+            marginBottomPx: 4,
+          },
+        },
+        {
+          kind: 'text',
+          key: 'website_line',
+          variant: 'body',
+          style: {
+            align: 'center',
+            color: '#232323',
+            fontSizePx: 17,
+            marginBottomPx: 16,
+          },
+        },
+        {
+          kind: 'divider',
+          thicknessPx: 1,
+          color: '#b89fd0',
+          marginTopPx: 8,
+          marginBottomPx: 18,
+        },
+      ],
+    },
+    {
+      id: 'lavender-executive-summary',
+      type: 'summary',
+      blocks: [
+        {
+          kind: 'text',
+          key: 'summary_heading',
+          variant: 'label',
+          style: {
+            color: '#8a63b1',
+            fontSizePx: 22,
+            fontWeight: 800,
+            textTransform: 'uppercase',
+            marginBottomPx: 10,
+          },
+        },
+        {
+          kind: 'richText',
+          key: 'summary',
+          style: {
+            color: '#232323',
+            fontSizePx: 14,
+            lineHeight: 1.62,
+            marginBottomPx: 16,
+          },
+        },
+        {
+          kind: 'divider',
+          thicknessPx: 1,
+          color: '#b89fd0',
+          marginTopPx: 8,
+          marginBottomPx: 18,
+        },
+      ],
+    },
+    {
+      id: 'lavender-executive-experience',
+      type: 'experience',
+      blocks: [
+        {
+          kind: 'text',
+          key: 'experience_heading',
+          variant: 'label',
+          style: {
+            color: '#8a63b1',
+            fontSizePx: 22,
+            fontWeight: 800,
+            textTransform: 'uppercase',
+            marginBottomPx: 12,
+          },
+        },
+        {
+          kind: 'list',
+          key: 'experience',
+          itemGapPx: 26,
+          itemBlocks: [
+            {
+              kind: 'group',
+              direction: 'row',
+              gapPx: 20,
+              items: [
+                {
+                  width: 'minmax(0, 1fr)',
+                  blocks: [
+                    {
+                      kind: 'text',
+                      key: 'role_company',
+                      variant: 'subheading',
+                      style: {
+                        color: '#222222',
+                        fontSizePx: 15,
+                        fontWeight: 800,
+                      },
+                    },
+                  ],
+                },
+                {
+                  width: '190px',
+                  blocks: [
+                    {
+                      kind: 'text',
+                      key: 'date_range',
+                      variant: 'body',
+                      style: {
+                        align: 'right',
+                        color: '#222222',
+                        fontSizePx: 15,
+                        fontWeight: 800,
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              kind: 'list',
+              key: 'bullet_lines',
+              itemGapPx: 6,
+              style: {
+                marginTopPx: 8,
+              },
+              itemBlocks: [
+                {
+                  kind: 'text',
+                  key: 'value',
+                  variant: 'body',
+                  style: {
+                    color: '#232323',
+                    fontSizePx: 14,
+                    lineHeight: 1.58,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          kind: 'divider',
+          thicknessPx: 1,
+          color: '#b89fd0',
+          marginTopPx: 14,
+          marginBottomPx: 18,
+        },
+      ],
+    },
+    {
+      id: 'lavender-executive-education',
+      type: 'education',
+      blocks: [
+        {
+          kind: 'text',
+          key: 'education_heading',
+          variant: 'label',
+          style: {
+            color: '#8a63b1',
+            fontSizePx: 22,
+            fontWeight: 800,
+            textTransform: 'uppercase',
+            marginBottomPx: 12,
+          },
+        },
+        {
+          kind: 'list',
+          key: 'education',
+          itemGapPx: 24,
+          itemBlocks: [
+            {
+              kind: 'group',
+              direction: 'row',
+              gapPx: 20,
+              items: [
+                {
+                  width: 'minmax(0, 1fr)',
+                  blocks: [
+                    {
+                      kind: 'text',
+                      key: 'degree',
+                      variant: 'subheading',
+                      style: {
+                        color: '#222222',
+                        fontSizePx: 15,
+                        fontWeight: 800,
+                        marginBottomPx: 4,
+                      },
+                    },
+                  ],
+                },
+                {
+                  width: '190px',
+                  blocks: [
+                    {
+                      kind: 'text',
+                      key: 'date_range',
+                      variant: 'body',
+                      style: {
+                        align: 'right',
+                        color: '#222222',
+                        fontSizePx: 15,
+                        fontWeight: 800,
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              kind: 'text',
+              key: 'school',
+              variant: 'body',
+              style: {
+                color: '#2f2f2f',
+                fontSizePx: 14,
+                marginBottomPx: 4,
+              },
+            },
+            {
+              kind: 'list',
+              key: 'bullet_lines',
+              itemGapPx: 6,
+              itemBlocks: [
+                {
+                  kind: 'text',
+                  key: 'value',
+                  variant: 'body',
+                  style: {
+                    color: '#232323',
+                    fontSizePx: 14,
+                    lineHeight: 1.58,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          kind: 'divider',
+          thicknessPx: 1,
+          color: '#b89fd0',
+          marginTopPx: 14,
+          marginBottomPx: 18,
+        },
+      ],
+    },
+    {
+      id: 'lavender-executive-additional',
+      type: 'additional',
+      blocks: [
+        {
+          kind: 'text',
+          key: 'additional_heading',
+          variant: 'label',
+          style: {
+            color: '#8a63b1',
+            fontSizePx: 22,
+            fontWeight: 800,
+            textTransform: 'uppercase',
+            marginBottomPx: 12,
+          },
+        },
+        {
+          kind: 'list',
+          key: 'custom_details',
+          itemGapPx: 8,
+          itemBlocks: [
+            {
+              kind: 'group',
+              direction: 'row',
+              gapPx: 8,
+              items: [
+                {
+                  width: '14px',
+                  blocks: [
+                    {
+                      kind: 'text',
+                      key: 'bullet',
+                      variant: 'body',
+                      style: {
+                        color: '#222222',
+                        fontSizePx: 15,
+                        lineHeight: 1.2,
+                      },
+                    },
+                  ],
+                },
+                {
+                  width: 'minmax(0, 1fr)',
+                  blocks: [
+                    {
+                      kind: 'group',
+                      direction: 'row',
+                      gapPx: 8,
+                      items: [
+                        {
+                          width: '176px',
+                          blocks: [
+                            {
+                              kind: 'text',
+                              key: 'label_with_colon',
+                              variant: 'body',
+                              style: {
+                                color: '#222222',
+                                fontSizePx: 14,
+                                fontWeight: 800,
+                              },
+                            },
+                          ],
+                        },
+                        {
+                          width: 'minmax(0, 1fr)',
+                          blocks: [
+                            {
+                              kind: 'text',
+                              key: 'value',
+                              variant: 'body',
+                              style: {
+                                color: '#232323',
+                                fontSizePx: 14,
+                                lineHeight: 1.58,
+                              },
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+const cleanSimpleProfessionalManagerDefinition: ResumeTemplateDefinition = {
+  schemaVersion: 1,
+  metadata: {
+    name: 'Clean Manager',
+    slug: 'clean-manager',
+    description: 'Clean two-column manager resume with portrait header, soft editorial bands, and structured sidebar content.',
+    category: 'Professional',
+    tags: ['manager', 'clean', 'two-column', 'serif', 'classic'],
+    thumbnailUrl: cleanSimpleProfessionalManagerThumbnail,
+  },
+  page: {
+    size: 'A4',
+    widthPx: 794,
+    heightPx: 1123,
+    margin: {
+      top: 22,
+      right: 22,
+      bottom: 24,
+      left: 22,
+    },
+  },
+  theme: {
+    fonts: {
+      heading: 'Georgia, "Times New Roman", serif',
+      body: 'Georgia, "Times New Roman", serif',
+      mono: '"Courier New", monospace',
+    },
+    colors: {
+      text: '#1f1f1f',
+      muted: '#6f6f6f',
+      primary: '#1f1f1f',
+      secondary: '#f3f1e8',
+      background: '#ffffff',
+      accent: '#d7d4c8',
+    },
+    spacing: {
+      sectionGapPx: 18,
+      itemGapPx: 8,
+      lineHeight: 1.55,
+    },
+  },
+  layout: {
+    columns: 1,
+    columnGapPx: 0,
+  },
+  sections: [
+    {
+      id: 'clean-manager-header',
+      type: 'header',
+      blocks: [
+        {
+          kind: 'group',
+          direction: 'row',
+          gapPx: 16,
+          style: {
+            alignItems: 'center',
+            marginBottomPx: 16,
+          },
+          items: [
+            {
+              width: 'minmax(0, 1fr)',
+              blocks: [
+                {
+                  kind: 'divider',
+                  thicknessPx: 1,
+                  color: '#3a3a3a',
+                  marginTopPx: 24,
+                  marginBottomPx: 0,
+                },
+              ],
+            },
+            {
+              width: '128px',
+              blocks: [
+                {
+                  kind: 'image',
+                  key: 'photo_url',
+                  width: 128,
+                  height: 128,
+                  shape: 'circle',
+                  style: {
+                    display: 'block',
+                    marginLeft: 'auto',
+                    marginRight: 'auto',
+                  },
+                },
+              ],
+            },
+            {
+              width: 'minmax(0, 1fr)',
+              blocks: [
+                {
+                  kind: 'divider',
+                  thicknessPx: 1,
+                  color: '#3a3a3a',
+                  marginTopPx: 24,
+                  marginBottomPx: 0,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          kind: 'text',
+          key: 'full_name',
+          variant: 'heading',
+          style: {
+            align: 'center',
+            color: '#1c1c1c',
+            font: 'Georgia, "Times New Roman", serif',
+            fontSizePx: 34,
+            fontWeight: 500,
+            letterSpacingPx: 3.5,
+            marginBottomPx: 6,
+          },
+        },
+        {
+          kind: 'text',
+          key: 'title',
+          variant: 'body',
+          style: {
+            align: 'center',
+            color: '#242424',
+            fontSizePx: 15,
+            fontWeight: 500,
+            letterSpacingPx: 5,
+            textTransform: 'uppercase',
+            marginBottomPx: 10,
+          },
+        },
+      ],
+    },
+    {
+      id: 'clean-manager-body',
+      type: 'custom',
+      blocks: [
+        {
+          kind: 'group',
+          direction: 'row',
+          gapPx: 36,
+          items: [
+            {
+              width: '210px',
+              style: {
+                minWidthPx: 210,
+              },
+              blocks: [
+                {
+                  kind: 'text',
+                  key: 'education_heading',
+                  variant: 'label',
+                  style: {
+                    background: '#ecebe3',
+                    color: '#1f1f1f',
+                    fontSizePx: 18,
+                    fontWeight: 500,
+                    letterSpacingPx: 2.2,
+                    textTransform: 'uppercase',
+                    paddingTopPx: 6,
+                    paddingRightPx: 10,
+                    paddingBottomPx: 6,
+                    paddingLeftPx: 10,
+                    marginBottomPx: 14,
+                  },
+                },
+                {
+                  kind: 'list',
+                  key: 'education',
+                  itemGapPx: 20,
+                  itemBlocks: [
+                    {
+                      kind: 'text',
+                      key: 'date_range',
+                      variant: 'body',
+                      style: {
+                        color: '#202020',
+                        fontSizePx: 14,
+                        fontWeight: 500,
+                        marginBottomPx: 6,
+                      },
+                    },
+                    {
+                      kind: 'text',
+                      key: 'degree',
+                      variant: 'body',
+                      style: {
+                        color: '#202020',
+                        fontSizePx: 12.5,
+                        lineHeight: 1.45,
+                        marginBottomPx: 4,
+                      },
+                    },
+                    {
+                      kind: 'richText',
+                      key: 'highlights',
+                      style: {
+                        color: '#262626',
+                        fontSizePx: 12,
+                        lineHeight: 1.45,
+                      },
+                    },
+                  ],
+                },
+                {
+                  kind: 'text',
+                  key: 'additional_skills_heading',
+                  variant: 'label',
+                  style: {
+                    background: '#ecebe3',
+                    color: '#1f1f1f',
+                    fontSizePx: 18,
+                    fontWeight: 500,
+                    letterSpacingPx: 2.2,
+                    textTransform: 'uppercase',
+                    paddingTopPx: 6,
+                    paddingRightPx: 10,
+                    paddingBottomPx: 6,
+                    paddingLeftPx: 10,
+                    marginTopPx: 6,
+                    marginBottomPx: 16,
+                  },
+                },
+                {
+                  kind: 'list',
+                  key: 'skills',
+                  itemGapPx: 12,
+                  itemBlocks: [
+                    {
+                      kind: 'group',
+                      direction: 'row',
+                      gapPx: 10,
+                      items: [
+                        {
+                          width: 'minmax(0, 1fr)',
+                          blocks: [
+                            {
+                              kind: 'text',
+                              key: 'name',
+                              variant: 'body',
+                              style: {
+                                color: '#222222',
+                                fontSizePx: 13,
+                              },
+                            },
+                          ],
+                        },
+                        {
+                          width: '74px',
+                          blocks: [
+                            {
+                              kind: 'divider',
+                              thicknessPx: 4,
+                              color: '#9fa3a8',
+                              marginTopPx: 12,
+                              marginBottomPx: 0,
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+                {
+                  kind: 'text',
+                  key: 'contacts_heading',
+                  variant: 'label',
+                  style: {
+                    background: '#ecebe3',
+                    color: '#1f1f1f',
+                    fontSizePx: 18,
+                    fontWeight: 500,
+                    letterSpacingPx: 2.2,
+                    textTransform: 'uppercase',
+                    paddingTopPx: 6,
+                    paddingRightPx: 10,
+                    paddingBottomPx: 6,
+                    paddingLeftPx: 10,
+                    marginTopPx: 10,
+                    marginBottomPx: 16,
+                  },
+                },
+                {
+                  kind: 'list',
+                  key: 'sidebar_contacts',
+                  itemGapPx: 8,
+                  itemBlocks: [
+                    {
+                      kind: 'text',
+                      key: 'value',
+                      variant: 'body',
+                      style: {
+                        color: '#222222',
+                        fontSizePx: 12.5,
+                        lineHeight: 1.45,
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              width: 'minmax(0, 1fr)',
+              blocks: [
+                {
+                  kind: 'text',
+                  key: 'about_myself_heading',
+                  variant: 'label',
+                  style: {
+                    background: '#ecebe3',
+                    color: '#1f1f1f',
+                    fontSizePx: 18,
+                    fontWeight: 500,
+                    letterSpacingPx: 2.2,
+                    textTransform: 'uppercase',
+                    paddingTopPx: 6,
+                    paddingRightPx: 10,
+                    paddingBottomPx: 6,
+                    paddingLeftPx: 10,
+                    marginBottomPx: 14,
+                  },
+                },
+                {
+                  kind: 'richText',
+                  key: 'summary',
+                  style: {
+                    color: '#232323',
+                    fontSizePx: 13.5,
+                    lineHeight: 1.55,
+                    marginBottomPx: 16,
+                  },
+                },
+                {
+                  kind: 'text',
+                  key: 'experience_heading',
+                  variant: 'label',
+                  style: {
+                    background: '#ecebe3',
+                    color: '#1f1f1f',
+                    fontSizePx: 18,
+                    fontWeight: 500,
+                    letterSpacingPx: 2.2,
+                    textTransform: 'uppercase',
+                    paddingTopPx: 6,
+                    paddingRightPx: 10,
+                    paddingBottomPx: 6,
+                    paddingLeftPx: 10,
+                    marginTopPx: 4,
+                    marginBottomPx: 14,
+                  },
+                },
+                {
+                  kind: 'list',
+                  key: 'experience',
+                  itemGapPx: 22,
+                  itemBlocks: [
+                    {
+                      kind: 'text',
+                      key: 'date_range',
+                      variant: 'body',
+                      style: {
+                        color: '#202020',
+                        fontSizePx: 14,
+                        fontWeight: 500,
+                        marginBottomPx: 4,
+                      },
+                    },
+                    {
+                      kind: 'text',
+                      key: 'company',
+                      variant: 'body',
+                      style: {
+                        color: '#202020',
+                        fontSizePx: 14,
+                        marginBottomPx: 2,
+                      },
+                    },
+                    {
+                      kind: 'text',
+                      key: 'role',
+                      variant: 'subheading',
+                      style: {
+                        color: '#1f1f1f',
+                        fontSizePx: 14.5,
+                        fontWeight: 600,
+                        marginBottomPx: 6,
+                      },
+                    },
+                    {
+                      kind: 'list',
+                      key: 'bullet_lines',
+                      itemGapPx: 5,
+                      itemBlocks: [
+                        {
+                          kind: 'text',
+                          key: 'value',
+                          variant: 'body',
+                          style: {
+                            color: '#232323',
+                            fontSizePx: 13,
+                            lineHeight: 1.5,
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+                {
+                  kind: 'text',
+                  key: 'certifications_heading',
+                  variant: 'label',
+                  style: {
+                    background: '#ecebe3',
+                    color: '#1f1f1f',
+                    fontSizePx: 18,
+                    fontWeight: 500,
+                    letterSpacingPx: 2.2,
+                    textTransform: 'uppercase',
+                    paddingTopPx: 6,
+                    paddingRightPx: 10,
+                    paddingBottomPx: 6,
+                    paddingLeftPx: 10,
+                    marginTopPx: 12,
+                    marginBottomPx: 14,
+                  },
+                },
+                {
+                  kind: 'richText',
+                  key: 'certifications_text',
+                  style: {
+                    color: '#232323',
+                    fontSizePx: 13.5,
+                    lineHeight: 1.55,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
 export const BUILT_IN_RESUME_TEMPLATES: ResumeTemplateRecord[] = [
   {
     id: 'builtin-carter-classic',
@@ -2129,6 +3604,45 @@ export const BUILT_IN_RESUME_TEMPLATES: ResumeTemplateRecord[] = [
     thumbnailUrl: minimalistModernProfessionalThumbnail,
     isActive: true,
     definition: minimalistModernProfessionalDefinition,
+    createdBy: 'system',
+    createdAt: CREATED_AT,
+    updatedAt: CREATED_AT,
+  },
+  {
+    id: 'builtin-marketing-manager-cv',
+    slug: 'marketing-manager-cv',
+    name: 'Marketing Manager CV',
+    description: 'Minimal professional CV with a soft gray sidebar, bold name treatment, and timeline-style experience.',
+    category: 'Professional',
+    thumbnailUrl: simpleProfessionalMarketingManagerThumbnail,
+    isActive: true,
+    definition: simpleProfessionalMarketingManagerDefinition,
+    createdBy: 'system',
+    createdAt: CREATED_AT,
+    updatedAt: CREATED_AT,
+  },
+  {
+    id: 'builtin-lavender-executive',
+    slug: 'lavender-executive',
+    name: 'Lavender Executive',
+    description: 'Elegant single-column resume with lavender headings, centered contact line, and clean executive spacing.',
+    category: 'Professional',
+    thumbnailUrl: lavenderExecutiveThumbnail,
+    isActive: true,
+    definition: lavenderExecutiveDefinition,
+    createdBy: 'system',
+    createdAt: CREATED_AT,
+    updatedAt: CREATED_AT,
+  },
+  {
+    id: 'builtin-clean-manager',
+    slug: 'clean-manager',
+    name: 'Clean Manager',
+    description: 'Classic two-column manager resume with portrait header, editorial bands, and structured sidebar details.',
+    category: 'Professional',
+    thumbnailUrl: cleanSimpleProfessionalManagerThumbnail,
+    isActive: true,
+    definition: cleanSimpleProfessionalManagerDefinition,
     createdBy: 'system',
     createdAt: CREATED_AT,
     updatedAt: CREATED_AT,

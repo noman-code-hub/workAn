@@ -13,6 +13,7 @@ import {
     User
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { openResumeFile } from '../utils/resumeFile';
 
 interface Applicant {
     id: string;
@@ -137,6 +138,17 @@ export const JobApplicants = () => {
         }
     };
 
+    const handleViewResume = async (event: React.MouseEvent<HTMLAnchorElement>, resumeUrl: string) => {
+        event.preventDefault();
+
+        try {
+            await openResumeFile(resumeUrl);
+        } catch (error) {
+            console.error('Applicant resume preview failed:', error);
+            alert((error as Error).message || 'Failed to open resume. Ask the candidate to upload it again.');
+        }
+    };
+
     if (loading) {
         return (
             <div className="bg-[#F0F0E8] min-h-screen flex items-center justify-center font-mono uppercase">
@@ -214,6 +226,7 @@ export const JobApplicants = () => {
                                             </a>
                                             <a
                                                 href={applicant.resumeUrl}
+                                                onClick={(event) => handleViewResume(event, applicant.resumeUrl)}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="bg-white border-2 border-black p-2 font-mono text-[10px] uppercase font-bold shadow-[2px_2px_0px_0px_#000000] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all flex items-center gap-2"

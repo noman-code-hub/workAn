@@ -1,22 +1,52 @@
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 const DEFAULT_PROD_API_BASE = 'https://bwrircyazzakdstjapxq.supabase.co/functions/v1/api';
+const LOCAL_API_PREFIX = '/api';
+const LOCAL_NODE_API_BASE = 'http://localhost:5000/api';
+
+const ensureApiBase = (value: string) => {
+  const trimmed = trimTrailingSlash(value);
+  if (!trimmed) return trimmed;
+
+  try {
+    const url = new URL(trimmed);
+    const isLocalApiHost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+    if (!isLocalApiHost) return trimmed;
+    if (url.pathname === LOCAL_API_PREFIX || url.pathname.startsWith(`${LOCAL_API_PREFIX}/`)) {
+      return trimmed;
+    }
+    return `${trimmed}${LOCAL_API_PREFIX}`;
+  } catch {
+    return trimmed;
+  }
+};
 
 const envBaseUrl = (import.meta.env.VITE_API_BASE || '').trim();
+const envPdfBaseUrl = (import.meta.env.VITE_PDF_API_BASE || '').trim();
 const envSupabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
 const derivedSupabaseApiBase = envSupabaseUrl
   ? `${trimTrailingSlash(envSupabaseUrl)}/functions/v1/api`
   : '';
 const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : '';
 const isLocalRuntime = runtimeHost === 'localhost' || runtimeHost === '127.0.0.1';
+const isLocalDevRuntime = isLocalRuntime && import.meta.env.DEV;
 const fallbackBase = isLocalRuntime
-  ? 'http://localhost:5000'
+  ? LOCAL_NODE_API_BASE
   : (derivedSupabaseApiBase || DEFAULT_PROD_API_BASE);
+const localPdfBase = isLocalDevRuntime ? LOCAL_API_PREFIX : LOCAL_NODE_API_BASE;
 
-export const API_BASE = envBaseUrl ? trimTrailingSlash(envBaseUrl) : fallbackBase;
+export const API_BASE = envBaseUrl ? ensureApiBase(envBaseUrl) : fallbackBase;
+export const PDF_API_BASE = envPdfBaseUrl
+  ? ensureApiBase(envPdfBaseUrl)
+  : (isLocalRuntime ? localPdfBase : API_BASE);
 
 export const apiUrl = (path: string) => {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return API_BASE ? `${API_BASE}${normalizedPath}` : normalizedPath;
+};
+
+export const pdfApiUrl = (path: string) => {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return PDF_API_BASE ? `${PDF_API_BASE}${normalizedPath}` : normalizedPath;
 };
 
 export const parseApiJson = async <T>(response: Response): Promise<T> => {

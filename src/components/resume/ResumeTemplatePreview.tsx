@@ -513,8 +513,15 @@ export const ResumeTemplatePreview = ({
   const [internalPage, setInternalPage] = useState(1);
   const [draggingSection, setDraggingSection] = useState<string | null>(null);
   const dataSignature = useMemo(() => JSON.stringify(data ?? {}), [data]);
+  const pageSectionGap = template.theme.spacing.sectionGapPx;
+  const pageBottomSafetyMargin = 10;
+  const pageFooterReserve = showPageNumber ? 28 : 0;
   const pageContentHeight =
-    template.page.heightPx - template.page.margin.top - template.page.margin.bottom;
+    template.page.heightPx
+    - template.page.margin.top
+    - template.page.margin.bottom
+    - pageFooterReserve
+    - pageBottomSafetyMargin;
   const pageContentWidth =
     template.page.widthPx - template.page.margin.left - template.page.margin.right;
 
@@ -568,10 +575,78 @@ export const ResumeTemplatePreview = ({
   const sectionSlices = useMemo(() => {
     const slices: SectionSlice[] = [];
 
+    const buildBlockSlices = (blocks: ResumeTemplateBlock[]) => {
+      const nextSlices: Array<{ blocks: ResumeTemplateBlock[]; blockOverrides?: Record<string, any> }> = [];
+      let buffer: ResumeTemplateBlock[] = [];
+
+      const pushBlocks = (sliceBlocks: ResumeTemplateBlock[], overrides?: Record<string, any>) => {
+        nextSlices.push({
+          blocks: sliceBlocks,
+          blockOverrides: overrides,
+        });
+      };
+
+      const flushBuffer = () => {
+        if (buffer.length === 0) return;
+        pushBlocks([...buffer]);
+        buffer = [];
+      };
+
+      const withListIndex = (item: any, index: number) => {
+        if (typeof item === 'object' && item !== null) {
+          return { ...item, __resumeIndex: index };
+        }
+        return { value: item, __resumeIndex: index };
+      };
+
+      blocks.forEach((block) => {
+        if (block.kind === 'list') {
+          const list = coerceListValue(resolveValueByKey(data, block.key))
+            .map((item, index) => withListIndex(item, index));
+          if (list.length === 0) {
+            buffer.push(block);
+            return;
+          }
+          const [first, ...rest] = list;
+          const firstBlocks = buffer.length > 0 ? [...buffer, block] : [block];
+          pushBlocks(firstBlocks, { [block.key]: [first] });
+          buffer = [];
+          rest.forEach((item) => {
+            pushBlocks([block], { [block.key]: [item] });
+          });
+          return;
+        }
+
+        if (block.kind === 'table') {
+          const rowsValue = resolveValueByKey(data, block.key);
+          const rows = Array.isArray(rowsValue) ? rowsValue : [];
+          if (rows.length === 0) {
+            buffer.push(block);
+            return;
+          }
+          const [first, ...rest] = rows;
+          const firstBlocks = buffer.length > 0 ? [...buffer, block] : [block];
+          pushBlocks(firstBlocks, { [block.key]: [first] });
+          buffer = [];
+          rest.forEach((row) => {
+            pushBlocks([block], { [block.key]: [row] });
+          });
+          return;
+        }
+
+        buffer.push(block);
+      });
+
+      if (buffer.length > 0) {
+        flushBuffer();
+      }
+
+      return nextSlices;
+    };
+
     orderedSections.forEach((section) => {
       let sliceIndex = 0;
       let isFirstSlice = true;
-      let buffer: ResumeTemplateBlock[] = [];
 
       const pushSlice = (blocks: ResumeTemplateBlock[], overrides?: Record<string, any>) => {
         slices.push({
@@ -585,57 +660,45 @@ export const ResumeTemplatePreview = ({
         isFirstSlice = false;
       };
 
-      const flushBuffer = () => {
-        if (buffer.length === 0) return;
-        pushSlice([...buffer]);
-        buffer = [];
-      };
+      if (
+        section.type === 'custom'
+        && section.blocks.length === 1
+        && section.blocks[0].kind === 'group'
+        && section.blocks[0].direction === 'row'
+      ) {
+        const topLevelGroup = section.blocks[0];
+        const itemSlices = topLevelGroup.items.map((item) => buildBlockSlices(item.blocks));
+        const bandCount = Math.max(0, ...itemSlices.map((groupSlices) => groupSlices.length));
 
-      const withListIndex = (item: any, index: number) => {
-        if (typeof item === 'object' && item !== null) {
-          return { ...item, __resumeIndex: index };
-        }
-        return { value: item, __resumeIndex: index };
-      };
+        for (let bandIndex = 0; bandIndex < bandCount; bandIndex += 1) {
+          const bandItems = topLevelGroup.items.map((item, itemIndex) => ({
+            ...item,
+            blocks: itemSlices[itemIndex][bandIndex]?.blocks ?? [],
+          }));
 
-      section.blocks.forEach((block) => {
-        if (block.kind === 'list') {
-          const list = coerceListValue(resolveValueByKey(data, block.key))
-            .map((item, index) => withListIndex(item, index));
-          if (list.length === 0) {
-            buffer.push(block);
-            return;
-          }
-          const [first, ...rest] = list;
-          const firstBlocks = buffer.length > 0 ? [...buffer, block] : [block];
-          pushSlice(firstBlocks, { [block.key]: [first] });
-          buffer = [];
-          rest.forEach((item) => {
-            pushSlice([block], { [block.key]: [item] });
-          });
-          return;
-        }
-        if (block.kind === 'table') {
-          const rowsValue = resolveValueByKey(data, block.key);
-          const rows = Array.isArray(rowsValue) ? rowsValue : [];
-          if (rows.length === 0) {
-            buffer.push(block);
-            return;
-          }
-          const [first, ...rest] = rows;
-          const firstBlocks = buffer.length > 0 ? [...buffer, block] : [block];
-          pushSlice(firstBlocks, { [block.key]: [first] });
-          buffer = [];
-          rest.forEach((row) => {
-            pushSlice([block], { [block.key]: [row] });
-          });
-          return;
-        }
-        buffer.push(block);
-      });
+          const bandOverrides = itemSlices.reduce<Record<string, any>>((acc, groupSlices, itemIndex) => {
+            const overrides = groupSlices[bandIndex]?.blockOverrides;
+            if (!overrides) return acc;
+            Object.entries(overrides).forEach(([key, value]) => {
+              acc[`${itemIndex}:${key}`] = value;
+              acc[key] = value;
+            });
+            return acc;
+          }, {});
 
-      if (buffer.length > 0) {
-        flushBuffer();
+          const hasBandContent = bandItems.some((item) => item.blocks.length > 0);
+          if (!hasBandContent) continue;
+
+          pushSlice([{
+            ...topLevelGroup,
+            items: bandItems,
+          }], Object.keys(bandOverrides).length > 0 ? bandOverrides : undefined);
+        }
+      } else {
+        const blockSlices = buildBlockSlices(section.blocks);
+        blockSlices.forEach((slice) => {
+          pushSlice(slice.blocks, slice.blockOverrides);
+        });
       }
 
       if (sliceIndex === 0) {
@@ -655,10 +718,11 @@ export const ResumeTemplatePreview = ({
     sectionSlices.forEach((slice) => {
       const node = sliceRefs.current[slice.id];
       const height = node?.getBoundingClientRect().height ?? 0;
+      const nextHeight = current.length === 0 ? height : currentHeight + pageSectionGap + height;
 
-      if (current.length === 0 || currentHeight + height <= pageContentHeight) {
+      if (current.length === 0 || nextHeight <= pageContentHeight) {
         current.push(slice);
-        currentHeight += height;
+        currentHeight = nextHeight;
         return;
       }
 
@@ -677,6 +741,7 @@ export const ResumeTemplatePreview = ({
     }
   }, [
     pageContentHeight,
+    pageSectionGap,
     onPageCountChange,
     activePage,
     updatePage,
@@ -699,13 +764,13 @@ export const ResumeTemplatePreview = ({
     boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
-    gap: template.theme.spacing.sectionGapPx,
+    gap: pageSectionGap,
     fontFamily: template.theme.fonts.body,
     color: template.theme.colors.text,
   };
 
   return (
-    <div className={className} style={{ display: 'grid', gap: 12 }}>
+    <div className={className} style={{ display: 'grid', gap: 12 }} data-resume-template-preview>
       <div
         style={{
           ...pageViewportStyle,
@@ -714,6 +779,7 @@ export const ResumeTemplatePreview = ({
         }}
       >
         <div
+          data-resume-template-pages
           style={{
             display: 'flex',
             width: 'max-content',
@@ -724,8 +790,12 @@ export const ResumeTemplatePreview = ({
           }}
         >
           {pages.map((pageSections, index) => (
-            <div key={`page-${index}`} style={{ ...pageViewportStyle, position: 'relative' }}>
-              <div style={pageInnerStyle}>
+            <div
+              key={`page-${index}`}
+              data-resume-template-page={index + 1}
+              style={{ ...pageViewportStyle, position: 'relative' }}
+            >
+              <div data-resume-template-page-content style={pageInnerStyle}>
                 {pageSections.map((slice) => (
                   <div
                     key={slice.id}
@@ -793,7 +863,7 @@ export const ResumeTemplatePreview = ({
           top: -9999,
         }}
       >
-        <div style={{ display: 'grid', gap: template.theme.spacing.sectionGapPx }}>
+        <div style={{ display: 'grid', gap: pageSectionGap }}>
           {sectionSlices.map((slice) => (
             <div
               key={`measure-${slice.id}`}
@@ -826,6 +896,7 @@ export const ResumeTemplatePreview = ({
         .inline-tiptap-shell {
           border: 1px dashed transparent;
           border-radius: 6px;
+          cursor: text;
           transition: border-color 120ms ease, background 120ms ease;
         }
         .inline-tiptap-shell:hover {
@@ -835,6 +906,9 @@ export const ResumeTemplatePreview = ({
         .inline-tiptap-content {
           outline: none;
           min-height: 16px;
+          cursor: text;
+          caret-color: currentColor;
+          -webkit-text-fill-color: currentColor;
         }
         .inline-tiptap-content p {
           margin: 0 0 6px;

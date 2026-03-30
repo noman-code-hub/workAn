@@ -7,6 +7,41 @@ import path from 'path';
 
 const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
+const RESUME_STORAGE_ROOT = path.resolve('uploads', 'resumes');
+
+const ensureDirectory = (targetPath) => {
+    if (!fs.existsSync(targetPath)) {
+        fs.mkdirSync(targetPath, { recursive: true });
+    }
+};
+
+const sanitizePathPart = (value, fallback) => {
+    const sanitized = (value || '')
+        .toString()
+        .replace(/[^a-zA-Z0-9_-]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+    return sanitized || fallback;
+};
+
+const persistedResumeStorage = multer.diskStorage({
+    destination: (req, _file, callback) => {
+        const userId = sanitizePathPart(req.body.userId, 'anonymous');
+        const targetDir = path.join(RESUME_STORAGE_ROOT, userId);
+        ensureDirectory(targetDir);
+        callback(null, targetDir);
+    },
+    filename: (_req, file, callback) => {
+        const originalExt = path.extname(file.originalname || '').toLowerCase();
+        const safeExt = ['.pdf', '.doc', '.docx'].includes(originalExt) ? originalExt : '.bin';
+        const baseName = sanitizePathPart(path.basename(file.originalname || 'resume', originalExt), 'resume');
+        callback(null, `${Date.now()}_${baseName}${safeExt}`);
+    },
+});
+
+const persistResumeUpload = multer({
+    storage: persistedResumeStorage,
+    limits: { fileSize: 10 * 1024 * 1024 },
+});
 
 // Resume-Matcher backend URL
 const RESUME_MATCHER_URL = process.env.RESUME_MATCHER_URL || 'http://localhost:8000';
@@ -50,6 +85,29 @@ const fetchStructuredResumeMetadata = async (filePath) => {
 
     return fetchResponse?.data?.data?.processed_resume || null;
 };
+
+router.post('/store-resume', persistResumeUpload.single('resume'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No resume file provided.' });
+        }
+
+        const relativePath = path.relative(path.resolve('uploads'), req.file.path).replace(/\\/g, '/');
+        const publicUrl = `${req.protocol}://${req.get('host')}/uploads/${relativePath}`;
+
+        return res.json({
+            success: true,
+            publicUrl,
+            fileName: req.file.filename,
+        });
+    } catch (error) {
+        console.error('Error storing uploaded resume:', error?.message || error);
+        return res.status(500).json({
+            error: 'Failed to store uploaded resume.',
+            details: error?.message || 'Unknown error',
+        });
+    }
+});
 
 router.post('/upload-resume', upload.single('resume'), async (req, res) => {
     let filePath;

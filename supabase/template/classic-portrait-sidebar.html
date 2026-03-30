@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Classic Portrait Sidebar - {{#full_name}}{{full_name}}{{/full_name}}{{^full_name}}Full Name{{/full_name}}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+*, ::before, ::after {
+  --tw-border-spacing-x: 0;
+  --tw-border-spacing-y: 0;
+  --tw-translate-x: 0;
+  --tw-translate-y: 0;
+  --tw-rotate: 0;
+  --tw-skew-x: 0;
+  --tw-skew-y: 0;
+  --tw-scale-x: 1;
+  --tw-scale-y: 1;
+  --tw-pan-x:  ;
+  --tw-pan-y:  ;
+  --tw-pinch-zoom:  ;
+  --tw-scroll-snap-strictness: proximity;
+  --tw-gradient-from-position:  ;
+  --tw-gradient-via-position:  ;
+  --tw-gradient-to-position:  ;
+  --tw-ordinal:  ;
+  --tw-slashed-zero:  ;
+  --tw-numeric-figure:  ;
+  --tw-numeric-spacing:  ;
+  --tw-numeric-fraction:  ;
+  --tw-ring-inset:  ;
+  --tw-ring-offset-width: 0px;
+  --tw-ring-offset-color: #fff;
+  --tw-ring-color: rgb(59 130 246 / 0.5);
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-shadow: 0 0 #0000;
+  --tw-shadow-colored: 0 0 #0000;
+  --tw-blur:  ;
+  --tw-brightness:  ;
+  --tw-contrast:  ;
+  --tw-grayscale:  ;
+  --tw-hue-rotate:  ;
+  --tw-invert:  ;
+  --tw-saturate:  ;
+  --tw-sepia:  ;
+  --tw-drop-shadow:  ;
+  --tw-backdrop-blur:  ;
+  --tw-backdrop-brightness:  ;
+  --tw-backdrop-contrast:  ;
+  --tw-backdrop-grayscale:  ;
+  --tw-backdrop-hue-rotate:  ;
+  --tw-backdrop-invert:  ;
+  --tw-backdrop-opacity:  ;
+  --tw-backdrop-saturate:  ;
+  --tw-backdrop-sepia:  ;
+  --tw-contain-size:  ;
+  --tw-contain-layout:  ;
+  --tw-contain-paint:  ;
+  --tw-contain-style:  ;
+}
+
+::backdrop {
+  --tw-border-spacing-x: 0;
+  --tw-border-spacing-y: 0;
+  --tw-translate-x: 0;
+  --tw-translate-y: 0;
+  --tw-rotate: 0;
+  --tw-skew-x: 0;
+  --tw-skew-y: 0;
+  --tw-scale-x: 1;
+  --tw-scale-y: 1;
+  --tw-pan-x:  ;
+  --tw-pan-y:  ;
+  --tw-pinch-zoom:  ;
+  --tw-scroll-snap-strictness: proximity;
+  --tw-gradient-from-position:  ;
+  --tw-gradient-via-position:  ;
+  --tw-gradient-to-position:  ;
+  --tw-ordinal:  ;
+  --tw-slashed-zero:  ;
+  --tw-numeric-figure:  ;
+  --tw-numeric-spacing:  ;
+  --tw-numeric-fraction:  ;
+  --tw-ring-inset:  ;
+  --tw-ring-offset-width: 0px;
+  --tw-ring-offset-color: #fff;
+  --tw-ring-color: rgb(59 130 246 / 0.5);
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-shadow: 0 0 #0000;
+  --tw-shadow-colored: 0 0 #0000;
+  --tw-blur:  ;
+  --tw-brightness:  ;
+  --tw-contrast:  ;
+  --tw-grayscale:  ;
+  --tw-hue-rotate:  ;
+  --tw-invert:  ;
+  --tw-saturate:  ;
+  --tw-sepia:  ;
+  --tw-drop-shadow:  ;
+  --tw-backdrop-blur:  ;
+  --tw-backdrop-brightness:  ;
+  --tw-backdrop-contrast:  ;
+  --tw-backdrop-grayscale:  ;
+  --tw-backdrop-hue-rotate:  ;
+  --tw-backdrop-invert:  ;
+  --tw-backdrop-opacity:  ;
+  --tw-backdrop-saturate:  ;
+  --tw-backdrop-sepia:  ;
+  --tw-contain-size:  ;
+  --tw-contain-layout:  ;
+  --tw-contain-paint:  ;
+  --tw-contain-style:  ;
+}/*
+! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com
+*//*
+1. Prevent padding and border from affecting element width. (https://github.com/mozdevs/cssremedy/issues/4)
+2. Allow adding a border to an element by just adding a border-width. (https://github.com/tailwindcss/tailwindcss/pull/116)
+*/
+
+*,
+::before,
+::after {
+  box-sizing: border-box; /* 1 */
+  border-width: 0; /* 2 */
+  border-style: solid; /* 2 */
+  border-color: #e5e7eb; /* 2 */
+}
+
+::before,
+::after {
+  --tw-content: '';
+}
+
+/*
+1. Use a consistent sensible line-height in all browsers.
+2. Prevent adjustments of font size after orientation changes in iOS.
+3. Use a more readable tab size.
+4. Use the user's configured `sans` font-family by default.
+5. Use the user's configured `sans` font-feature-settings by default.
+6. Use the user's configured `sans` font-variation-settings by default.
+7. Disable tap highlights on iOS
+*/
+
+html,
+:host {
+  line-height: 1.5; /* 1 */
+  -webkit-text-size-adjust: 100%; /* 2 */
+  -moz-tab-size: 4; /* 3 */
+  tab-size: 4; /* 3 */
+  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; /* 4 */
+  font-feature-settings: normal; /* 5 */
+  font-variation-settings: normal; /* 6 */
+  -webkit-tap-highlight-color: transparent; /* 7 */
+}
+
+/*
+1. Remove the margin in all browsers.
+2. Inherit line-height from `html` so users can set them as a class directly on the `html` element.
+*/
+
+body {
+  margin: 0; /* 1 */
+  line-height: inherit; /* 2 */
+}
+
+/*
+1. Add the correct height in Firefox.
+2. Correct the inheritance of border color in Firefox. (https://bugzilla.mozilla.org/show_bug.cgi?id=190655)
+3. Ensure horizontal rules are visible by default.
+*/
+
+hr {
+  height: 0; /* 1 */
+  color: inherit; /* 2 */
+  border-top-width: 1px; /* 3 */
+}
+
+/*
+Add the correct text decoration in Chrome, Edge, and Safari.
+*/
+
+abbr:where([title]) {
+  text-decoration: underline dotted;
+}
+
+/*
+Remove the default font size and weight for headings.
+*/
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+/*
+Reset links to optimize for opt-in styling instead of opt-out.
+*/
+
+a {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+/*
+Add the correct font weight in Edge and Safari.
+*/
+
+b,
+strong {
+  font-weight: bolder;
+}
+
+/*
+1. Use the user's configured `mono` font-family by default.
+2. Use the user's configured `mono` font-feature-settings by default.
+3. Use the user's configured `mono` font-variation-settings by default.
+4. Correct the odd `em` font sizing in all browsers.
+*/
+
+code,
+kbd,
+samp,
+pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; /* 1 */
+  font-feature-settings: normal; /* 2 */
+  font-variation-settings: normal; /* 3 */
+  font-size: 1em; /* 4 */
+}
+
+/*
+Add the correct font size in all browsers.
+*/
+
+small {
+  font-size: 80%;
+}
+
+/*
+Prevent `sub` and `sup` elements from affecting the line height in all browsers.
+*/
+
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+sub {
+  bottom: -0.25em;
+}
+
+sup {
+  top: -0.5em;
+}
+
+/*
+1. Remove text indentation from table contents in Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=999088, https://bugs.webkit.org/show_bug.cgi?id=201297)
+2. Correct table border color inheritance in all Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=935729, https://bugs.webkit.org/show_bug.cgi?id=195016)
+3. Remove gaps between table borders by default.
+*/
+
+table {
+  text-indent: 0; /* 1 */
+  border-color: inherit; /* 2 */
+  border-collapse: collapse; /* 3 */
+}
+
+/*
+1. Change the font styles in all browsers.
+2. Remove the margin in Firefox and Safari.
+3. Remove default padding in all browsers.
+*/
+
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit; /* 1 */
+  font-feature-settings: inherit; /* 1 */
+  font-variation-settings: inherit; /* 1 */
+  font-size: 100%; /* 1 */
+  font-weight: inherit; /* 1 */
+  line-height: inherit; /* 1 */
+  letter-spacing: inherit; /* 1 */
+  color: inherit; /* 1 */
+  margin: 0; /* 2 */
+  padding: 0; /* 3 */
+}
+
+/*
+Remove the inheritance of text transform in Edge and Firefox.
+*/
+
+button,
+select {
+  text-transform: none;
+}
+
+/*
+1. Correct the inability to style clickable types in iOS and Safari.
+2. Remove default button styles.
+*/
+
+button,
+input:where([type='button']),
+input:where([type='reset']),
+input:where([type='submit']) {
+  -webkit-appearance: button; /* 1 */
+  background-color: transparent; /* 2 */
+  background-image: none; /* 2 */
+}
+
+/*
+Use the modern Firefox focus style for all focusable elements.
+*/
+
+:-moz-focusring {
+  outline: auto;
+}
+
+/*
+Remove the additional `:invalid` styles in Firefox. (https://github.com/mozilla/gecko-dev/blob/2f9eacd9d3d995c937b4251a5557d95d494c9be1/layout/style/res/forms.css#L728-L737)
+*/
+
+:-moz-ui-invalid {
+  box-shadow: none;
+}
+
+/*
+Add the correct vertical alignment in Chrome and Firefox.
+*/
+
+progress {
+  vertical-align: baseline;
+}
+
+/*
+Correct the cursor style of increment and decrement buttons in Safari.
+*/
+
+::-webkit-inner-spin-button,
+::-webkit-outer-spin-button {
+  height: auto;
+}
+
+/*
+1. Correct the odd appearance in Chrome and Safari.
+2. Correct the outline style in Safari.
+*/
+
+[type='search'] {
+  -webkit-appearance: textfield; /* 1 */
+  outline-offset: -2px; /* 2 */
+}
+
+/*
+Remove the inner padding in Chrome and Safari on macOS.
+*/
+
+::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+
+/*
+1. Correct the inability to style clickable types in iOS and Safari.
+2. Change font properties to `inherit` in Safari.
+*/
+
+::-webkit-file-upload-button {
+  -webkit-appearance: button; /* 1 */
+  font: inherit; /* 2 */
+}
+
+/*
+Add the correct display in Chrome and Safari.
+*/
+
+summary {
+  display: list-item;
+}
+
+/*
+Removes the default spacing and border for appropriate elements.
+*/
+
+blockquote,
+dl,
+dd,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+hr,
+figure,
+p,
+pre {
+  margin: 0;
+}
+
+fieldset {
+  margin: 0;
+  padding: 0;
+}
+
+legend {
+  padding: 0;
+}
+
+ol,
+ul,
+menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+Reset default styling for dialogs.
+*/
+dialog {
+  padding: 0;
+}
+
+/*
+Prevent resizing textareas horizontally by default.
+*/
+
+textarea {
+  resize: vertical;
+}
+
+/*
+1. Reset the default placeholder opacity in Firefox. (https://github.com/tailwindlabs/tailwindcss/issues/3300)
+2. Set the default placeholder color to the user's configured gray 400 color.
+*/
+
+input::placeholder,
+textarea::placeholder {
+  opacity: 1; /* 1 */
+  color: #9ca3af; /* 2 */
+}
+
+/*
+Set the default cursor for buttons.
+*/
+
+button,
+[role="button"] {
+  cursor: pointer;
+}
+
+/*
+Make sure disabled buttons don't get the pointer cursor.
+*/
+:disabled {
+  cursor: default;
+}
+
+/*
+1. Make replaced elements `display: block` by default. (https://github.com/mozdevs/cssremedy/issues/14)
+2. Add `vertical-align: middle` to align replaced elements more sensibly by default. (https://github.com/jensimmons/cssremedy/issues/14#issuecomment-634934210)
+   This can trigger a poorly considered lint error in some tools but is included by design.
+*/
+
+img,
+svg,
+video,
+canvas,
+audio,
+iframe,
+embed,
+object {
+  display: block; /* 1 */
+  vertical-align: middle; /* 2 */
+}
+
+/*
+Constrain images and videos to the parent width and preserve their intrinsic aspect ratio. (https://github.com/mozdevs/cssremedy/issues/14)
+*/
+
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Make elements with the HTML hidden attribute stay hidden by default */
+[hidden]:where(:not([hidden="until-found"])) {
+  display: none;
+}.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}.mb-\[14px\] {
+  margin-bottom: 14px;
+}.mt-\[12px\] {
+  margin-top: 12px;
+}.mt-\[1px\] {
+  margin-top: 1px;
+}.mt-\[2px\] {
+  margin-top: 2px;
+}.mt-\[4px\] {
+  margin-top: 4px;
+}.mt-\[8px\] {
+  margin-top: 8px;
+}.block {
+  display: block;
+}.flex {
+  display: flex;
+}.grid {
+  display: grid;
+}.hidden {
+  display: none;
+}.h-\[297mm\] {
+  height: 297mm;
+}.w-\[210mm\] {
+  width: 210mm;
+}.min-w-0 {
+  min-width: 0px;
+}.transform {
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}.resize {
+  resize: both;
+}.grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}.grid-cols-\[minmax\(0\2c 1fr\)_72px\] {
+  grid-template-columns: minmax(0,1fr) 72px;
+}.grid-cols-\[minmax\(0\2c 1fr\)_var\(--photo-size\)_minmax\(0\2c 1fr\)\] {
+  grid-template-columns: minmax(0,1fr) var(--photo-size) minmax(0,1fr);
+}.flex-col {
+  flex-direction: column;
+}.items-start {
+  align-items: flex-start;
+}.items-center {
+  align-items: center;
+}.gap-\[10px\] {
+  gap: 10px;
+}.gap-\[16px\] {
+  gap: 16px;
+}.bg-\[\#eef2f7\] {
+  --tw-bg-opacity: 1;
+  background-color: rgb(238 242 247 / var(--tw-bg-opacity, 1));
+}.bg-white {
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
+}.text-center {
+  text-align: center;
+}.font-medium {
+  font-weight: 500;
+}.font-normal {
+  font-weight: 400;
+}.font-semibold {
+  font-weight: 600;
+}.uppercase {
+  text-transform: uppercase;
+}.italic {
+  font-style: italic;
+}.tracking-\[0\.02em\] {
+  letter-spacing: 0.02em;
+}.tracking-\[0\.23em\] {
+  letter-spacing: 0.23em;
+}.tracking-\[0\.48em\] {
+  letter-spacing: 0.48em;
+}.text-\[\#1c1c1c\] {
+  --tw-text-opacity: 1;
+  color: rgb(28 28 28 / var(--tw-text-opacity, 1));
+}.text-\[\#1f1f1f\] {
+  --tw-text-opacity: 1;
+  color: rgb(31 31 31 / var(--tw-text-opacity, 1));
+}.text-\[\#202020\] {
+  --tw-text-opacity: 1;
+  color: rgb(32 32 32 / var(--tw-text-opacity, 1));
+}.text-\[\#242424\] {
+  --tw-text-opacity: 1;
+  color: rgb(36 36 36 / var(--tw-text-opacity, 1));
+}.text-\[var\(--name-size\)\] {
+  color: var(--name-size);
+}.text-\[var\(--role-size\)\] {
+  color: var(--role-size);
+}.shadow-\[0_18px_40px_rgba\(15\2c 23\2c 42\2c 0\.10\)\] {
+  --tw-shadow: 0 18px 40px rgba(15,23,42,0.10);
+  --tw-shadow-colored: 0 18px 40px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+  </style>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    :root {
+      --fit-scale: 1;
+      --resume-font: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+    }
+
+    @page {
+      size: A4;
+      margin: 0;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background: #eef2f7;
+      color: #1f1f1f;
+      font-family: var(--resume-font);
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+
+    body {
+      padding: 24px;
+      width: 100%;
+      box-sizing: border-box;
+      display: flex;
+      justify-content: center;
+    }
+
+    .resume-page {
+      --page-pad-x: 6mm;
+      --page-pad-top: 5.5mm;
+      --page-pad-bottom: 6.2mm;
+      --columns-gap: 9.2mm;
+      --sidebar-width: 55mm;
+      --section-gap: 13px;
+      --section-margin: 15px;
+      --sidebar-stack-gap: 14px;
+      --content-line-height: 1.55;
+      --body-size: 13.5px;
+      --meta-size: 12.5px;
+      --heading-size: 18px;
+      --name-size: 34px;
+      --role-size: 15px;
+      --skill-gap: 10px;
+      --bullet-gap: 3px;
+      --item-gap: 8px;
+      --summary-gap: 13px;
+      --section-pad-y: 5px;
+      --section-pad-x: 10px;
+      --top-rule-offset: 22px;
+      --photo-size: 35mm;
+    }
+
+    .resume-page[data-fit-step="1"] {
+      --section-gap: 11px;
+      --section-margin: 13px;
+      --sidebar-stack-gap: 12px;
+      --skill-gap: 8px;
+      --summary-gap: 11px;
+    }
+
+    .resume-page[data-fit-step="2"] {
+      --section-gap: 10px;
+      --section-margin: 12px;
+      --sidebar-stack-gap: 11px;
+      --content-line-height: 1.38;
+      --skill-gap: 7px;
+      --summary-gap: 10px;
+    }
+
+    .resume-page[data-fit-step="3"] {
+      --columns-gap: 8.6mm;
+      --section-gap: 9px;
+      --section-margin: 10px;
+      --sidebar-stack-gap: 10px;
+      --content-line-height: 1.34;
+      --body-size: 11.5px;
+      --meta-size: 11.1px;
+    }
+
+    .resume-page[data-fit-step="4"] {
+      --columns-gap: 8.1mm;
+      --section-gap: 8px;
+      --section-margin: 9px;
+      --sidebar-stack-gap: 9px;
+      --content-line-height: 1.31;
+      --body-size: 11px;
+      --meta-size: 10.8px;
+      --heading-size: 14px;
+      --name-size: 30px;
+      --role-size: 13px;
+    }
+
+    .resume-page[data-fit-step="5"] {
+      --columns-gap: 7.5mm;
+      --section-gap: 7px;
+      --section-margin: 8px;
+      --sidebar-stack-gap: 8px;
+      --content-line-height: 1.28;
+      --body-size: 10.6px;
+      --meta-size: 10.3px;
+      --heading-size: 13px;
+      --name-size: 26px;
+      --role-size: 12.4px;
+      --section-pad-y: 4px;
+      --section-pad-x: 9px;
+    }
+
+    .resume-page[data-fit-step="6"] {
+      --columns-gap: 7mm;
+      --section-gap: 6px;
+      --section-margin: 7px;
+      --sidebar-stack-gap: 7px;
+      --content-line-height: 1.24;
+      --body-size: 10.2px;
+      --meta-size: 10px;
+      --heading-size: 12px;
+      --name-size: 22px;
+      --role-size: 12px;
+    }
+
+    .resume-page[data-fit-step="7"] {
+      --columns-gap: 6.5mm;
+      --section-gap: 6px;
+      --section-margin: 6px;
+      --sidebar-stack-gap: 6px;
+      --content-line-height: 1.2;
+      --body-size: 10px;
+      --meta-size: 10px;
+      --heading-size: 12px;
+      --name-size: 18px;
+      --role-size: 12px;
+    }
+
+    .resume-sheet {
+      overflow: hidden;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .resume-scaler {
+      width: calc(100% / var(--fit-scale));
+      transform: scale(var(--fit-scale));
+      transform-origin: top left;
+    }
+
+    .resume-content {
+      min-height: 297mm;
+      padding: var(--page-pad-top) var(--page-pad-x) var(--page-pad-bottom);
+      color: #1f1f1f;
+      font-size: var(--body-size);
+      line-height: var(--content-line-height);
+      font-family: var(--resume-font);
+      overflow-wrap: break-word;
+      word-wrap: break-word;
+      word-break: break-word;
+    }
+
+    .resume-content,
+    .resume-content * {
+      font-family: var(--resume-font);
+    }
+
+    .resume-body {
+      display: grid;
+      grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+      gap: var(--columns-gap);
+    }
+
+    .resume-sidebar,
+    .resume-main {
+      min-width: 0;
+    }
+
+    .resume-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sidebar-stack-gap);
+    }
+
+    .resume-main {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sidebar-stack-gap);
+    }
+
+    .section-title {
+      background: #ecebe3;
+      color: #1f1f1f;
+      font-size: var(--heading-size);
+      line-height: 1.55;
+      letter-spacing: 2.2px;
+      text-transform: uppercase;
+      font-weight: 500;
+      padding: 6px 10px;
+      margin-bottom: calc(var(--section-margin) - 1px);
+    }
+
+    .section-block {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .body-copy,
+    .body-copy p,
+    .body-copy li,
+    .meta-copy {
+      font-size: var(--body-size);
+      line-height: var(--content-line-height);
+      color: #232323;
+    }
+
+    .meta-copy {
+      font-size: var(--meta-size);
+    }
+
+    .heading-copy {
+      font-size: calc(var(--body-size) + 0.7px);
+      line-height: 1.25;
+      color: #1f1f1f;
+    }
+
+    .header-name {
+      color: #1c1c1c;
+      font-size: var(--name-size);
+      font-weight: 500;
+      line-height: 1.55;
+      letter-spacing: 3.5px;
+      font-style: normal;
+      text-align: center;
+    }
+
+    .header-role {
+      color: #242424;
+      font-size: var(--role-size);
+      font-weight: 500;
+      line-height: 1.55;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    .education-date,
+    .experience-date {
+      color: #202020;
+      font-size: 14px;
+      line-height: 1.55;
+      font-weight: 500;
+    }
+
+    .education-degree {
+      color: #202020;
+      font-size: 12.5px;
+      line-height: 1.45;
+      font-weight: 400;
+    }
+
+    .education-school,
+    .education-highlight,
+    .experience-highlight,
+    .contact-copy,
+    .language-copy,
+    .personal-copy,
+    .reference-meta {
+      color: #222222;
+      font-size: 12.5px;
+      line-height: 1.45;
+    }
+
+    .education-highlight {
+      color: #262626;
+      font-size: 12px;
+    }
+
+    .skill-copy {
+      color: #222222;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .summary-copy,
+    .cert-copy,
+    .project-copy,
+    .experience-highlight {
+      color: #232323;
+      font-size: 13.5px;
+      line-height: 1.55;
+    }
+
+    .experience-company {
+      color: #202020;
+      font-size: 14px;
+      line-height: 1.55;
+      font-weight: 400;
+    }
+
+    .experience-role {
+      color: #1f1f1f;
+      font-size: 14.5px;
+      line-height: 1.55;
+      font-weight: 600;
+    }
+
+    .experience-list li,
+    .fallback-bullets li {
+      color: #232323;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .reference-name {
+      color: #1f1f1f;
+      font-size: 13.5px;
+      line-height: 1.45;
+      font-weight: 600;
+    }
+
+    .muted-copy {
+      color: #3f3f3f;
+    }
+
+    .content-richtext {
+      white-space: normal;
+    }
+
+    .content-richtext p {
+      margin: 0;
+    }
+
+    .content-richtext p + p {
+      margin-top: 5px;
+    }
+
+    .content-richtext ul,
+    .content-richtext ol {
+      margin: 0;
+      padding-left: 1.05rem;
+      list-style-position: outside;
+    }
+
+    .content-richtext ul {
+      list-style: disc;
+    }
+
+    .content-richtext ol {
+      list-style: decimal;
+    }
+
+    .content-richtext li {
+      display: list-item;
+    }
+
+    .content-richtext p + ul,
+    .content-richtext p + ol,
+    .content-richtext ul + p,
+    .content-richtext ol + p,
+    .content-richtext ul + ul,
+    .content-richtext ol + ol,
+    .content-richtext ul + ol,
+    .content-richtext ol + ul {
+      margin-top: 5px;
+    }
+
+    .content-richtext h1,
+    .content-richtext h2,
+    .content-richtext h3,
+    .content-richtext h4,
+    .content-richtext h5,
+    .content-richtext h6 {
+      margin: 0;
+      line-height: 1.25;
+      font-weight: 600;
+      color: #1f1f1f;
+    }
+
+    .content-richtext h1 { font-size: 2rem; }
+    .content-richtext h2 { font-size: 1.65rem; }
+    .content-richtext h3 { font-size: 1.35rem; }
+    .content-richtext h4 { font-size: 1.15rem; }
+    .content-richtext h5 { font-size: 1rem; }
+    .content-richtext h6 {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .content-richtext h1 + p,
+    .content-richtext h2 + p,
+    .content-richtext h3 + p,
+    .content-richtext h4 + p,
+    .content-richtext h5 + p,
+    .content-richtext h6 + p {
+      margin-top: 5px;
+    }
+
+    .content-richtext li + li {
+      margin-top: var(--bullet-gap);
+    }
+
+    .content-richtext mark {
+      padding: 0 0.14em;
+      border-radius: 0.18em;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+    }
+
+    .top-divider {
+      margin-top: var(--top-rule-offset);
+      border-top: 1px solid #3a3a3a;
+    }
+
+    .photo-shell {
+      width: var(--photo-size);
+      height: var(--photo-size);
+      border-radius: 999px;
+      overflow: hidden;
+      background: #d7c4b2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .photo-shell img,
+    .photo-shell svg {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .skill-line {
+      border-top: 4px solid #9fa3a8;
+      margin-top: 8px;
+    }
+
+    .experience-list,
+    .fallback-bullets {
+      margin: 0;
+      padding-left: 16px;
+    }
+
+    .experience-list li,
+    .fallback-bullets li {
+      margin: 0;
+      padding-left: 2px;
+    }
+
+    .experience-list li + li,
+    .fallback-bullets li + li {
+      margin-top: var(--bullet-gap);
+    }
+
+    .reference-card p,
+    .contact-line,
+    .personal-line,
+    .language-line,
+    .certification-line,
+    .project-line {
+      margin: 0;
+    }
+
+    .contact-line + .contact-line,
+    .personal-line + .personal-line,
+    .language-line + .language-line,
+    .certification-line + .certification-line,
+    .project-line + .project-line {
+      margin-top: 6px;
+    }
+
+    .wrap-safe {
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    @media screen and (max-width: 720px) {
+      body {
+        padding: 12px;
+      }
+
+      .resume-sheet {
+        width: 100%;
+        min-width: 320px;
+        height: auto;
+        min-height: auto;
+      }
+
+      .resume-page {
+        width: 100%;
+        height: auto;
+      }
+
+      .resume-scaler {
+        width: 100%;
+        transform: none;
+      }
+
+      .resume-content {
+        min-height: auto;
+        padding: 20px;
+      }
+
+      .resume-body {
+        grid-template-columns: 1fr;
+        gap: 22px;
+      }
+    }
+
+    @media print {
+      html,
+      body {
+        background: #ffffff;
+      }
+
+      body {
+        padding: 0;
+      }
+
+      .resume-sheet {
+        box-shadow: none !important;
+        margin: 0 !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-[#eef2f7] text-[#1f1f1f]">
+  <div class="resume-sheet resume-page mx-auto h-[297mm] w-[210mm] bg-white shadow-[0_18px_40px_rgba(15,23,42,0.10)]" data-template-slug="classic-portrait-sidebar" data-preview-fit-managed="true" id="resume-page">
+    <div class="resume-scaler" id="resume-scaler">
+      <div class="resume-content" id="resume-content">
+        <header class="mb-[14px]">
+          <div class="grid grid-cols-[minmax(0,1fr)_var(--photo-size)_minmax(0,1fr)] items-center gap-[16px]">
+            <div class="top-divider"></div>
+            <div class="photo-shell">
+              {{#photo_url}}
+              <img src="{{photo_url}}" alt="" />
+              {{/photo_url}}
+              {{^photo_url}}
+              <svg viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <defs>
+                  <linearGradient id="classicPortraitGradient" x1="0" x2="1" y1="0" y2="1">
+                    <stop offset="0%" stop-color="#e8d7c8" />
+                    <stop offset="100%" stop-color="#c9ae95" />
+                  </linearGradient>
+                </defs>
+                <rect width="320" height="320" fill="url(#classicPortraitGradient)" />
+                <circle cx="160" cy="120" r="62" fill="#f8f4ee" />
+                <path d="M70 282c15-55 53-86 90-86 38 0 76 31 90 86" fill="#f8f4ee" />
+              </svg>
+              {{/photo_url}}
+            </div>
+            <div class="top-divider"></div>
+          </div>
+          <h1 class="header-name mt-[12px]">
+            {{#full_name}}{{full_name}}{{/full_name}}{{^full_name}}Full Name{{/full_name}}
+          </h1>
+          <p class="header-role mt-[2px]">
+            {{#title}}{{title}}{{/title}}{{^title}}Profession Name{{/title}}
+          </p>
+        </header>
+
+        <div class="resume-body">
+          <aside class="resume-sidebar">
+            {{#has_education_items}}<section class="section-block">
+              <h2 class="section-title">Education</h2>
+              <div class="flex flex-col" style="gap: var(--section-gap);">
+                {{#education_items}}
+                <article class="body-copy">
+                  {{#date_range_html}}
+                  <div class="content-richtext education-date tracking-[0.02em] wrap-safe">{{{date_range_html}}}</div>
+                  {{/date_range_html}}
+                  {{^date_range_html}}<p class="education-date tracking-[0.02em]">{{date_range}}</p>{{/date_range_html}}
+                  {{#degree_html}}
+                  <div class="content-richtext education-degree mt-[4px] wrap-safe">{{{degree_html}}}</div>
+                  {{/degree_html}}
+                  {{^degree_html}}<p class="education-degree mt-[4px] wrap-safe">{{degree}}</p>{{/degree_html}}
+                  {{#school_html}}
+                  <div class="content-richtext education-school mt-[2px] wrap-safe">{{{school_html}}}</div>
+                  {{/school_html}}
+                  {{^school_html}}<p class="education-school mt-[2px] wrap-safe">{{school}}</p>{{/school_html}}
+                  <div class="content-richtext education-highlight mt-[2px] wrap-safe">{{{highlights}}}</div>
+                </article>
+                {{/education_items}}
+              </div>
+            </section>{{/has_education_items}}
+
+            {{#has_skills_items}}<section class="section-block">
+              <h2 class="section-title">Additional Skills</h2>
+              <div class="flex flex-col" style="gap: var(--skill-gap);">
+                {{#skills_items}}
+                <div class="grid grid-cols-[minmax(0,1fr)_72px] gap-[10px] items-start">
+                  <p class="skill-copy wrap-safe">{{name}}</p>
+                  <div class="skill-line"></div>
+                </div>
+                {{/skills_items}}
+              </div>
+            </section>{{/has_skills_items}}
+
+            {{#has_contact_items}}<section class="section-block">
+              <h2 class="section-title">Contacts</h2>
+              <div class="body-copy">
+                {{#contact_items}}
+                <p class="contact-line contact-copy wrap-safe">{{value}}</p>
+                {{/contact_items}}
+              </div>
+            </section>{{/has_contact_items}}
+
+            {{#has_languages_items}}<section class="section-block">
+              <h2 class="section-title">Languages</h2>
+              <div class="body-copy">
+                {{#languages_items}}
+                <p class="language-line language-copy wrap-safe">{{name}}</p>
+                {{/languages_items}}
+              </div>
+            </section>{{/has_languages_items}}
+
+            <section class="section-block" data-empty-section>
+              <h2 class="section-title">Personal Information</h2>
+              <div class="body-copy" data-empty-body>
+                <p class="personal-line personal-copy wrap-safe" data-empty-line><span class="font-medium">Date of Birth:</span> <span data-empty-value>{{date_of_birth}}</span></p>
+                <p class="personal-line personal-copy wrap-safe" data-empty-line><span class="font-medium">Nationality:</span> <span data-empty-value>{{nationality}}</span></p>
+                <p class="personal-line personal-copy wrap-safe" data-empty-line><span class="font-medium">Marital Status:</span> <span data-empty-value>{{marital_status}}</span></p>
+              </div>
+            </section>
+          </aside>
+
+          <main class="resume-main">
+            {{#summary}}<section class="section-block">
+              <h2 class="section-title">About Myself</h2>
+              <div class="content-richtext summary-copy wrap-safe">
+                {{{summary}}}
+              </div>
+            </section>{{/summary}}
+
+            {{#has_experience_items}}<section class="section-block">
+              <h2 class="section-title">Work Experience</h2>
+              <div class="flex flex-col" style="gap: calc(var(--section-gap) + 1px);">
+                {{#experience_items}}
+                <article class="body-copy">
+                  {{#date_range_html}}
+                  <div class="content-richtext experience-date tracking-[0.02em] wrap-safe">{{{date_range_html}}}</div>
+                  {{/date_range_html}}
+                  {{^date_range_html}}<p class="experience-date tracking-[0.02em]">{{date_range}}</p>{{/date_range_html}}
+                  {{#company_html}}
+                  <div class="content-richtext experience-company mt-[2px] wrap-safe">{{{company_html}}}</div>
+                  {{/company_html}}
+                  {{^company_html}}<p class="experience-company mt-[2px] wrap-safe">{{company}}</p>{{/company_html}}
+                  {{#role_html}}
+                  <div class="content-richtext experience-role mt-[1px] wrap-safe">{{{role_html}}}</div>
+                  {{/role_html}}
+                  {{^role_html}}<p class="experience-role mt-[1px] wrap-safe">{{role}}</p>{{/role_html}}
+                  {{#highlights}}
+                  <div class="content-richtext experience-highlight mt-[4px] wrap-safe">{{{highlights}}}</div>
+                  {{/highlights}}
+                  {{^highlights}}{{#has_bullet_lines}}
+                  <ul class="experience-list mt-[4px]">
+                    {{#bullet_lines}}
+                    <li class="wrap-safe">{{value}}</li>
+                    {{/bullet_lines}}
+                  </ul>
+                  {{/has_bullet_lines}}{{/highlights}}
+                </article>
+                {{/experience_items}}
+              </div>
+            </section>{{/has_experience_items}}
+
+            {{#has_project_items}}<section class="section-block">
+              <h2 class="section-title">Projects</h2>
+              <div class="project-copy">
+                {{#project_items}}
+                <p class="project-line wrap-safe">{{value}}</p>
+                {{/project_items}}
+              </div>
+            </section>{{/has_project_items}}
+
+            {{#certifications}}<section class="section-block">
+              <h2 class="section-title">Certifications</h2>
+              <div class="content-richtext cert-copy wrap-safe">{{{certifications}}}</div>
+            </section>{{/certifications}}
+            {{^certifications}}{{#certifications_text}}<section class="section-block">
+              <h2 class="section-title">Certifications</h2>
+              <div class="content-richtext cert-copy wrap-safe">{{{certifications_text}}}</div>
+            </section>{{/certifications_text}}{{/certifications}}
+
+            <section class="section-block" data-empty-section>
+              <h2 class="section-title">References</h2>
+              <div class="grid grid-cols-2 gap-[16px] body-copy" data-empty-body>
+                <div class="reference-card min-w-0" data-empty-block>
+                  <p class="reference-name wrap-safe" data-empty-line><span data-empty-value>{{reference_primary_name}}</span></p>
+                  <p class="reference-meta wrap-safe" data-empty-line><span data-empty-value>{{reference_primary_title}}</span></p>
+                  <p class="reference-meta wrap-safe" data-empty-line><span class="font-medium">Phone:</span> <span data-empty-value>{{reference_primary_phone}}</span></p>
+                  <p class="reference-meta wrap-safe" data-empty-line><span class="font-medium">Email:</span> <span data-empty-value>{{reference_primary_email}}</span></p>
+                </div>
+                <div class="reference-card min-w-0" data-empty-block>
+                  <p class="reference-name wrap-safe" data-empty-line><span data-empty-value>{{reference_secondary_name}}</span></p>
+                  <p class="reference-meta wrap-safe" data-empty-line><span data-empty-value>{{reference_secondary_title}}</span></p>
+                  <p class="reference-meta wrap-safe" data-empty-line><span class="font-medium">Phone:</span> <span data-empty-value>{{reference_secondary_phone}}</span></p>
+                  <p class="reference-meta wrap-safe" data-empty-line><span class="font-medium">Email:</span> <span data-empty-value>{{reference_secondary_email}}</span></p>
+                </div>
+              </div>
+              {{#references}}
+              <div class="content-richtext reference-meta wrap-safe mt-[8px]" data-empty-line>{{{references}}}</div>
+              {{/references}}
+            </section>
+
+    
+          </main>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- hirevo-standard-schema-v3 -->
+  <div data-hirevo-standard-schema="v3" style="display:none !important; visibility:hidden; height:0; overflow:hidden;" aria-hidden="true">
+    {{full_name}}{{name}}{{title}}{{role}}{{phone}}{{email}}{{location}}{{address}}{{city}}{{country}}{{portfolio}}{{website}}{{linkedin}}
+    {{{summary}}}{{{objective}}}{{education}}{{skills}}{{experience}}{{projects}}{{{projects_text}}}
+    {{{certifications}}}{{{certifications_text}}}{{{languages}}}{{{languages_text}}}
+    {{{awards}}}{{{awards_text}}}{{{achievements}}}{{{achievements_text}}}
+    {{{references}}}{{date_of_birth}}{{nationality}}{{marital_status}}
+    {{reference_primary_name}}{{reference_primary_title}}{{reference_primary_phone}}{{reference_primary_email}}
+    {{reference_secondary_name}}{{reference_secondary_title}}{{reference_secondary_phone}}{{reference_secondary_email}}
+  </div>
+
+  <script>
+    (function () {
+      const page = document.getElementById('resume-page');
+      const content = document.getElementById('resume-content');
+      const scaler = document.getElementById('resume-scaler');
+      if (!page || !content || !scaler) return;
+
+      const cleanEmptySections = () => {
+        document.querySelectorAll('[data-empty-line]').forEach((line) => {
+          const values = line.querySelectorAll('[data-empty-value]');
+          if (!values.length) return;
+          const hasValue = Array.from(values).some((node) => (node.textContent || '').trim().length > 0);
+          if (!hasValue) {
+            line.remove();
+          }
+        });
+
+        document.querySelectorAll('[data-empty-block]').forEach((block) => {
+          const text = (block.textContent || '').replace(/\s+/g, ' ').trim();
+          if (!text || text === 'Phone:' || text === 'Email:' || text === 'Phone: Email:') {
+            block.remove();
+          }
+        });
+
+        document.querySelectorAll('[data-empty-section]').forEach((section) => {
+          const contentNodes = Array.from(section.children).filter((node) => {
+            return !(node.classList && node.classList.contains('section-title'));
+          });
+          const hasVisibleContent = contentNodes.some((node) => ((node.textContent || '').replace(/\s+/g, ' ').trim().length > 0));
+          if (!hasVisibleContent) {
+            section.remove();
+          }
+        });
+      };
+
+      const maxSteps = 7;
+      const fit = () => {
+        page.style.setProperty('--fit-scale', '1');
+        page.dataset.fitStep = '0';
+
+        let step = 0;
+        while (step < maxSteps && content.scrollHeight > page.clientHeight + 1) {
+          step += 1;
+          page.dataset.fitStep = String(step);
+        }
+
+        if (content.scrollHeight > page.clientHeight + 1) {
+          const ratio = page.clientHeight / content.scrollHeight;
+          page.style.setProperty('--fit-scale', String(Math.min(1, Math.max(0.82, ratio))));
+        }
+      };
+
+      const scheduleFit = () => window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+        cleanEmptySections();
+        fit();
+      }));
+      window.addEventListener('load', scheduleFit);
+      window.addEventListener('resize', scheduleFit);
+      scheduleFit();
+    }());
+  </script>
+</body>
+</html>

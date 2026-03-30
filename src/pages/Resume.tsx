@@ -5,16 +5,17 @@ import { useLocation, useNavigate, useParams, useSearchParams } from 'react-rout
 import { useAuth } from '../contexts/AuthContext';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
 import { normalizeFieldKey, renderTemplateWithSchema } from '../services/resumeTemplateRenderer';
-import { ResumeTemplatePreview } from '../components/resume/ResumeTemplatePreview';
-import { listResumeTemplateDefinitions } from '../services/resumeTemplateService';
-import type { ResumeTemplateRecord } from '../types/resumeTemplate';
-import { mergeResumeTemplateRecords } from '../data/templates/builtInResumeTemplates';
-import { API_BASE, apiUrl } from '../config/api';
+import { API_BASE, apiUrl, pdfApiUrl } from '../config/api';
 import { AppLoader } from '../components/AppLoader';
 import { RichTextEditor } from '../components/RichTextEditor';
+import { ImageCropModal } from '../components/ImageCropModal';
+import { buildResumePdfHtml } from '../utils/resumePdfExport';
 
 const RESUME_VIEW_STORAGE_KEY = 'careerpilot:resume-view';
 const RESUME_UPLOAD_TIMEOUT_MS = Number(import.meta.env.VITE_RESUME_UPLOAD_TIMEOUT_MS || 90000);
+const EXPLICIT_PDF_API_BASE = (import.meta.env.VITE_PDF_API_BASE || '').trim();
+const LOCAL_PDF_ENDPOINT = 'http://localhost:5000/api/render-resume-pdf';
+const PDF_SIGNATURE = [0x25, 0x50, 0x44, 0x46, 0x2d] as const;
 const PAGE_SIZES = {
   a4: { label: 'A4', width: 794, height: 1123 },
   letter: { label: 'Letter', width: 816, height: 1056 },
@@ -23,39 +24,764 @@ type PreviewPageSize = keyof typeof PAGE_SIZES;
 const ENABLE_PREVIEW_PAGINATION = false;
 const PAGE_GAP_PX = 24;
 const PREVIEW_FONT_SCALES = [1, 0.93, 0.86, 0.79, 0.75];
+const getPreviewDocumentSize = (doc: Document, fallback: { width: number; height: number }) => {
+  const root = doc.documentElement;
+  const body = doc.body;
+
+  const width = Math.max(
+    fallback.width,
+    root?.scrollWidth ?? 0,
+    root?.offsetWidth ?? 0,
+    body?.scrollWidth ?? 0,
+    body?.offsetWidth ?? 0
+  );
+
+  const height = Math.max(
+    fallback.height,
+    root?.scrollHeight ?? 0,
+    root?.offsetHeight ?? 0,
+    body?.scrollHeight ?? 0,
+    body?.offsetHeight ?? 0
+  );
+
+  return {
+    width: Math.ceil(width),
+    height: Math.ceil(height),
+  };
+};
 const TEMPLATE_COLOR_PRESETS = [
   { id: 'gold', label: 'Gold', accent: '#c3aa72' },
   { id: 'navy', label: 'Navy', accent: '#1d4d8f' },
   { id: 'emerald', label: 'Emerald', accent: '#0f8b6d' },
   { id: 'burgundy', label: 'Burgundy', accent: '#8b3a4b' },
 ] as const;
+const CLASSIC_PORTRAIT_TEMPLATE_SLUG = 'classic-portrait-sidebar';
+const CLASSIC_TEMPLATE_STYLE_TAG_ID = 'hirevo-classic-template-customization';
+const CLASSIC_TEMPLATE_FONT_OPTIONS = [
+  { label: 'Cormorant Garamond', value: '"Cormorant Garamond", Georgia, "Times New Roman", serif' },
+  { label: 'Georgia', value: 'Georgia, "Times New Roman", serif' },
+  { label: 'Arial', value: 'Arial, "Helvetica Neue", Helvetica, sans-serif' },
+  { label: 'Trebuchet MS', value: '"Trebuchet MS", "Segoe UI", sans-serif' },
+  { label: 'Verdana', value: 'Verdana, Geneva, sans-serif' },
+] as const;
+const CLASSIC_TEMPLATE_FONT_OPTION_SET = new Set<string>(
+  CLASSIC_TEMPLATE_FONT_OPTIONS.map((option) => option.value)
+);
+const CLASSIC_TEMPLATE_WEIGHT_OPTIONS = [300, 400, 500, 600, 700, 800] as const;
+const CLASSIC_TEMPLATE_NUMBER_LIMITS = {
+  bodyFontSize: { min: 10, max: 18 },
+  bodyFontWeight: { min: 300, max: 800 },
+  headingFontWeight: { min: 300, max: 800 },
+  h1Size: { min: 24, max: 44 },
+  h2Size: { min: 20, max: 34 },
+  h3Size: { min: 16, max: 28 },
+  h4Size: { min: 14, max: 24 },
+  h5Size: { min: 12, max: 20 },
+  h6Size: { min: 10, max: 18 },
+} as const;
+const CLASSIC_TEMPLATE_HEADING_FIELDS = [
+  { key: 'h1Size', label: 'H1', note: 'Largest rich-text heading' },
+  { key: 'h2Size', label: 'H2', note: 'Large rich-text heading' },
+  { key: 'h3Size', label: 'H3', note: 'Medium rich-text heading' },
+  { key: 'h4Size', label: 'H4', note: 'Supporting rich-text heading' },
+  { key: 'h5Size', label: 'H5', note: 'Small rich-text heading' },
+  { key: 'h6Size', label: 'H6', note: 'Compact rich-text heading' },
+] as const;
 const DEFAULT_CUSTOM_TEMPLATE_COLOR = '#c3aa72';
-const COLOR_PRESET_TEMPLATE_SLUGS = new Set(['accounting-executive', 'minimalist-modern']);
+const SECTION_RICH_TEXT_TOOLBAR_HOST_ID = 'resume-section-rich-text-toolbar';
 type TemplateColorPresetId = (typeof TEMPLATE_COLOR_PRESETS)[number]['id'] | 'custom';
+type ClassicTemplateHeadingKey = (typeof CLASSIC_TEMPLATE_HEADING_FIELDS)[number]['key'];
+type ClassicTemplateStyleSettings = {
+  bodyFontFamily: string;
+  headingFontFamily: string;
+  textColor: string;
+  headingColor: string;
+  highlightColor: string;
+  bodyFontSize: number;
+  bodyFontWeight: number;
+  headingFontWeight: number;
+  h1Size: number;
+  h2Size: number;
+  h3Size: number;
+  h4Size: number;
+  h5Size: number;
+  h6Size: number;
+};
+type ClassicTemplateStyleColorKey = 'textColor' | 'headingColor' | 'highlightColor';
+type ClassicTemplateStyleFontKey = 'bodyFontFamily' | 'headingFontFamily';
+type ClassicTemplateStyleNumberKey = keyof typeof CLASSIC_TEMPLATE_NUMBER_LIMITS;
+type RichTextLineStyle = {
+  text: string;
+  fontSize: string;
+};
+const CLASSIC_TEMPLATE_HEADING_KEYS = CLASSIC_TEMPLATE_HEADING_FIELDS.map((field) => field.key) as ClassicTemplateHeadingKey[];
+const DEFAULT_CLASSIC_TEMPLATE_STYLE_SETTINGS: ClassicTemplateStyleSettings = {
+  bodyFontFamily: '"Cormorant Garamond", Georgia, "Times New Roman", serif',
+  headingFontFamily: '"Cormorant Garamond", Georgia, "Times New Roman", serif',
+  textColor: '#232323',
+  headingColor: '#1c1c1c',
+  highlightColor: '#f4dfa2',
+  bodyFontSize: 13.5,
+  bodyFontWeight: 400,
+  headingFontWeight: 600,
+  h1Size: 34,
+  h2Size: 24,
+  h3Size: 18,
+  h4Size: 16,
+  h5Size: 14.5,
+  h6Size: 12.5,
+};
 
-const clampColorChannel = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
+const clampNumber = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
 
-const mixHexColor = (hex: string, target: string, weight: number) => {
-  const safeHex = hex.replace('#', '');
-  const safeTarget = target.replace('#', '');
-  if (!/^[0-9a-f]{6}$/i.test(safeHex) || !/^[0-9a-f]{6}$/i.test(safeTarget)) return hex;
+const roundHalfStep = (value: number) => Math.round(value * 2) / 2;
 
-  const channels = [0, 2, 4].map((offset) => Number.parseInt(safeHex.slice(offset, offset + 2), 16));
-  const targetChannels = [0, 2, 4].map((offset) => Number.parseInt(safeTarget.slice(offset, offset + 2), 16));
-  const mixed = channels.map((channel, index) =>
-    clampColorChannel(channel + (targetChannels[index] - channel) * weight)
-  );
+const normalizeHexColor = (value: string, fallback: string) => {
+  const trimmed = value.trim();
+  return /^#[0-9a-f]{6}$/i.test(trimmed) ? trimmed : fallback;
+};
 
-  return `#${mixed.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
+const normalizeClassicTemplateHeadingSizes = (
+  settings: ClassicTemplateStyleSettings
+) => {
+  const next = { ...settings };
+  const sortedHeadingValues = CLASSIC_TEMPLATE_HEADING_KEYS
+    .map((key) => next[key])
+    .sort((left, right) => right - left);
+
+  CLASSIC_TEMPLATE_HEADING_KEYS.forEach((key, index) => {
+    const limit = CLASSIC_TEMPLATE_NUMBER_LIMITS[key];
+    const previousKey = CLASSIC_TEMPLATE_HEADING_KEYS[index - 1];
+    const previousValue = previousKey ? next[previousKey] : limit.max;
+    const safeMax = Math.min(limit.max, previousValue);
+    const fallback = clampNumber(DEFAULT_CLASSIC_TEMPLATE_STYLE_SETTINGS[key], limit.min, safeMax);
+    const sourceValue = sortedHeadingValues[index] ?? fallback;
+    next[key] = roundHalfStep(clampNumber(sourceValue, limit.min, safeMax));
+  });
+
+  return next;
+};
+
+const applyClassicTemplateHeadingSizeChange = (
+  settings: ClassicTemplateStyleSettings,
+  key: ClassicTemplateHeadingKey,
+  value: number
+) => {
+  const next = { ...settings };
+  const limit = CLASSIC_TEMPLATE_NUMBER_LIMITS[key];
+  next[key] = roundHalfStep(clampNumber(value, limit.min, limit.max));
+
+  const changedIndex = CLASSIC_TEMPLATE_HEADING_KEYS.indexOf(key);
+
+  for (let index = changedIndex - 1; index >= 0; index -= 1) {
+    const currentKey = CLASSIC_TEMPLATE_HEADING_KEYS[index];
+    const lowerKey = CLASSIC_TEMPLATE_HEADING_KEYS[index + 1];
+    const currentLimit = CLASSIC_TEMPLATE_NUMBER_LIMITS[currentKey];
+    next[currentKey] = roundHalfStep(
+      clampNumber(
+        Math.max(next[currentKey], next[lowerKey]),
+        currentLimit.min,
+        currentLimit.max
+      )
+    );
+  }
+
+  for (let index = changedIndex + 1; index < CLASSIC_TEMPLATE_HEADING_KEYS.length; index += 1) {
+    const currentKey = CLASSIC_TEMPLATE_HEADING_KEYS[index];
+    const upperKey = CLASSIC_TEMPLATE_HEADING_KEYS[index - 1];
+    const currentLimit = CLASSIC_TEMPLATE_NUMBER_LIMITS[currentKey];
+    const safeMax = Math.min(currentLimit.max, next[upperKey]);
+    next[currentKey] = roundHalfStep(
+      clampNumber(
+        Math.min(next[currentKey], next[upperKey]),
+        currentLimit.min,
+        safeMax
+      )
+    );
+  }
+
+  return next;
+};
+
+const sanitizeClassicTemplateStyleSettings = (value: unknown): ClassicTemplateStyleSettings => {
+  const next = { ...DEFAULT_CLASSIC_TEMPLATE_STYLE_SETTINGS };
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return next;
+  }
+
+  const raw = value as Partial<ClassicTemplateStyleSettings>;
+  if (
+    typeof raw.bodyFontFamily === 'string'
+    && CLASSIC_TEMPLATE_FONT_OPTION_SET.has(raw.bodyFontFamily)
+  ) {
+    next.bodyFontFamily = raw.bodyFontFamily;
+  }
+  if (
+    typeof raw.headingFontFamily === 'string'
+    && CLASSIC_TEMPLATE_FONT_OPTION_SET.has(raw.headingFontFamily)
+  ) {
+    next.headingFontFamily = raw.headingFontFamily;
+  }
+
+  next.textColor = normalizeHexColor(raw.textColor || '', next.textColor);
+  next.headingColor = normalizeHexColor(raw.headingColor || '', next.headingColor);
+  next.highlightColor = normalizeHexColor(raw.highlightColor || '', next.highlightColor);
+
+  (Object.keys(CLASSIC_TEMPLATE_NUMBER_LIMITS) as ClassicTemplateStyleNumberKey[]).forEach((key) => {
+    const limit = CLASSIC_TEMPLATE_NUMBER_LIMITS[key];
+    const rawValue = raw[key];
+    if (typeof rawValue !== 'number' || !Number.isFinite(rawValue)) return;
+    next[key] = roundHalfStep(clampNumber(rawValue, limit.min, limit.max)) as never;
+  });
+
+  return normalizeClassicTemplateHeadingSizes(next);
+};
+
+const hexToRgba = (hex: string, alpha: number) => {
+  const normalized = normalizeHexColor(hex, DEFAULT_CUSTOM_TEMPLATE_COLOR);
+  const safeAlpha = clampNumber(alpha, 0, 1);
+  const red = Number.parseInt(normalized.slice(1, 3), 16);
+  const green = Number.parseInt(normalized.slice(3, 5), 16);
+  const blue = Number.parseInt(normalized.slice(5, 7), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${safeAlpha})`;
+};
+
+const injectStyleIntoHtmlHead = (html: string, styleId: string, cssText: string) => {
+  const styleTag = `<style id="${styleId}">\n${cssText}\n</style>`;
+  const existingStyleRegex = new RegExp(`<style id="${styleId}">[\\s\\S]*?<\\/style>`, 'i');
+
+  if (existingStyleRegex.test(html)) {
+    return html.replace(existingStyleRegex, styleTag);
+  }
+  if (/<\/head>/i.test(html)) {
+    return html.replace(/<\/head>/i, `${styleTag}\n</head>`);
+  }
+  return `${styleTag}\n${html}`;
+};
+
+const applyClassicTemplateCustomization = (
+  html: string,
+  templateSlug: string,
+  accentColor: string,
+  settings: ClassicTemplateStyleSettings
+) => {
+  if (templateSlug !== CLASSIC_PORTRAIT_TEMPLATE_SLUG) return html;
+
+  const sanitized = sanitizeClassicTemplateStyleSettings(settings);
+  const accent = normalizeHexColor(accentColor, DEFAULT_CUSTOM_TEMPLATE_COLOR);
+  const accentSoft = hexToRgba(accent, 0.16);
+  const accentStrong = hexToRgba(accent, 0.28);
+
+  const cssText = `
+body {
+  padding: 0 !important;
+}
+
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] {
+  --hirevo-accent-color: ${accent};
+  --hirevo-accent-soft: ${accentSoft};
+  --hirevo-accent-strong: ${accentStrong};
+  --hirevo-body-font: ${sanitized.bodyFontFamily};
+  --hirevo-heading-font: ${sanitized.headingFontFamily};
+  --hirevo-text-color: ${sanitized.textColor};
+  --hirevo-heading-color: ${sanitized.headingColor};
+  --hirevo-highlight-color: ${sanitized.highlightColor};
+  --hirevo-body-size: ${sanitized.bodyFontSize}px;
+  --hirevo-body-weight: ${sanitized.bodyFontWeight};
+  --hirevo-heading-weight: ${sanitized.headingFontWeight};
+  --hirevo-h1-size: ${sanitized.h1Size}px;
+  --hirevo-h2-size: ${sanitized.h2Size}px;
+  --hirevo-h3-size: ${sanitized.h3Size}px;
+  --hirevo-h4-size: ${sanitized.h4Size}px;
+  --hirevo-h5-size: ${sanitized.h5Size}px;
+  --hirevo-h6-size: ${sanitized.h6Size}px;
+}
+
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .resume-content {
+  color: var(--hirevo-text-color) !important;
+  font-family: var(--hirevo-body-font) !important;
+  padding-left: max(12px, calc(var(--page-pad-x) - 2.5mm)) !important;
+}
+
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .body-copy,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .summary-copy,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .cert-copy,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .project-copy,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .skill-copy,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .education-school,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .education-highlight,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .contact-copy,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .language-copy,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .personal-copy,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .reference-meta,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .experience-list li,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .fallback-bullets li,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext {
+  font-family: var(--hirevo-body-font) !important;
+  font-size: var(--hirevo-body-size) !important;
+  font-weight: var(--hirevo-body-weight) !important;
+  color: var(--hirevo-text-color) !important;
+}
+
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext p,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext li,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext span,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext strong,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext em,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext u,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext s,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext mark {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+}
+
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .header-name,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .header-role,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .section-title,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .experience-role,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .experience-company,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .experience-date,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .education-date,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .education-degree,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .reference-name,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h1,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h2,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h3,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h4,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h5,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h6 {
+  font-family: var(--hirevo-heading-font);
+  color: var(--hirevo-heading-color);
+}
+
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .header-name {
+  font-weight: var(--hirevo-heading-weight) !important;
+  line-height: 1.15 !important;
+}
+
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .header-role {
+  font-weight: var(--hirevo-heading-weight) !important;
+}
+
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .section-title {
+  font-weight: var(--hirevo-heading-weight) !important;
+  background: var(--hirevo-accent-soft) !important;
+  border-left: 3px solid var(--hirevo-accent-color) !important;
+  padding-left: 12px !important;
+}
+
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .experience-role,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .experience-company,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .education-degree,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .reference-name {
+  font-weight: var(--hirevo-heading-weight) !important;
+}
+
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .experience-date,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .education-date {
+  font-weight: var(--hirevo-heading-weight) !important;
+}
+
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .top-divider,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .skill-line {
+  border-color: var(--hirevo-accent-color) !important;
+}
+
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .photo-shell {
+  background: var(--hirevo-accent-strong) !important;
+}
+
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext mark {
+  background: var(--hirevo-highlight-color);
+  color: inherit;
+  padding: 0 0.14em;
+  border-radius: 0.18em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h1,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h2,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h3,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h4,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h5,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h6 {
+  margin: 0 0 0.35em;
+  line-height: 1.2;
+  font-weight: var(--hirevo-heading-weight);
+}
+
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h1 {
+  font-size: var(--hirevo-h1-size);
+}
+
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h2 {
+  font-size: var(--hirevo-h2-size);
+}
+
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h3 {
+  font-size: var(--hirevo-h3-size);
+}
+
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h4 {
+  font-size: var(--hirevo-h4-size);
+}
+
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h5 {
+  font-size: var(--hirevo-h5-size);
+}
+
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h6 {
+  font-size: var(--hirevo-h6-size);
+}
+`;
+
+  return injectStyleIntoHtmlHead(html, CLASSIC_TEMPLATE_STYLE_TAG_ID, cssText);
+};
+
+const isLocalHostname = (hostname: string) => hostname === 'localhost' || hostname === '127.0.0.1';
+
+const buildPdfEndpointCandidates = () => {
+  const configuredEndpoint = pdfApiUrl('/render-resume-pdf');
+  const localRuntime = typeof window !== 'undefined' && isLocalHostname(window.location.hostname);
+  const looksLikeSupabaseFunctionEndpoint = /\/functions\/v1\/api\/render-resume-pdf$/i.test(configuredEndpoint);
+  const usesSameOriginProxyEndpoint = /^\/api\/render-resume-pdf$/i.test(configuredEndpoint);
+
+  const candidates = [
+    ...(configuredEndpoint ? [configuredEndpoint] : []),
+    ...(
+      !EXPLICIT_PDF_API_BASE
+      && localRuntime
+      && !usesSameOriginProxyEndpoint
+      && !looksLikeSupabaseFunctionEndpoint
+      && configuredEndpoint !== LOCAL_PDF_ENDPOINT
+        ? [LOCAL_PDF_ENDPOINT]
+        : []
+    ),
+  ];
+
+  return Array.from(new Set(candidates.filter(Boolean)));
+};
+
+const toUint8Array = (value: ArrayBuffer | Uint8Array) => {
+  if (value instanceof Uint8Array) return value;
+  return new Uint8Array(value);
+};
+
+const toPdfBlobPart = (bytes: Uint8Array): ArrayBuffer => {
+  if (bytes.buffer instanceof ArrayBuffer) {
+    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  }
+  return Uint8Array.from(bytes).buffer;
+};
+
+const hasPdfSignature = (bytes: Uint8Array) =>
+  bytes.length >= PDF_SIGNATURE.length
+  && PDF_SIGNATURE.every((value, index) => bytes[index] === value);
+
+const parseJsonEncodedPdfBytes = (payload: unknown): Uint8Array | null => {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+
+  const numericEntries = Object.entries(payload)
+    .filter(([key]) => /^\d+$/.test(key))
+    .sort((left, right) => Number(left[0]) - Number(right[0]));
+
+  if (!numericEntries.length) return null;
+
+  const bytes = new Uint8Array(numericEntries.length);
+  for (let index = 0; index < numericEntries.length; index += 1) {
+    const [key, value] = numericEntries[index];
+    if (Number(key) !== index || typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 255) {
+      return null;
+    }
+    bytes[index] = value;
+  }
+
+  return hasPdfSignature(bytes) ? bytes : null;
+};
+
+const decodePdfResponse = (data: ArrayBuffer | Uint8Array, contentType: string) => {
+  const bytes = toUint8Array(data);
+  if (hasPdfSignature(bytes)) {
+    return new Blob([toPdfBlobPart(bytes)], { type: 'application/pdf' });
+  }
+
+  const text = new TextDecoder().decode(bytes).trim();
+  const lowerContentType = contentType.toLowerCase();
+  const lowerText = text.toLowerCase();
+  if (text.startsWith('{') || text.startsWith('[')) {
+    const parsed = JSON.parse(text) as { error?: string; details?: string };
+    const jsonPdfBytes = parseJsonEncodedPdfBytes(parsed);
+    if (jsonPdfBytes) {
+      return new Blob([toPdfBlobPart(jsonPdfBytes)], { type: 'application/pdf' });
+    }
+
+    throw new Error(parsed.details || parsed.error || 'PDF service returned JSON instead of a PDF file.');
+  }
+
+  const looksLikeHtml = lowerContentType.includes('text/html')
+    || lowerText.startsWith('<!doctype html')
+    || lowerText.startsWith('<html');
+  if (looksLikeHtml) {
+    const localRuntime = typeof window !== 'undefined' && isLocalHostname(window.location.hostname);
+    if (localRuntime) {
+      throw new Error('PDF request returned HTML instead of a PDF. Restart the frontend dev server so the /api proxy in vite.config.ts is active, then refresh and try again.');
+    }
+    throw new Error('PDF service returned HTML instead of a PDF file.');
+  }
+
+  const contentTypeHint = contentType ? ` (${contentType})` : '';
+  throw new Error(`PDF service returned an invalid document${contentTypeHint}.`);
+};
+
+const parsePdfHttpFailure = (endpoint: string, status: number, data: ArrayBuffer | Uint8Array) => {
+  const bytes = toUint8Array(data);
+  const text = bytes.length ? new TextDecoder().decode(bytes).trim() : '';
+
+  if (status === 404) {
+    return `PDF route not found at ${endpoint}. Point VITE_PDF_API_BASE to the Node PDF service or run the local backend on port 5000.`;
+  }
+
+  if (text.startsWith('{') || text.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(text) as { error?: string; details?: string; message?: string };
+      return parsed.details || parsed.error || parsed.message || `PDF service returned ${status}.`;
+    } catch {
+      // Fall through to text fallback.
+    }
+  }
+
+  return text || `PDF service returned ${status}.`;
+};
+
+const requestPdfBlob = async (endpoint: string, payload: { html: string; filenameBase: string }) => {
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timeoutId = window.setTimeout(() => controller?.abort(), 120000);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/pdf',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+      signal: controller?.signal,
+    });
+
+    const data = await response.arrayBuffer();
+    if (!response.ok) {
+      throw new Error(parsePdfHttpFailure(endpoint, response.status, data));
+    }
+
+    return decodePdfResponse(data, response.headers.get('content-type') || '');
+  } catch (error) {
+    if ((error as DOMException | undefined)?.name === 'AbortError') {
+      throw new Error('PDF generation timed out. Please try again.');
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 };
 
 type TemplateListItem = {
-  kind: 'html' | 'json';
   name: string;
   displayName: string;
   thumbnailUrl?: string;
-  json?: ResumeTemplateRecord;
 };
+
+const JSON_TEMPLATE_FIELD_LABELS: Record<string, string> = {
+  about_myself_heading: 'About Myself Heading',
+  additional_heading: 'Additional Information Heading',
+  additional_skills_heading: 'Additional Skills Heading',
+  certifications_heading: 'Certifications Heading',
+  certifications_text: 'Certifications',
+  contacts_heading: 'Contacts Heading',
+  date_of_birth: 'Date of Birth',
+  language_heading: 'Language Heading',
+  languages: 'Languages',
+  minimalist_experience_heading: 'Experience Heading',
+  marital_status: 'Marital Status',
+  nationality: 'Nationality',
+  reference_heading: 'Reference Heading',
+  references_heading: 'References Heading',
+  reference_email_label: 'Reference Email Label',
+  reference_phone_label: 'Reference Phone Label',
+  reference_primary_email: 'Primary Reference Email',
+  reference_primary_name: 'Primary Reference Name',
+  reference_primary_phone: 'Primary Reference Phone',
+  reference_primary_title: 'Primary Reference Title',
+  reference_secondary_email: 'Secondary Reference Email',
+  reference_secondary_name: 'Secondary Reference Name',
+  reference_secondary_phone: 'Secondary Reference Phone',
+  reference_secondary_title: 'Secondary Reference Title',
+  summary_heading: 'Summary Heading',
+};
+
+const RESUME_SECTION_TITLES: Record<string, string> = {
+  contact: 'Personal Details',
+  personal_info: 'Personal Information',
+  summary: 'Professional Summary',
+  experience: 'Work Experience',
+  education: 'Education',
+  skills: 'Skills',
+  languages: 'Languages',
+  certifications: 'Certifications',
+  awards: 'Achievements / Awards',
+  references: 'References',
+};
+
+const REQUIRED_EDITOR_SECTION_IDS = new Set([
+  'contact',
+  'personal_info',
+  'education',
+  'experience',
+  'skills',
+]);
+
+const JSON_TEMPLATE_PROTECTED_FIELD_KEYS = new Set([
+  'first_name',
+  'firstname',
+  'last_name',
+  'lastname',
+  'name',
+  'full_name',
+  'fullname',
+  'title',
+  'role',
+  'position',
+  'email',
+  'phone',
+  'location',
+  'photo_url',
+  'summary',
+  'profile',
+  'objective',
+  'skills',
+  'skills_text',
+  'languages',
+  'languages_text',
+  'projects',
+  'projects_text',
+  'experience',
+  'education',
+  'additional',
+  'custom_details',
+  'customdetails',
+  'contact',
+  'contact_line',
+  'contactline',
+  'website_line',
+  'websiteline',
+  'sidebar_contacts',
+  'sidebarcontacts',
+  'header_contact',
+  'headercontact',
+  'links',
+].map((key) => normalizeFieldKey(key)));
+
+const formatTemplateFieldLabel = (field: string) => {
+  const normalized = normalizeFieldKey(field);
+  if (JSON_TEMPLATE_FIELD_LABELS[normalized]) return JSON_TEMPLATE_FIELD_LABELS[normalized];
+  return field
+    .replace(/_/g, ' ')
+    .replace(/\burl\b/gi, 'URL')
+    .replace(/\bid\b/gi, 'ID')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const DEFAULT_RESUME_PROFILE = {
+  contactName: 'Muhammad Usman Ahmed',
+  contactRole: 'Software Engineer | Full Stack Developer',
+  contactEmail: 'muhammad.usman.ahmed@email.com',
+  contactPhone: '+31 6 4827 1934',
+  contactLocation: 'Delft, Zuid-Holland, Netherlands',
+  summaryText:
+    'Results-oriented Software Engineer with over 4 years of experience in designing, developing, and maintaining scalable web and mobile applications. Proficient in modern frontend and backend technologies including React.js, Node.js, TypeScript, and cloud databases. Strong expertise in building AI-powered applications, resume generation systems, and responsive user interfaces with a focus on performance and user experience.',
+  skillsText: [
+    'Programming Languages: JavaScript, TypeScript, Python, Java, SQL',
+    'Frontend: React.js, Next.js, HTML5, CSS3, Tailwind CSS',
+    'Backend: Node.js, Express.js, REST APIs',
+    'Database: PostgreSQL, MySQL, Supabase, Firebase',
+    'Tools & Platforms: Git, GitHub, Docker, Vercel, Netlify',
+  ].join('\n'),
+  projectsText: [
+    'AI Resume Builder Platform - Built an AI-powered resume generation system with smart suggestions, multi-template support, and PDF export.',
+    'Hiring Dashboard Suite - Developed a role-based hiring dashboard with analytics, secure authentication, and scalable API integrations.',
+  ].join('\n'),
+};
+
+const DEFAULT_EXPERIENCE_ITEMS = [
+  {
+    id: 'exp-default-1',
+    company: 'TechVision Solutions - Amsterdam, Netherlands',
+    role: 'Senior Software Engineer',
+    dates: 'March 2023 - Present',
+    details:
+      'Led development of enterprise-level web applications using React.js and Node.js. Architected scalable backend services and RESTful APIs. Improved application performance by 45% through code optimization. Designed secure authentication and role-based access systems. Managed cloud database solutions using Supabase and PostgreSQL. Collaborated with cross-functional teams using Agile methodology. Integrated AI-based content generation modules for job-search platforms.',
+  },
+  {
+    id: 'exp-default-2',
+    company: 'InnovateX Digital - Lahore, Pakistan',
+    role: 'Software Developer',
+    dates: 'July 2021 - February 2023',
+    details:
+      'Developed dynamic web dashboards and admin portals. Built reusable UI components for multiple product teams. Integrated third-party APIs and payment gateways. Maintained high code quality using Git and version control workflows. Reduced page load time by 30%.',
+  },
+];
+
+const DEFAULT_EDUCATION_ITEMS = [
+  {
+    id: 'edu-default-1',
+    school: 'National University of Computer and Emerging Sciences',
+    degree: 'Bachelor of Science in Computer Science (BSCS)',
+    dates: '2020 - 2024',
+    details:
+      'CGPA: 3.78 / 4.00. Relevant coursework: Data Structures & Algorithms, Database Management Systems, Operating Systems, Software Engineering, Artificial Intelligence, Computer Networks, Cloud Computing, Web Engineering.',
+  },
+  {
+    id: 'edu-default-2',
+    school: 'Government College University, Lahore',
+    degree: 'Higher Secondary School Certificate (FSC - Pre-Engineering)',
+    dates: '2018 - 2020',
+    details:
+      'Grade: A+. Marks: 1012 / 1100. Core subjects: Mathematics, Physics, Computer Science, English, Urdu, Pakistan Studies, Islamiat.',
+  },
+  {
+    id: 'edu-default-3',
+    school: 'The Educators School, Lahore',
+    degree: 'Secondary School Certificate (Matric - Science)',
+    dates: '2016 - 2018',
+    details:
+      'Grade: A+. Marks: 1048 / 1100. Core subjects: Mathematics, Physics, Chemistry, Biology, Computer Science, English, Urdu.',
+  },
+];
+
+const DEFAULT_TEMPLATE_FIELD_VALUES = {
+  website: 'www.usmanahmed.dev',
+  portfolio: 'www.usmanahmed.dev',
+  linkedin: 'linkedin.com/in/muhammadusmanahmed',
+  address: 'Delft, Zuid-Holland, Netherlands',
+  city: 'Delft',
+  country: 'Netherlands',
+  languages: 'English - Fluent\nDutch - Intermediate\nUrdu - Native',
+  certifications: 'AWS Cloud Practitioner\nMeta Front-End Developer Certificate\nGoogle IT Support Certificate',
+};
+
+const DEFAULT_CUSTOM_DETAILS = [
+  { id: 'custom-default-1', label: 'LinkedIn', value: 'linkedin.com/in/muhammadusmanahmed' },
+  { id: 'custom-default-2', label: 'Portfolio', value: 'www.usmanahmed.dev' },
+  {
+    id: 'custom-default-3',
+    label: 'Certifications',
+    value: 'AWS Cloud Practitioner, Meta Front-End Developer Certificate, Google IT Support Certificate',
+  },
+];
 
 export const Resume = () => {
   const { user } = useAuth();
@@ -71,36 +797,40 @@ export const Resume = () => {
   const backTarget = isBuilderEditorRoute ? '/resume-builder/templates' : '/resume/templates';
 
   // Resume Builder state
-  const [contactName, setContactName] = useState("");
-  const [contactRole, setContactRole] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
-  const [contactLocation, setContactLocation] = useState("");
+  const [contactName, setContactName] = useState(DEFAULT_RESUME_PROFILE.contactName);
+  const [contactRole, setContactRole] = useState(DEFAULT_RESUME_PROFILE.contactRole);
+  const [contactEmail, setContactEmail] = useState(DEFAULT_RESUME_PROFILE.contactEmail);
+  const [contactPhone, setContactPhone] = useState(DEFAULT_RESUME_PROFILE.contactPhone);
+  const [contactLocation, setContactLocation] = useState(DEFAULT_RESUME_PROFILE.contactLocation);
   const [contactPhotoUrl, setContactPhotoUrl] = useState("");
   const [contactPhotoName, setContactPhotoName] = useState("");
-  const [summaryText, setSummaryText] = useState("");
-  const [skillsText, setSkillsText] = useState("");
+  const [pendingPhotoCropSrc, setPendingPhotoCropSrc] = useState<string | null>(null);
+  const [pendingPhotoCropName, setPendingPhotoCropName] = useState("");
+  const [summaryText, setSummaryText] = useState(DEFAULT_RESUME_PROFILE.summaryText);
+  const [skillsText, setSkillsText] = useState(DEFAULT_RESUME_PROFILE.skillsText);
   const [skillsInput, setSkillsInput] = useState("");
+  const [languagesInput, setLanguagesInput] = useState("");
   const [activeEditorTab, setActiveEditorTab] = useState<'edit' | 'customize' | 'review' | 'tailor'>('edit');
+  const [hasUnlockedCustomize, setHasUnlockedCustomize] = useState(false);
   const [tailorRole, setTailorRole] = useState('');
   const [tailorKeywords, setTailorKeywords] = useState('');
-  const [projectsText, setProjectsText] = useState("");
+  const [projectsText, setProjectsText] = useState(DEFAULT_RESUME_PROFILE.projectsText);
   const [additionalText] = useState("");
-  const [customDetails, setCustomDetails] = useState<{ id: string; label: string; value: string }[]>([]);
-  const [educationItems, setEducationItems] = useState([
-    { id: 'edu-1', school: '', degree: '', dates: '', details: '' },
-  ]);
-  const [experienceItems, setExperienceItems] = useState([
-    { id: 'exp-1', company: '', role: '', dates: '', details: '' },
-  ]);
+  const [customDetails, setCustomDetails] = useState<{ id: string; label: string; value: string }[]>(
+    () => DEFAULT_CUSTOM_DETAILS.map((item) => ({ ...item }))
+  );
+  const [educationItems, setEducationItems] = useState(() => DEFAULT_EDUCATION_ITEMS.map((item) => ({ ...item })));
+  const [experienceItems, setExperienceItems] = useState(() => DEFAULT_EXPERIENCE_ITEMS.map((item) => ({ ...item })));
   const [sectionOrder, setSectionOrder] = useState<string[]>([
     'contact',
     'summary',
     'experience',
-    'projects',
     'education',
     'skills',
-    'custom',
+    'certifications',
+    'languages',
+    'awards',
+    'references',
   ]);
   const [draggingSection, setDraggingSection] = useState<string | null>(null);
   const [activeSectionId, setActiveSectionId] = useState<string | null>('contact');
@@ -121,16 +851,14 @@ export const Resume = () => {
   const previewScaleRef = useRef(1);
   const autoDetectLockedRef = useRef(false);
   const showMobilePreview = false;
-  const [jsonTemplates, setJsonTemplates] = useState<ResumeTemplateRecord[]>([]);
-  const [jsonTemplateLoading, setJsonTemplateLoading] = useState(false);
-  const [jsonTemplateError, setJsonTemplateError] = useState<string | null>(null);
-  const [selectedJsonTemplate, setSelectedJsonTemplate] = useState<ResumeTemplateRecord | null>(null);
-  const jsonTemplateLoadIdRef = useRef(0);
-  const [jsonSectionOrder, setJsonSectionOrder] = useState<string[]>([]);
   const [templateStep, setTemplateStep] = useState<'choose' | 'edit'>('choose');
   const [selectedColorPreset, setSelectedColorPreset] = useState<TemplateColorPresetId>('gold');
   const [customTemplateColor, setCustomTemplateColor] = useState(DEFAULT_CUSTOM_TEMPLATE_COLOR);
+  const [classicTemplateStyleSettings, setClassicTemplateStyleSettings] = useState<ClassicTemplateStyleSettings>(
+    DEFAULT_CLASSIC_TEMPLATE_STYLE_SETTINGS
+  );
   const [uploadingResume, setUploadingResume] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [isFillingDemo, setIsFillingDemo] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [, setSaveStatus] = useState<'saved' | 'saving'>('saved');
@@ -140,6 +868,7 @@ export const Resume = () => {
   const autosaveTimerRef = useRef<number | null>(null);
   const isApplyingHistoryRef = useRef(false);
   const restoreKeyRef = useRef<string | null>(null);
+  const defaultTemplateSeedRef = useRef<string | null>(null);
 
   const [activeTemplateFilter, setActiveTemplateFilter] = useState('All templates');
   const resumeViewRestoreRef = useRef(false);
@@ -157,51 +886,46 @@ export const Resume = () => {
     templateSourceHtml,
     selectTemplate,
     updateField,
+    replaceFields: replaceTemplateFieldValues,
     refreshTemplates,
   } = useResumeTemplate(user);
 
-  const refreshJsonTemplates = useCallback(async () => {
-    const loadId = ++jsonTemplateLoadIdRef.current;
-    setJsonTemplateLoading(true);
-    setJsonTemplateError(null);
-    try {
-      const data = await listResumeTemplateDefinitions({ activeOnly: true });
-      if (jsonTemplateLoadIdRef.current !== loadId) return;
-      setJsonTemplates(mergeResumeTemplateRecords(data));
-    } catch (error) {
-      if (jsonTemplateLoadIdRef.current !== loadId) return;
-      console.error('Failed to load JSON resume templates:', error);
-      setJsonTemplates(mergeResumeTemplateRecords([]));
-      setJsonTemplateError('Failed to load JSON templates.');
-    } finally {
-      if (jsonTemplateLoadIdRef.current === loadId) {
-        setJsonTemplateLoading(false);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    void refreshJsonTemplates();
-  }, [refreshJsonTemplates]);
-
-  useEffect(() => {
-    if (!selectedJsonTemplate) {
-      setJsonSectionOrder([]);
-      return;
-    }
-    setJsonSectionOrder(selectedJsonTemplate.definition.sections.map((section) => section.id));
-  }, [selectedJsonTemplate]);
-
-  const getTemplateFieldValue = (key: string) => {
+  const getTemplateFieldValue = useCallback((key: string) => {
     if (templateFieldValues[key]) return templateFieldValues[key];
     const normalized = normalizeFieldKey(key);
     const match = Object.keys(templateFieldValues).find((k) => normalizeFieldKey(k) === normalized);
     return match ? templateFieldValues[match] : '';
-  };
+  }, [templateFieldValues]);
 
   const setTemplateFieldValue = useCallback((key: string, value: string) => {
     updateField(key, value);
   }, [updateField]);
+
+  useEffect(() => {
+    if (!selectedTemplate) return;
+
+    const storageKey = `hirevo:resume-editor:${effectiveTemplateId || 'default'}:${user?.id || 'anon'}`;
+    const hasSavedDraft = isEditorRoute && Boolean(window.localStorage.getItem(storageKey));
+    if (hasSavedDraft) return;
+
+    const applyKey = `${isEditorRoute ? storageKey : 'resume-default'}:${selectedTemplate}`;
+    if (defaultTemplateSeedRef.current === applyKey) return;
+
+    Object.entries(DEFAULT_TEMPLATE_FIELD_VALUES).forEach(([key, value]) => {
+      if (!getTemplateFieldValue(key)) {
+        setTemplateFieldValue(key, value);
+      }
+    });
+
+    defaultTemplateSeedRef.current = applyKey;
+  }, [
+    effectiveTemplateId,
+    getTemplateFieldValue,
+    isEditorRoute,
+    selectedTemplate,
+    setTemplateFieldValue,
+    user?.id,
+  ]);
 
   const defaultTemplateFields = useMemo(
     () => ([
@@ -253,11 +977,9 @@ export const Resume = () => {
     []
   );
 
-  const isJsonTemplateSelected = Boolean(selectedJsonTemplate);
-
   const activeTemplateFields = useMemo(
-    () => (isJsonTemplateSelected ? defaultTemplateFields : templateFields),
-    [defaultTemplateFields, isJsonTemplateSelected, templateFields]
+    () => (templateFields.length > 0 ? templateFields : defaultTemplateFields),
+    [defaultTemplateFields, templateFields]
   );
 
   const templateFieldSet = useMemo(
@@ -279,10 +1001,9 @@ export const Resume = () => {
   }, []);
 
   const selectedTemplateLabel = useMemo(() => {
-    if (selectedJsonTemplate) return selectedJsonTemplate.name || selectedJsonTemplate.slug;
     const match = templates.find((t) => t.name === selectedTemplate);
     return match?.displayName || selectedTemplate || 'Template';
-  }, [selectedJsonTemplate, selectedTemplate, templates]);
+  }, [selectedTemplate, templates]);
 
   const selectedColorPresetValue = useMemo(
     () => TEMPLATE_COLOR_PRESETS.find((preset) => preset.id === selectedColorPreset) || TEMPLATE_COLOR_PRESETS[0],
@@ -299,9 +1020,48 @@ export const Resume = () => {
     [normalizedCustomTemplateColor, selectedColorPreset, selectedColorPresetValue.accent]
   );
 
-  const jsonTemplateSupportsColorPreset = useMemo(
-    () => Boolean(selectedJsonTemplate && COLOR_PRESET_TEMPLATE_SLUGS.has(selectedJsonTemplate.slug)),
-    [selectedJsonTemplate]
+  const updateClassicTemplateStyleColor = useCallback(
+    (key: ClassicTemplateStyleColorKey, value: string) => {
+      setClassicTemplateStyleSettings((prev) => ({
+        ...prev,
+        [key]: normalizeHexColor(value, prev[key]),
+      }));
+    },
+    []
+  );
+
+  const updateClassicTemplateStyleFont = useCallback(
+    (key: ClassicTemplateStyleFontKey, value: string) => {
+      if (!CLASSIC_TEMPLATE_FONT_OPTION_SET.has(value)) return;
+      setClassicTemplateStyleSettings((prev) => ({
+        ...prev,
+        [key]: value,
+      }));
+    },
+    []
+  );
+
+  const updateClassicTemplateStyleNumber = useCallback(
+    (key: ClassicTemplateStyleNumberKey, value: number) => {
+      if (!Number.isFinite(value)) return;
+      setClassicTemplateStyleSettings((prev) => ({
+        ...(() => {
+          if (CLASSIC_TEMPLATE_HEADING_KEYS.includes(key as ClassicTemplateHeadingKey)) {
+            return applyClassicTemplateHeadingSizeChange(
+              prev,
+              key as ClassicTemplateHeadingKey,
+              value
+            );
+          }
+          const limit = CLASSIC_TEMPLATE_NUMBER_LIMITS[key];
+          return {
+            ...prev,
+            [key]: roundHalfStep(clampNumber(value, limit.min, limit.max)),
+          };
+        })(),
+      }));
+    },
+    []
   );
 
   const templateFilters = [
@@ -315,26 +1075,15 @@ export const Resume = () => {
   ];
 
   const templateCatalog = useMemo<TemplateListItem[]>(() => {
-    const jsonItems = jsonTemplates.map((template) => ({
-      kind: 'json' as const,
-      name: template.slug,
-      displayName: template.name,
-      thumbnailUrl: template.thumbnailUrl ?? undefined,
-      json: template,
-    }));
-    const htmlItems = templates.map((template) => ({
-      kind: 'html' as const,
+    return templates.map((template) => ({
       name: template.name,
       displayName: template.displayName,
       thumbnailUrl: template.thumbnailUrl,
     }));
-    return [...jsonItems, ...htmlItems];
-  }, [jsonTemplates, templates]);
+  }, [templates]);
 
-  const combinedTemplateLoading = templateLoading || jsonTemplateLoading;
-  const combinedTemplateError = isJsonTemplateSelected
-    ? jsonTemplateError
-    : templateError || (templateCatalog.length === 0 ? jsonTemplateError : null);
+  const combinedTemplateLoading = templateLoading;
+  const combinedTemplateError = templateError;
 
   const filteredTemplates = useMemo(() => {
     if (templateCatalog.length === 0) return [];
@@ -379,6 +1128,13 @@ export const Resume = () => {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)+/g, '');
 
+  const selectedTemplateSlug = useMemo(() => {
+    const base = selectedTemplate.split('/').pop() || selectedTemplate;
+    return slugifyTemplate(base);
+  }, [selectedTemplate]);
+
+  const supportsClassicTemplateCustomization = selectedTemplateSlug === CLASSIC_PORTRAIT_TEMPLATE_SLUG;
+
   const findTemplateBySlug = useCallback(
     (slug?: string | null) => {
       if (!slug) return null;
@@ -393,141 +1149,51 @@ export const Resume = () => {
     [templates]
   );
 
-  const findJsonTemplateBySlug = useCallback(
-    (slug?: string | null) => {
-      if (!slug) return null;
-      const normalized = slugifyTemplate(slug);
-      return jsonTemplates.find((t) =>
-        slugifyTemplate(t.slug) === normalized || slugifyTemplate(t.name) === normalized
-      ) || null;
-    },
-    [jsonTemplates]
-  );
-
-  const demoSamples = useMemo(() => ([
-    {
-      name: 'Noman Khan',
-      role: 'Full-Stack Developer',
-      email: 'noman.dev@gmail.com',
-      phone: '+92 300 1234567',
-      location: 'Lahore, Pakistan',
-      summary:
-        'Full-stack developer with 4+ years building React, Node.js, and Supabase apps. Delivered 20+ features, improved load time by 35%, and shipped scalable UI systems.',
-      skills: 'React, TypeScript, Node.js, Supabase, PostgreSQL, Tailwind, REST APIs, CI/CD',
-      projects: [
-        'Workshour – Job platform with Supabase auth, analytics, and resume builder',
-        'Hiring CRM – Candidate pipeline with role-based access and audit logs',
-      ],
-      experience: [
-        {
-          role: 'Full-Stack Engineer',
-          company: 'Hirevo',
-          dates: 'Jan 2023 - Present',
-          details: 'Built hiring workflows and resume tooling. Optimized API performance by 40%.',
-        },
-        {
-          role: 'Frontend Developer',
-          company: 'Techstack Labs',
-          dates: 'Aug 2021 - Dec 2022',
-          details: 'Led UI migration to React + TypeScript. Implemented design system.',
-        },
-      ],
-      education: [
-        {
-          degree: 'BS Computer Science',
-          school: 'University of Lahore',
-          dates: '2017 - 2021',
-          details: 'Focused on software engineering and databases.',
-        },
-      ],
-      custom: [
-        { label: 'Certifications', value: 'AWS Cloud Practitioner' },
-        { label: 'Languages', value: 'English, Urdu' },
-      ],
-    },
-    {
-      name: 'Aisha Noor',
-      role: 'Product Designer',
-      email: 'aisha.noor@gmail.com',
-      phone: '+92 311 555 1990',
-      location: 'Karachi, Pakistan',
-      summary:
-        'Product designer focused on clean UX and business outcomes. Shipped 3 design systems and improved conversion by 18% across onboarding flows.',
-      skills: 'Figma, UX Research, Design Systems, Prototyping, Accessibility, Brand',
-      projects: [
-        'Onboarding revamp for fintech app',
-        'Design system for multi-brand platform',
-      ],
-      experience: [
-        {
-          role: 'Senior Product Designer',
-          company: 'Fintechly',
-          dates: 'Mar 2022 - Present',
-          details: 'Led end-to-end product design and user research.',
-        },
-      ],
-      education: [
-        {
-          degree: 'BDes Visual Communication',
-          school: 'IBA Karachi',
-          dates: '2016 - 2020',
-          details: 'Graduated with distinction.',
-        },
-      ],
-      custom: [
-        { label: 'Portfolio', value: 'behance.net/aishanoor' },
-      ],
-    },
-  ]), []);
-
-  const fillWithDemoData = useCallback(() => {
+  const fillWithFakeData = useCallback(() => {
     setIsFillingDemo(true);
-    const sample = demoSamples[Math.floor(Math.random() * demoSamples.length)];
-
-    setContactName(sample.name);
-    setContactRole(sample.role);
-    setContactEmail(sample.email);
-    setContactPhone(sample.phone);
-    setContactLocation(sample.location);
-    setSummaryText(sample.summary);
-    setSkillsText(sample.skills);
-    setProjectsText(sample.projects.join('\n'));
+    setActiveEditorTab('edit');
+    setContactName(DEFAULT_RESUME_PROFILE.contactName);
+    setContactRole(DEFAULT_RESUME_PROFILE.contactRole);
+    setContactEmail(DEFAULT_RESUME_PROFILE.contactEmail);
+    setContactPhone(DEFAULT_RESUME_PROFILE.contactPhone);
+    setContactLocation(DEFAULT_RESUME_PROFILE.contactLocation);
+    setSummaryText(DEFAULT_RESUME_PROFILE.summaryText);
+    setSkillsText(DEFAULT_RESUME_PROFILE.skillsText);
+    setProjectsText(DEFAULT_RESUME_PROFILE.projectsText);
+    setContactPhotoUrl('');
+    setContactPhotoName('');
     setExperienceItems(
-      sample.experience.map((item, index) => ({
-        id: `exp-demo-${index + 1}`,
-        company: item.company,
-        role: item.role,
-        dates: item.dates,
-        details: item.details,
+      DEFAULT_EXPERIENCE_ITEMS.map((item, index) => ({
+        ...item,
+        id: `exp-fake-${index + 1}`,
       }))
     );
     setEducationItems(
-      sample.education.map((item, index) => ({
-        id: `edu-demo-${index + 1}`,
-        school: item.school,
-        degree: item.degree,
-        dates: item.dates,
-        details: item.details,
+      DEFAULT_EDUCATION_ITEMS.map((item, index) => ({
+        ...item,
+        id: `edu-fake-${index + 1}`,
       }))
     );
     setCustomDetails(
-      sample.custom.map((item, index) => ({
-        id: `custom-demo-${index + 1}`,
-        label: item.label,
-        value: item.value,
+      DEFAULT_CUSTOM_DETAILS.map((item, index) => ({
+        ...item,
+        id: `custom-fake-${index + 1}`,
       }))
     );
+    Object.entries(DEFAULT_TEMPLATE_FIELD_VALUES).forEach(([key, value]) => {
+      setTemplateFieldValue(key, value);
+    });
     setGenerateError(null);
     setIsFillingDemo(false);
-  }, [demoSamples]);
+  }, [setTemplateFieldValue]);
 
   const isTemplateSelection =
-    !isEditorRoute && (templateStep === 'choose' || (!selectedTemplate && !selectedJsonTemplate));
+    !isEditorRoute && (templateStep === 'choose' || !selectedTemplate);
 
   useEffect(() => {
     if (resumeViewRestoreRef.current) return;
-    if (templateLoading || jsonTemplateLoading) return;
-    if (templates.length === 0 && jsonTemplates.length === 0) return;
+    if (templateLoading) return;
+    if (templates.length === 0) return;
 
     resumeViewRestoreRef.current = true;
 
@@ -538,19 +1204,10 @@ export const Resume = () => {
       const savedState = JSON.parse(raw) as {
         templateStep?: 'choose' | 'edit';
         selectedTemplate?: string;
-        selectedJsonTemplate?: string;
       };
 
       if (savedState.templateStep === 'choose' || savedState.templateStep === 'edit') {
         setTemplateStep(savedState.templateStep);
-      }
-
-      if (savedState.selectedJsonTemplate) {
-        const match = jsonTemplates.find((template) => template.slug === savedState.selectedJsonTemplate);
-        if (match) {
-          setSelectedJsonTemplate(match);
-          return;
-        }
       }
 
       if (
@@ -564,8 +1221,6 @@ export const Resume = () => {
       // Ignore malformed saved state and continue with defaults.
     }
   }, [
-    jsonTemplateLoading,
-    jsonTemplates,
     selectedTemplate,
     selectTemplate,
     templateLoading,
@@ -580,10 +1235,9 @@ export const Resume = () => {
       JSON.stringify({
         templateStep,
         selectedTemplate,
-        selectedJsonTemplate: selectedJsonTemplate?.slug || '',
       })
     );
-  }, [selectedJsonTemplate, selectedTemplate, templateStep]);
+  }, [selectedTemplate, templateStep]);
 
   const hasTemplateField = useCallback(
     (key: string) => activeTemplateFields.length > 0 && templateFieldSet.has(normalizeFieldKey(key)),
@@ -595,59 +1249,52 @@ export const Resume = () => {
     [hasTemplateField]
   );
 
-  const showNameField = useMemo(
-    () => hasAnyTemplateField('name', 'full_name', 'fullname', 'full-name'),
-    [hasAnyTemplateField]
-  );
-  const showRoleField = useMemo(
-    () => hasAnyTemplateField('role', 'title', 'position', 'jobtitle', 'targetrole'),
-    [hasAnyTemplateField]
-  );
-  const showEmailField = useMemo(() => hasAnyTemplateField('email'), [hasAnyTemplateField]);
-  const showPhoneField = useMemo(() => hasAnyTemplateField('phone', 'mobile'), [hasAnyTemplateField]);
-  const showLocationField = useMemo(
-    () => hasAnyTemplateField('location', 'address', 'city', 'country'),
-    [hasAnyTemplateField]
-  );
+  const showNameField = true;
+  const showRoleField = true;
+  const showEmailField = true;
+  const showPhoneField = true;
+  const showLocationField = true;
   const showPhotoField = useMemo(() => hasAnyTemplateField('photo_url'), [hasAnyTemplateField]);
+  const showWebsiteField = true;
+  const showLinkedInField = true;
+  const showGitHubField = false;
+  const showPostalCodeField = false;
+  const showCountryField = false;
 
-  const showContactSection = useMemo(
-    () => [showNameField, showRoleField, showEmailField, showPhoneField, showLocationField, showPhotoField].some(Boolean),
-    [showEmailField, showLocationField, showNameField, showPhoneField, showPhotoField, showRoleField]
+  const showContactSection = true;
+  const showSummarySection = true;
+  const showExperienceSection = true;
+  const showEducationSection = true;
+  const showSkillsSection = true;
+  const personalInfoFields = useMemo(
+    () => activeTemplateFields.filter((field) => {
+      const normalized = normalizeFieldKey(field);
+      return normalized === 'dateofbirth' || normalized === 'nationality' || normalized === 'maritalstatus';
+    }),
+    [activeTemplateFields]
   );
-  const showSummarySection = useMemo(
-    () => hasAnyTemplateField('summary', 'profile', 'objective', 'hassummary'),
-    [hasAnyTemplateField]
-  );
-  const showExperienceSection = useMemo(
-    () => hasAnyTemplateField('experience', 'work_experience', 'workexperience', 'hasexperience'),
-    [hasAnyTemplateField]
-  );
-  const showProjectsSection = useMemo(
-    () => hasAnyTemplateField('projects', 'hasprojects'),
-    [hasAnyTemplateField]
-  );
-  const showEducationSection = useMemo(
-    () => hasAnyTemplateField('education', 'haseducation'),
-    [hasAnyTemplateField]
-  );
-  const showSkillsSection = useMemo(
-    () => hasAnyTemplateField('skills', 'hasskills'),
-    [hasAnyTemplateField]
-  );
-  const showCustomSection = useMemo(
-    () => hasAnyTemplateField('customdetails', 'custom_details', 'hascustomdetails'),
-    [hasAnyTemplateField]
-  );
+  const showPersonalInfoSection = personalInfoFields.length > 0;
+  const showLanguagesSection = true;
+  const showCertificationsSection = true;
+  const showAwardsSection = true;
+  const showReferencesSection = true;
 
-  const knownFieldKeys = useMemo(
-    () => new Set(defaultTemplateFields.map((key) => normalizeFieldKey(key))),
-    [defaultTemplateFields]
-  );
-
-  const extraFields = useMemo(
-    () => activeTemplateFields.filter((field) => !knownFieldKeys.has(normalizeFieldKey(field))),
-    [activeTemplateFields, knownFieldKeys]
+  const languageFields = useMemo(() => ['languages'], []);
+  const certificationFields = useMemo(() => ['certifications'], []);
+  const awardFields = useMemo(() => ['awards'], []);
+  const referenceFields = useMemo(
+    () => [
+      'reference_primary_name',
+      'reference_primary_title',
+      'reference_primary_phone',
+      'reference_primary_email',
+      'reference_secondary_name',
+      'reference_secondary_title',
+      'reference_secondary_phone',
+      'reference_secondary_email',
+      'references',
+    ],
+    []
   );
 
   const makeId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
@@ -656,19 +1303,39 @@ export const Resume = () => {
     if (!file) {
       setContactPhotoUrl("");
       setContactPhotoName("");
+      setPendingPhotoCropSrc(null);
+      setPendingPhotoCropName("");
       return;
     }
-    setContactPhotoName(file.name);
     const reader = new FileReader();
     reader.onload = () => {
       const result = typeof reader.result === 'string' ? reader.result : '';
-      setContactPhotoUrl(result);
+      if (!result) {
+        setPendingPhotoCropSrc(null);
+        setPendingPhotoCropName("");
+        return;
+      }
+      setPendingPhotoCropSrc(result);
+      setPendingPhotoCropName(file.name);
     };
     reader.onerror = () => {
-      setContactPhotoUrl("");
+      setPendingPhotoCropSrc(null);
+      setPendingPhotoCropName("");
     };
     reader.readAsDataURL(file);
   }, []);
+
+  const handlePhotoCropCancel = useCallback(() => {
+    setPendingPhotoCropSrc(null);
+    setPendingPhotoCropName("");
+  }, []);
+
+  const handlePhotoCropConfirm = useCallback((croppedImage: string) => {
+    setContactPhotoUrl(croppedImage);
+    setContactPhotoName(pendingPhotoCropName);
+    setPendingPhotoCropSrc(null);
+    setPendingPhotoCropName("");
+  }, [pendingPhotoCropName]);
 
   const addExperienceItem = () =>
     setExperienceItems((prev) => [...prev, { id: makeId('exp'), company: '', role: '', dates: '', details: '' }]);
@@ -687,75 +1354,6 @@ export const Resume = () => {
 
   const removeEducationItem = (id: string) =>
     setEducationItems((prev) => (prev.length > 1 ? prev.filter((item) => item.id !== id) : prev));
-
-  const addCustomDetail = () =>
-    setCustomDetails((prev) => [...prev, { id: makeId('custom'), label: '', value: '' }]);
-
-  const updateCustomDetail = (id: string, patch: Partial<(typeof customDetails)[number]>) =>
-    setCustomDetails((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
-
-  const removeCustomDetail = (id: string) =>
-    setCustomDetails((prev) => prev.filter((item) => item.id !== id));
-
-  const sectionCompletion = useMemo(() => {
-    const hasChars = (value: string, minChars = 2) => value.trim().length >= minChars;
-    const hasLongText = (value: string, minChars = 20) => value.trim().length >= minChars;
-    const parseItems = (value: string) =>
-      value
-        .split(/[\n,]+/)
-        .map((item) => item.trim())
-        .filter((item) => item.length >= 2);
-
-    const anyExperienceFilled = experienceItems.some((item) => {
-      const roleOk = hasChars(item.role, 2);
-      const companyOk = hasChars(item.company, 2);
-      const datesOk = hasChars(item.dates, 4);
-      const detailsOk = hasLongText(item.details, 12);
-      return (roleOk && companyOk) || (roleOk && detailsOk) || (companyOk && datesOk);
-    });
-
-    const anyEducationFilled = educationItems.some((item) => {
-      const degreeOk = hasChars(item.degree, 2);
-      const schoolOk = hasChars(item.school, 2);
-      const datesOk = hasChars(item.dates, 4);
-      const detailsOk = hasLongText(item.details, 12);
-      return (degreeOk && schoolOk) || (degreeOk && detailsOk) || (schoolOk && datesOk);
-    });
-
-    const anyExtraFilled = extraFields.some((field) => (templateFieldValues[field] || '').trim().length >= 3);
-    const anyCustomFilled = customDetails.some((item) =>
-      (item.label || item.value || '').toString().trim().length >= 3
-    );
-    const skillsCount = parseItems(skillsText).length;
-    const projectsCount = parseItems(projectsText).length;
-    const additionalCount = parseItems(additionalText).length;
-
-    return {
-      contact: (!showNameField || hasChars(contactName, 2)) && (!showRoleField || hasChars(contactRole, 2)),
-      summary: hasLongText(summaryText, 30),
-      experience: anyExperienceFilled,
-      projects: projectsCount >= 1,
-      education: anyEducationFilled,
-      skills: skillsCount >= 2,
-      custom: anyCustomFilled,
-      additional: additionalCount >= 1,
-      extra: anyExtraFilled,
-    } as Record<string, boolean>;
-  }, [
-    additionalText,
-    customDetails,
-    contactName,
-    contactRole,
-    educationItems,
-    experienceItems,
-    extraFields,
-    projectsText,
-    showNameField,
-    showRoleField,
-    skillsText,
-    summaryText,
-    templateFieldValues,
-  ]);
 
   const moveToNextSection = useCallback(() => {
     const currentIndex = sectionOrder.indexOf(activeSectionId || 'contact');
@@ -796,6 +1394,107 @@ export const Resume = () => {
       .map((item) => item.trim())
       .filter(Boolean);
 
+  const parseRichTextLines = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return [] as string[];
+    if (!/[<>]/.test(trimmed)) return parseNewline(trimmed);
+
+    const htmlWithLineBreaks = trimmed
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|li|ul|ol|h[1-6])>/gi, '\n')
+      .replace(/<(p|div|ul|ol|h[1-6])\b[^>]*>/gi, '')
+      .replace(/<li\b[^>]*>/gi, '');
+
+    const textContent = typeof DOMParser === 'undefined'
+      ? htmlWithLineBreaks.replace(/<[^>]+>/g, '')
+      : new DOMParser().parseFromString(htmlWithLineBreaks, 'text/html').body.textContent || '';
+
+    return textContent
+      .split(/\r?\n/)
+      .map((item) => item.replace(/\s+/g, ' ').trim())
+      .filter(Boolean);
+  };
+
+  const parseRichTextInlineText = (value: string) =>
+    parseRichTextLines(value).join(' ').trim();
+
+  const parseRichTextMultilineText = (value: string) =>
+    parseRichTextLines(value).join('\n').trim();
+
+  const normalizeTemplateText = (value: string) =>
+    value
+      .replace(/^[-*\u2022\u2023\u25e6]+\s*/, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const extractRichTextLineStyles = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed || !/[<>]/.test(trimmed) || typeof DOMParser === 'undefined') {
+      return [] as RichTextLineStyle[];
+    }
+
+    const doc = new DOMParser().parseFromString(trimmed, 'text/html');
+    const listItems = Array.from(doc.body.querySelectorAll('li'));
+    const lineElements = listItems.length > 0 ? listItems : Array.from(doc.body.children);
+
+    return lineElements
+      .map((element) => {
+        const text = normalizeTemplateText(element.textContent || '');
+        if (!text) return null;
+
+        const fontSizeSource = [
+          element instanceof HTMLElement ? element : null,
+          ...Array.from(element.querySelectorAll<HTMLElement>('[style*="font-size"]')),
+        ]
+          .filter((candidate): candidate is HTMLElement => Boolean(candidate))
+          .find((candidate) => candidate.style.fontSize.trim().length > 0);
+
+        const fontSize = fontSizeSource?.style.fontSize.trim() || '';
+        if (!fontSize) return null;
+
+        return {
+          text,
+          fontSize,
+        };
+      })
+      .filter((item): item is RichTextLineStyle => Boolean(item));
+  };
+
+  const applyRichTextLineStylesToTemplateHtml = useCallback((html: string) => {
+    if (!html || typeof DOMParser === 'undefined') return html;
+
+    const lineStyles = [
+      ...experienceItems.flatMap((item) => extractRichTextLineStyles(item.details)),
+      ...educationItems.flatMap((item) => extractRichTextLineStyles(item.details)),
+    ];
+
+    if (lineStyles.length === 0) return html;
+
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const candidateElements = Array.from(doc.body.querySelectorAll<HTMLElement>('li, p, span, div'))
+      .filter((element) => normalizeTemplateText(element.textContent || '').length > 0);
+    const usedElements = new Set<HTMLElement>();
+
+    lineStyles.forEach((lineStyle) => {
+      const matches = candidateElements
+        .filter((element) => !usedElements.has(element))
+        .filter((element) => normalizeTemplateText(element.textContent || '') === lineStyle.text)
+        .sort((left, right) => {
+          const leftLength = normalizeTemplateText(left.textContent || '').length;
+          const rightLength = normalizeTemplateText(right.textContent || '').length;
+          return leftLength - rightLength;
+        });
+
+      const match = matches[0];
+      if (!match) return;
+
+      match.style.fontSize = lineStyle.fontSize;
+      usedElements.add(match);
+    });
+
+    return doc.documentElement.outerHTML;
+  }, [educationItems, experienceItems]);
+
   const skillsList = useMemo(() => parseCommaOrNewline(skillsText), [skillsText]);
 
   const addSkill = useCallback(() => {
@@ -815,6 +1514,10 @@ export const Resume = () => {
     const templateHasSection = (key: string) =>
       templateSourceHtml ? new RegExp(`{{\\s*#\\s*${key}\\s*}}`, 'i').test(templateSourceHtml) : false;
 
+    const nonEmptyTemplateFieldValues = Object.fromEntries(
+      Object.entries(templateFieldValues).filter(([, value]) => value.toString().trim().length > 0)
+    );
+
     const photoValue = contactPhotoUrl.trim()
       || (templateFieldValues.photo_url || '').toString().trim();
     const countryValue = (templateFieldValues.country || templateFieldValues.Country || '').toString().trim();
@@ -824,6 +1527,14 @@ export const Resume = () => {
     const skills = parseCommaOrNewline(skillsText);
     const projects = parseNewline(projectsText);
     const additional = parseNewline(additionalText);
+    const languageSource = [
+      templateFieldValues.languages,
+      templateFieldValues.language,
+      templateFieldValues.languages_text,
+    ]
+      .map((value) => parseRichTextMultilineText((value ?? '').toString()))
+      .find(Boolean) || '';
+    const languageLines = parseRichTextLines(languageSource);
     const customDetailLines = customDetails
       .map((item) => {
         const label = item.label.trim();
@@ -837,11 +1548,11 @@ export const Resume = () => {
 
     const experienceItemsView = experienceItems
       .map((item) => {
-        const bullets = parseNewline(item.details);
+        const bullets = parseRichTextLines(item.details);
         return {
-          role: item.role,
-          company: item.company,
-          dates: item.dates,
+          role: parseRichTextInlineText(item.role),
+          company: parseRichTextInlineText(item.company),
+          dates: parseRichTextInlineText(item.dates),
           bullets,
           hasBullets: bullets.length > 0,
         };
@@ -850,11 +1561,11 @@ export const Resume = () => {
 
     const educationItemsView = educationItems
       .map((item) => {
-        const bullets = parseNewline(item.details);
+        const bullets = parseRichTextLines(item.details);
         return {
-          degree: item.degree,
-          school: item.school,
-          dates: item.dates,
+          degree: parseRichTextInlineText(item.degree),
+          school: parseRichTextInlineText(item.school),
+          dates: parseRichTextInlineText(item.dates),
           bullets,
           hasBullets: bullets.length > 0,
         };
@@ -892,7 +1603,9 @@ export const Resume = () => {
     const educationValue = templateHasSection('education') ? educationItemsView : educationText;
 
     const view: Record<string, any> = {
-      ...templateFieldValues,
+      ...nonEmptyTemplateFieldValues,
+      first_name: contactNameParts.first,
+      last_name: contactNameParts.last,
       name: contactName,
       full_name: contactName,
       fullname: contactName,
@@ -913,6 +1626,10 @@ export const Resume = () => {
       hasSummary: summaryText.trim().length > 0,
       skills: skillsValue,
       hasSkills: skills.length > 0,
+      languages: templateHasSection('languages') ? languageLines : languageSource,
+      language: languageSource,
+      languages_text: languageSource,
+      hasLanguages: languageLines.length > 0,
       experience: experienceValue,
       hasExperience: experienceItemsView.length > 0,
       education: educationValue,
@@ -954,39 +1671,69 @@ export const Resume = () => {
         id: item.id,
         label: item.label.trim(),
         value: item.value.trim(),
+        label_with_colon: item.label.trim() ? `${item.label.trim()}:` : '',
+        bullet: '\u2022',
       }))
       .filter((item) => item.label || item.value);
 
-    const languageSource = [templateFieldValues.languages, templateFieldValues.language, 'English\nSpanish']
-      .map((value) => (value ?? '').toString().trim())
+    const languageSource = [
+      templateFieldValues.languages,
+      templateFieldValues.language,
+      templateFieldValues.languages_text,
+    ]
+      .map((value) => parseRichTextMultilineText((value ?? '').toString()))
       .find(Boolean) || '';
-    const languages = parseCommaOrNewline(languageSource).map((name) => ({ name, value: name }));
+    const languageList = parseRichTextLines(languageSource);
+    const languages = languageList.map((name) => ({ name, value: name }));
 
     const experience = experienceItems
-      .map((item) => ({
-        id: item.id,
-        role: item.role,
-        company: item.company,
-        dates: item.dates,
-        date_range: item.dates,
-        marker: '\u25cb',
-        highlights: item.details,
-        bullets: parseNewline(item.details).map((line) => `- ${line}`),
-      }))
+      .map((item) => {
+        const detailLines = parseRichTextLines(item.details);
+        const roleText = parseRichTextInlineText(item.role);
+        const companyText = parseRichTextInlineText(item.company);
+        const datesText = parseRichTextInlineText(item.dates);
+        return {
+          id: item.id,
+          role: roleText,
+          role_html: item.role,
+          company: companyText,
+          company_html: item.company,
+          role_company: [roleText, companyText].filter(Boolean).join(' , '),
+          dates: datesText,
+          dates_html: item.dates,
+          date_range: datesText,
+          date_range_html: item.dates,
+          marker: '\u25cb',
+          highlights: item.details,
+          bullets: detailLines.map((line) => `- ${line}`),
+          bullet_lines: detailLines.map((line) => `\u2022 ${line}`),
+        };
+      })
       .filter((item) =>
         [item.role, item.company, item.dates, item.highlights].some((value) => value && value.toString().trim())
       );
 
     const education = educationItems
-      .map((item) => ({
-        id: item.id,
-        degree: item.degree,
-        school: item.school,
-        dates: item.dates,
-        date_range: item.dates,
-        highlights: item.details,
-        bullets: parseNewline(item.details).map((line) => `- ${line}`),
-      }))
+      .map((item) => {
+        const detailLines = parseRichTextLines(item.details);
+        const degreeText = parseRichTextInlineText(item.degree);
+        const schoolText = parseRichTextInlineText(item.school);
+        const datesText = parseRichTextInlineText(item.dates);
+        return {
+          id: item.id,
+          degree: degreeText,
+          degree_html: item.degree,
+          school: schoolText,
+          school_html: item.school,
+          dates: datesText,
+          dates_html: item.dates,
+          date_range: datesText,
+          date_range_html: item.dates,
+          highlights: item.details,
+          bullets: detailLines.map((line) => `- ${line}`),
+          bullet_lines: detailLines.map((line) => `\u2022 ${line}`),
+        };
+      })
       .filter((item) =>
         [item.degree, item.school, item.dates, item.highlights].some((value) => value && value.toString().trim())
       );
@@ -999,7 +1746,7 @@ export const Resume = () => {
       { label: 'Phone', value: contactPhone },
       { label: 'Email', value: contactEmail },
       { label: 'Location', value: contactLocation },
-      ...(website ? [{ label: 'Website', value: website }] : []),
+      ...(website ? [{ label: 'Portfolio', value: website }] : []),
       ...(linkedIn ? [{ label: 'LinkedIn', value: linkedIn }] : []),
       ...(github ? [{ label: 'GitHub', value: github }] : []),
     ].filter((item) => item.value && item.value.toString().trim());
@@ -1012,18 +1759,59 @@ export const Resume = () => {
       },
     ].filter((item) => item.left || item.center || item.right);
 
-    const referencePrimaryName = (templateFieldValues.reference_primary_name || 'Harumi Kobayashi').toString().trim();
-    const referencePrimaryTitle = (templateFieldValues.reference_primary_title || 'Wardiere Inc. / CEO').toString().trim();
-    const referencePrimaryPhone = (templateFieldValues.reference_primary_phone || '123-456-7890').toString().trim();
-    const referencePrimaryEmail = (
-      templateFieldValues.reference_primary_email || 'hello@reallygreatsite.com'
-    ).toString().trim();
-    const referenceSecondaryName = (templateFieldValues.reference_secondary_name || 'Bailey Dupont').toString().trim();
-    const referenceSecondaryTitle = (templateFieldValues.reference_secondary_title || 'Wardiere Inc. / CEO').toString().trim();
-    const referenceSecondaryPhone = (templateFieldValues.reference_secondary_phone || '123-456-7890').toString().trim();
-    const referenceSecondaryEmail = (
-      templateFieldValues.reference_secondary_email || 'hello@reallygreatsite.com'
-    ).toString().trim();
+    const contactLine = [contactLocation, contactPhone, contactEmail]
+      .map((value) => (value || '').toString().trim())
+      .filter(Boolean)
+      .join(' • ');
+    const sidebarContacts = [
+      contactPhone,
+      website,
+      contactEmail,
+      linkedIn || github,
+    ]
+      .map((value) => (value || '').toString().trim())
+      .filter(Boolean)
+      .map((value) => ({ value }));
+    const certificationsText = (
+      templateFieldValues.certifications
+      || templateFieldValues.certifications_text
+      || customDetailItems.map((item) => [item.label, item.value].filter(Boolean).join(': ')).join(' ')
+      || ''
+    ).toString();
+    const normalizedCertificationsText = parseRichTextMultilineText(certificationsText);
+    const awardsText = (
+      templateFieldValues.awards
+      || templateFieldValues.awards_text
+      || templateFieldValues.achievements
+      || templateFieldValues.achievements_text
+      || ''
+    ).toString();
+    const normalizedAwardsText = parseRichTextMultilineText(awardsText);
+
+    const referencePrimaryName = (templateFieldValues.reference_primary_name || '').toString().trim();
+    const referencePrimaryTitle = (templateFieldValues.reference_primary_title || '').toString().trim();
+    const referencePrimaryPhone = (templateFieldValues.reference_primary_phone || '').toString().trim();
+    const referencePrimaryEmail = (templateFieldValues.reference_primary_email || '').toString().trim();
+    const referenceSecondaryName = (templateFieldValues.reference_secondary_name || '').toString().trim();
+    const referenceSecondaryTitle = (templateFieldValues.reference_secondary_title || '').toString().trim();
+    const referenceSecondaryPhone = (templateFieldValues.reference_secondary_phone || '').toString().trim();
+    const referenceSecondaryEmail = (templateFieldValues.reference_secondary_email || '').toString().trim();
+    const referencesText = [
+      [referencePrimaryName, referencePrimaryTitle, referencePrimaryPhone, referencePrimaryEmail].filter(Boolean).join(' | '),
+      [referenceSecondaryName, referenceSecondaryTitle, referenceSecondaryPhone, referenceSecondaryEmail].filter(Boolean).join(' | '),
+    ]
+      .filter(Boolean)
+      .join('\n');
+    const directReferencesText = parseRichTextMultilineText((templateFieldValues.references || '').toString());
+    const normalizedReferencesText = directReferencesText || referencesText;
+    const primaryEducation = education[0] || { degree: '', school: '', dates: '' };
+    const skillNames = skills.map((item) => item.name || item.value).filter(Boolean);
+    const experienceSlots = [experience[0], experience[1], experience[2]];
+    const templateOverrides = Object.entries(templateFieldValues).reduce<Record<string, string>>((acc, [key, value]) => {
+      if (JSON_TEMPLATE_PROTECTED_FIELD_KEYS.has(normalizeFieldKey(key))) return acc;
+      acc[key] = value;
+      return acc;
+    }, {});
 
     return {
       first_name: contactNameParts.first,
@@ -1037,6 +1825,12 @@ export const Resume = () => {
       email: contactEmail,
       phone: contactPhone,
       location: contactLocation,
+      address: templateFieldValues.address || contactLocation,
+      portfolio: website,
+      website,
+      linkedin: linkedIn,
+      city: templateFieldValues.city || contactLocation,
+      country: templateFieldValues.country || '',
       photo_url: contactPhotoUrl,
       summary: summaryText,
       profile: summaryText,
@@ -1045,27 +1839,44 @@ export const Resume = () => {
       skills_text: skillsText,
       languages,
       languages_text: languageSource,
+      language_1: languageList[0] || '',
+      language_2: languageList[1] || '',
       projects,
       projects_text: projectsText,
       experience,
       education,
       additional,
+      awards: normalizedAwardsText,
+      awards_text: normalizedAwardsText,
+      achievements: normalizedAwardsText,
+      achievements_text: normalizedAwardsText,
       custom_details: customDetailItems,
       customdetails: customDetailItems,
       contact,
+      contact_line: contactLine,
+      website_line: website || linkedIn || github || '',
+      sidebar_contacts: sidebarContacts,
       about_heading: 'About Me',
+      about_myself_heading: 'About Myself',
+      summary_heading: 'Summary',
       contact_heading: 'Contact',
+      contacts_heading: 'Contacts',
       career_summary_heading: 'Career Summary',
       experience_marker: 'o',
       skills_heading: 'Skills',
+      additional_skills_heading: 'Additional Skills',
       custom_heading: 'Additional Details',
+      additional_heading: 'Additional Information',
       education_heading: 'Education',
+      certifications_heading: 'Certifications',
       language_heading: 'Language',
       profile_heading: 'Personal Profile',
       experience_heading: 'Work Experience',
       minimalist_experience_heading: 'Experience',
       awards_heading: 'Awards',
       reference_heading: 'Reference',
+      references_heading: 'References',
+      references: normalizedReferencesText,
       reference_phone_label: 'Phone:',
       reference_email_label: 'Email:',
       reference_primary_name: referencePrimaryName,
@@ -1076,8 +1887,46 @@ export const Resume = () => {
       reference_secondary_title: referenceSecondaryTitle,
       reference_secondary_phone: referenceSecondaryPhone,
       reference_secondary_email: referenceSecondaryEmail,
+      reference_1_name: referencePrimaryName,
+      reference_1_title: referencePrimaryTitle,
+      reference_1_phone: referencePrimaryPhone,
+      reference_1_email: referencePrimaryEmail,
+      reference_2_name: referenceSecondaryName,
+      reference_2_title: referenceSecondaryTitle,
+      reference_2_phone: referenceSecondaryPhone,
+      reference_2_email: referenceSecondaryEmail,
+      certifications: normalizedCertificationsText,
+      certifications_text: normalizedCertificationsText,
+      education_degree: primaryEducation.degree || '',
+      education_school: primaryEducation.school || '',
+      education_years: primaryEducation.dates || '',
+      skill_1: skillNames[0] || '',
+      skill_2: skillNames[1] || '',
+      skill_3: skillNames[2] || '',
+      skill_4: skillNames[3] || '',
+      skill_5: skillNames[4] || '',
+      skill_6: skillNames[5] || '',
+      experience_1_dates: experienceSlots[0]?.dates || '',
+      experience_1_company: experienceSlots[0]?.company || '',
+      experience_1_role: experienceSlots[0]?.role || '',
+      experience_1_bullet_1: experienceSlots[0]?.bullet_lines?.[0] || '',
+      experience_1_bullet_2: experienceSlots[0]?.bullet_lines?.[1] || '',
+      experience_1_bullet_3: experienceSlots[0]?.bullet_lines?.[2] || '',
+      experience_2_dates: experienceSlots[1]?.dates || '',
+      experience_2_company: experienceSlots[1]?.company || '',
+      experience_2_role: experienceSlots[1]?.role || '',
+      experience_2_bullet_1: experienceSlots[1]?.bullet_lines?.[0] || '',
+      experience_2_bullet_2: experienceSlots[1]?.bullet_lines?.[1] || '',
+      experience_2_bullet_3: experienceSlots[1]?.bullet_lines?.[2] || '',
+      experience_3_dates: experienceSlots[2]?.dates || '',
+      experience_3_company: experienceSlots[2]?.company || '',
+      experience_3_role: experienceSlots[2]?.role || '',
+      experience_3_bullet_1: experienceSlots[2]?.bullet_lines?.[0] || '',
+      experience_3_bullet_2: experienceSlots[2]?.bullet_lines?.[1] || '',
+      experience_3_bullet_3: experienceSlots[2]?.bullet_lines?.[2] || '',
       header_contact: headerContact,
       links: contact,
+      ...templateOverrides,
     };
   }, [
     additionalText,
@@ -1095,207 +1944,312 @@ export const Resume = () => {
     projectsText,
     skillsText,
     summaryText,
+    parseRichTextMultilineText,
     templateFieldValues,
   ]);
 
   const jsonPreviewData = useMemo(() => buildJsonResumeData(), [buildJsonResumeData]);
 
-  const previewJsonTemplateDefinition = useMemo(() => {
-    if (!selectedJsonTemplate) return null;
-    if (!COLOR_PRESET_TEMPLATE_SLUGS.has(selectedJsonTemplate.slug)) {
-      return selectedJsonTemplate.definition;
-    }
+  const buildTemplateRenderView = useCallback(() => {
+    const baseView = buildResumeView();
+    const richView = buildJsonResumeData();
 
-    const cloned = JSON.parse(JSON.stringify(selectedJsonTemplate.definition)) as typeof selectedJsonTemplate.definition;
-    const replaceMap: Record<string, string> = {};
-
-    if (selectedJsonTemplate.slug === 'accounting-executive') {
-      replaceMap['#c3aa72'] = activeTemplateAccentColor;
-    }
-
-    if (selectedJsonTemplate.slug === 'minimalist-modern') {
-      replaceMap['#eecdc0'] = mixHexColor(activeTemplateAccentColor, '#ffffff', 0.68);
-      replaceMap['#edd8d1'] = mixHexColor(activeTemplateAccentColor, '#ffffff', 0.8);
-    }
-
-    const visit = (value: unknown): unknown => {
-      if (Array.isArray(value)) {
-        return value.map((entry) => visit(entry));
-      }
-      if (!value || typeof value !== 'object') {
-        if (typeof value === 'string') {
-          const direct = replaceMap[value.toLowerCase()];
-          return direct ?? value;
-        }
-        return value;
-      }
-
-      const next: Record<string, unknown> = {};
-      Object.entries(value as Record<string, unknown>).forEach(([key, entryValue]) => {
-        next[key] = visit(entryValue);
-      });
-      return next;
-    };
-
-    const themed = visit(cloned) as typeof cloned;
-    if (selectedJsonTemplate.slug === 'minimalist-modern') {
-      themed.theme.colors.primary = mixHexColor(activeTemplateAccentColor, '#ffffff', 0.68);
-      themed.theme.colors.accent = mixHexColor(activeTemplateAccentColor, '#ffffff', 0.8);
-    } else {
-      themed.theme.colors.primary = activeTemplateAccentColor;
-      themed.theme.colors.accent = activeTemplateAccentColor;
-    }
-    return themed;
-  }, [activeTemplateAccentColor, selectedJsonTemplate]);
-
-  const handleInlineFieldChange = useCallback((path: string, value: string) => {
-    const listMatch = path.match(/^([a-zA-Z0-9_]+)\[(\d+)\](?:\.(.+))?$/);
-    if (!listMatch) {
-      const key = normalizeFieldKey(path);
-      if (['name', 'full_name', 'fullname'].includes(key)) {
-        setContactName(value);
-        return;
-      }
-      if (['role', 'title', 'position'].includes(key)) {
-        setContactRole(value);
-        return;
-      }
-      if (key === 'email') {
-        setContactEmail(value);
-        return;
-      }
-      if (['phone', 'mobile'].includes(key)) {
-        setContactPhone(value);
-        return;
-      }
-      if (['location', 'address', 'city', 'country'].includes(key)) {
-        setContactLocation(value);
-        return;
-      }
-      if (key === 'summary' || key === 'profile' || key === 'objective') {
-        setSummaryText(value);
-        return;
-      }
-      if (key === 'skills' || key === 'skillset' || key === 'skills_text') {
-        setSkillsText(value);
-        return;
-      }
-      if (key === 'language' || key === 'languages' || key === 'languages_text') {
-        setTemplateFieldValue('languages', value);
-        return;
-      }
-      if (key === 'projects' || key === 'projects_text') {
-        setProjectsText(value);
-        return;
-      }
-      if (key === 'photo_url') {
-        setContactPhotoUrl(value);
-        return;
-      }
-      setTemplateFieldValue(path, value);
-      return;
-    }
-
-    const [, rawListKey, rawIndex, rawField] = listMatch;
-    const listKey = normalizeFieldKey(rawListKey);
-    const index = Number(rawIndex);
-    const field = rawField ? normalizeFieldKey(rawField) : 'value';
-
-    if (listKey === 'experience') {
-      const targetId = jsonPreviewData.experience?.[index]?.id;
-      if (!targetId) return;
-      setExperienceItems((prev) =>
-        prev.map((item) =>
-          item.id === targetId
-            ? {
-                ...item,
-                role: field === 'role' ? value : item.role,
-                company: field === 'company' ? value : item.company,
-                dates: field === 'dates' || field === 'daterange' ? value : item.dates,
-                details: field === 'highlights' || field === 'bullets' ? value : item.details,
-              }
-            : item
-        )
-      );
-      return;
-    }
-
-    if (listKey === 'education') {
-      const targetId = jsonPreviewData.education?.[index]?.id;
-      if (!targetId) return;
-      setEducationItems((prev) =>
-        prev.map((item) =>
-          item.id === targetId
-            ? {
-                ...item,
-                degree: field === 'degree' ? value : item.degree,
-                school: field === 'school' ? value : item.school,
-                dates: field === 'dates' || field === 'daterange' ? value : item.dates,
-                details: field === 'highlights' || field === 'bullets' ? value : item.details,
-              }
-            : item
-        )
-      );
-      return;
-    }
-
-    if (listKey === 'skills') {
-      const skills = parseCommaOrNewline(skillsText);
-      if (index >= skills.length) return;
-      skills[index] = value;
-      setSkillsText(skills.join(', '));
-      return;
-    }
-
-    if (listKey === 'languages') {
-      const languages = parseCommaOrNewline(
-        (templateFieldValues.languages || templateFieldValues.language || '').toString()
-      );
-      if (index >= languages.length) return;
-      languages[index] = value;
-      setTemplateFieldValue('languages', languages.join('\n'));
-      return;
-    }
-
-    if (listKey === 'projects') {
-      const projects = parseNewline(projectsText);
-      if (index >= projects.length) return;
-      projects[index] = value;
-      setProjectsText(projects.join('\n'));
-      return;
-    }
-
-    if (listKey === 'customdetails' || listKey === 'custom_details') {
-      setCustomDetails((prev) => {
-        if (index >= prev.length) return prev;
-        const next = [...prev];
-        const current = next[index];
-        next[index] = {
-          ...current,
-          label: field === 'label' ? value : current.label,
-          value: field === 'value' ? value : current.value,
+    const experienceItems = Array.isArray(richView.experience)
+      ? richView.experience.map((item) => {
+        const bullets = Array.isArray(item?.bullets)
+          ? item.bullets.map((value) => ({ value }))
+          : [];
+        const bulletLines = Array.isArray(item?.bullet_lines)
+          ? item.bullet_lines.map((value) => ({ value }))
+          : [];
+        return {
+          ...item,
+          bullets,
+          bullet_lines: bulletLines,
+          has_bullets: bullets.length > 0,
+          has_bullet_lines: bulletLines.length > 0,
         };
-        return next;
-      });
-      return;
+      })
+      : [];
+    const educationItemsView = Array.isArray(richView.education)
+      ? richView.education.map((item) => {
+        const bullets = Array.isArray(item?.bullets)
+          ? item.bullets.map((value) => ({ value }))
+          : [];
+        const bulletLines = Array.isArray(item?.bullet_lines)
+          ? item.bullet_lines.map((value) => ({ value }))
+          : [];
+        return {
+          ...item,
+          bullets,
+          bullet_lines: bulletLines,
+          has_bullets: bullets.length > 0,
+          has_bullet_lines: bulletLines.length > 0,
+        };
+      })
+      : [];
+    const skillItems = Array.isArray(richView.skills) ? richView.skills : [];
+    const languageItems = Array.isArray(richView.languages) ? richView.languages : [];
+    const projectItems = Array.isArray(richView.projects) ? richView.projects : [];
+    const additionalItems = Array.isArray(richView.additional)
+      ? richView.additional.map((value) => ({ value }))
+      : [];
+    const customDetailItems = Array.isArray(richView.custom_details) ? richView.custom_details : [];
+    const contactItems = Array.isArray(richView.contact) ? richView.contact : [];
+    const linkItems = Array.isArray(richView.links) ? richView.links : [];
+    const headerContactRows = Array.isArray(richView.header_contact) ? richView.header_contact : [];
+    const sidebarContactItems = Array.isArray(richView.sidebar_contacts) ? richView.sidebar_contacts : [];
+
+    return {
+      ...richView,
+      ...baseView,
+      experience_items: experienceItems,
+      education_items: educationItemsView,
+      skills_items: skillItems,
+      languages_items: languageItems,
+      project_items: projectItems,
+      additional_items: additionalItems,
+      custom_detail_items: customDetailItems,
+      contact_items: contactItems,
+      link_items: linkItems,
+      header_contact_rows: headerContactRows,
+      sidebar_contact_items: sidebarContactItems,
+      has_experience_items: experienceItems.length > 0,
+      has_education_items: educationItemsView.length > 0,
+      has_skills_items: skillItems.length > 0,
+      has_languages_items: languageItems.length > 0,
+      has_project_items: projectItems.length > 0,
+      has_additional_items: additionalItems.length > 0,
+      has_custom_detail_items: customDetailItems.length > 0,
+      has_contact_items: contactItems.length > 0,
+      has_link_items: linkItems.length > 0,
+      has_header_contact_rows: headerContactRows.length > 0,
+      has_sidebar_contact_items: sidebarContactItems.length > 0,
+    };
+  }, [buildJsonResumeData, buildResumeView]);
+
+  const applyActiveTemplateCustomization = useCallback(
+    (html: string) =>
+      applyClassicTemplateCustomization(
+        html,
+        selectedTemplateSlug,
+        activeTemplateAccentColor,
+        classicTemplateStyleSettings
+      ),
+    [
+      activeTemplateAccentColor,
+      classicTemplateStyleSettings,
+      selectedTemplateSlug,
+    ]
+  );
+
+  const getDetectedFieldValue = useCallback((field: string) => {
+    const stored = getTemplateFieldValue(field);
+    if (stored) return stored;
+
+    const normalized = normalizeFieldKey(field);
+    if (['languages', 'language', 'languagestext'].includes(normalized)) {
+      return (
+        templateFieldValues.languages
+        || templateFieldValues.language
+        || templateFieldValues.languages_text
+        || jsonPreviewData.languages_text
+        || ''
+      ).toString();
     }
 
-    if (listKey === 'contact') {
-      if (index === 0) setContactPhone(value);
-      if (index === 1) setContactEmail(value);
-      if (index === 2) setContactLocation(value);
-      if (index === 3) setTemplateFieldValue('website', value);
-      if (index === 4) setTemplateFieldValue('linkedin', value);
-      if (index === 5) setTemplateFieldValue('github', value);
+    if (normalized === 'certifications' || normalized === 'certificationstext') {
+      return (
+        templateFieldValues.certifications
+        || templateFieldValues.certifications_text
+        || jsonPreviewData.certifications_text
+        || ''
+      ).toString();
     }
+
+    if (
+      normalized === 'awards'
+      || normalized === 'awardstext'
+      || normalized === 'achievements'
+      || normalized === 'achievementstext'
+    ) {
+      return (
+        templateFieldValues.awards
+        || templateFieldValues.awards_text
+        || templateFieldValues.achievements
+        || templateFieldValues.achievements_text
+        || jsonPreviewData.awards_text
+        || ''
+      ).toString();
+    }
+
+    const previewMatchKey = Object.keys(jsonPreviewData).find((key) => normalizeFieldKey(key) === normalized);
+    const previewValue = previewMatchKey ? jsonPreviewData[previewMatchKey as keyof typeof jsonPreviewData] : '';
+
+    if (typeof previewValue === 'string' || typeof previewValue === 'number') {
+      return String(previewValue);
+    }
+
+    if (Array.isArray(previewValue)) {
+      return previewValue
+        .map((entry) => {
+          if (typeof entry === 'string' || typeof entry === 'number') return String(entry);
+          if (entry && typeof entry === 'object') {
+            return (
+              (entry as Record<string, unknown>).value
+              || (entry as Record<string, unknown>).name
+              || (entry as Record<string, unknown>).title
+              || ''
+            ).toString();
+          }
+          return '';
+        })
+        .filter(Boolean)
+        .join('\n');
+    }
+
+    return '';
+  }, [getTemplateFieldValue, jsonPreviewData, templateFieldValues]);
+
+  const setDetectedFieldValue = useCallback((field: string, value: string) => {
+    const normalized = normalizeFieldKey(field);
+    if (normalized === 'language' || normalized === 'languages' || normalized === 'languagestext') {
+      setTemplateFieldValue('languages', value);
+      return;
+    }
+    if (normalized === 'certifications' || normalized === 'certificationstext') {
+      setTemplateFieldValue('certifications', value);
+      return;
+    }
+    if (
+      normalized === 'awards'
+      || normalized === 'awardstext'
+      || normalized === 'achievements'
+      || normalized === 'achievementstext'
+    ) {
+      setTemplateFieldValue('awards', value);
+      return;
+    }
+    setTemplateFieldValue(field, value);
+  }, [setTemplateFieldValue]);
+
+  const languageList = useMemo(
+    () => parseRichTextLines(getDetectedFieldValue('languages')),
+    [getDetectedFieldValue]
+  );
+
+  const addLanguage = useCallback(() => {
+    const entries = parseCommaOrNewline(languagesInput);
+    if (entries.length === 0) return;
+    const updated = [...languageList, ...entries];
+    setDetectedFieldValue('languages', updated.join('\n'));
+    setLanguagesInput('');
+  }, [languageList, languagesInput, setDetectedFieldValue]);
+
+  const removeLanguage = useCallback((index: number) => {
+    const updated = languageList.filter((_, idx) => idx !== index);
+    setDetectedFieldValue('languages', updated.join('\n'));
+  }, [languageList, setDetectedFieldValue]);
+
+  const isLongDetectedField = useCallback((field: string) => {
+    const normalized = normalizeFieldKey(field);
+    return (
+      normalized === 'languages'
+      || normalized === 'language'
+      || normalized === 'languagestext'
+      || normalized === 'references'
+      || normalized === 'certifications'
+      || normalized === 'certificationstext'
+      || normalized === 'awards'
+      || normalized === 'awardstext'
+      || normalized === 'achievements'
+      || normalized === 'achievementstext'
+      || normalized.endsWith('text')
+      || normalized.includes('summary')
+      || normalized.includes('about')
+      || normalized.includes('profile')
+      || normalized.includes('objective')
+      || normalized.includes('certification')
+    );
+  }, []);
+
+  const getDetectedFieldInputType = useCallback((field: string) => {
+    const normalized = normalizeFieldKey(field);
+    if (normalized.includes('email')) return 'email';
+    if (normalized.includes('phone') || normalized.includes('mobile')) return 'tel';
+    if (
+      normalized.includes('website')
+      || normalized.includes('portfolio')
+      || normalized.includes('linkedin')
+      || normalized.includes('github')
+      || normalized.endsWith('url')
+    ) {
+      return 'url';
+    }
+    return 'text';
+  }, []);
+
+  const sectionCompletion = useMemo(() => {
+    const getPlainText = (value: string) => parseRichTextInlineText(value);
+    const hasChars = (value: string, minChars = 2) => getPlainText(value).length >= minChars;
+    const hasLongText = (value: string, minChars = 20) => getPlainText(value).length >= minChars;
+    const parseItems = (value: string) =>
+      value
+        .split(/[\n,]+/)
+        .map((item) => item.trim())
+        .filter((item) => item.length >= 2);
+
+    const anyExperienceFilled = experienceItems.some((item) => {
+      const roleOk = hasChars(item.role, 2);
+      const companyOk = hasChars(item.company, 2);
+      const datesOk = hasChars(item.dates, 4);
+      const detailsOk = hasLongText(item.details, 12);
+      return roleOk && companyOk && datesOk && detailsOk;
+    });
+
+    const anyEducationFilled = educationItems.some((item) => {
+      const degreeOk = hasChars(item.degree, 2);
+      const schoolOk = hasChars(item.school, 2);
+      const datesOk = hasChars(item.dates, 4);
+      const detailsOk = hasLongText(item.details, 12);
+      return degreeOk && schoolOk && datesOk && detailsOk;
+    });
+
+    const allPersonalInfoFilled = personalInfoFields.length > 0
+      && personalInfoFields.every((field) => hasChars(getDetectedFieldValue(field), 2));
+    const anyLanguagesFilled = languageFields.some((field) => hasChars(getDetectedFieldValue(field), 2));
+    const anyCertificationsFilled = certificationFields.some((field) => hasChars(getDetectedFieldValue(field), 3));
+    const anyAwardsFilled = awardFields.some((field) => hasChars(getDetectedFieldValue(field), 3));
+    const anyReferencesFilled = referenceFields.some((field) => hasChars(getDetectedFieldValue(field), 3));
+    const skillsCount = parseItems(skillsText).length;
+
+    return {
+      contact: (!showNameField || hasChars(contactName, 2)) && (!showRoleField || hasChars(contactRole, 2)),
+      personal_info: allPersonalInfoFilled,
+      summary: hasLongText(summaryText, 30),
+      experience: anyExperienceFilled,
+      education: anyEducationFilled,
+      skills: skillsCount >= 2,
+      languages: anyLanguagesFilled,
+      certifications: anyCertificationsFilled,
+      awards: anyAwardsFilled,
+      references: anyReferencesFilled,
+    } as Record<string, boolean>;
   }, [
-    jsonPreviewData,
-    parseCommaOrNewline,
-    parseNewline,
-    projectsText,
-    setTemplateFieldValue,
+    awardFields,
+    contactName,
+    contactRole,
+    educationItems,
+    experienceItems,
+    certificationFields,
+    getDetectedFieldValue,
+    languageFields,
+    personalInfoFields,
+    referenceFields,
+    showNameField,
+    showRoleField,
     skillsText,
-    templateFieldValues,
+    summaryText,
   ]);
 
   const handleDragStart = (id: string) => setDraggingSection(id);
@@ -1316,18 +2270,24 @@ export const Resume = () => {
 
   const availableSections = useMemo(() => ([
     showContactSection ? 'contact' : null,
+    showPersonalInfoSection ? 'personal_info' : null,
     showSummarySection ? 'summary' : null,
     showExperienceSection ? 'experience' : null,
-    showProjectsSection ? 'projects' : null,
     showEducationSection ? 'education' : null,
     showSkillsSection ? 'skills' : null,
-    showCustomSection ? 'custom' : null,
+    showAwardsSection ? 'awards' : null,
+    showLanguagesSection ? 'languages' : null,
+    showCertificationsSection ? 'certifications' : null,
+    showReferencesSection ? 'references' : null,
   ].filter(Boolean) as string[]), [
+    showAwardsSection,
+    showCertificationsSection,
     showContactSection,
-    showCustomSection,
     showEducationSection,
     showExperienceSection,
-    showProjectsSection,
+    showLanguagesSection,
+    showPersonalInfoSection,
+    showReferencesSection,
     showSkillsSection,
     showSummarySection,
   ]);
@@ -1378,6 +2338,13 @@ export const Resume = () => {
   const currentStepIndex = Math.max(0, stepSections.indexOf(activeSectionId || stepSections[0]));
   const currentStepId = stepSections[currentStepIndex];
   const totalSteps = stepSections.length || 1;
+  const isLastStep = currentStepIndex >= totalSteps - 1;
+
+  useEffect(() => {
+    if (stepSections.length === 0) return;
+    if (!isLastStep) return;
+    setHasUnlockedCustomize(true);
+  }, [isLastStep, stepSections.length]);
 
   const goNextStep = () => {
     if (currentStepIndex < stepSections.length - 1) {
@@ -1392,12 +2359,6 @@ export const Resume = () => {
   };
 
   const handleTemplateSelect = (template: TemplateListItem) => {
-    if (template.kind === 'json' && template.json) {
-      setSelectedJsonTemplate(template.json);
-      setTemplateStep('edit');
-      return;
-    }
-    setSelectedJsonTemplate(null);
     selectTemplate(template.name);
     setTemplateStep('edit');
   };
@@ -1413,7 +2374,7 @@ export const Resume = () => {
   };
 
   const ensureEditModeReady = useCallback(() => {
-    if (selectedJsonTemplate || selectedTemplate) {
+    if (selectedTemplate) {
       setTemplateStep('edit');
       setActiveSectionId('contact');
       setGenerateError(null);
@@ -1428,7 +2389,7 @@ export const Resume = () => {
     setActiveSectionId('contact');
     setGenerateError(null);
     return true;
-  }, [filteredTemplates, handleTemplateSelect, selectedJsonTemplate, selectedTemplate]);
+  }, [filteredTemplates, handleTemplateSelect, selectedTemplate]);
 
   const ensurePreviewRoot = useCallback((doc: Document) => {
     const body = doc.body;
@@ -1442,6 +2403,10 @@ export const Resume = () => {
       root = doc.getElementById(rootId) as HTMLElement | null;
     }
     return root;
+  }, []);
+
+  const previewUsesInternalFit = useCallback((doc: Document) => {
+    return Boolean(doc.querySelector('[data-preview-fit-managed="true"]'));
   }, []);
 
   const applyPreviewFontScale = useCallback((doc: Document, root: HTMLElement, scale: number) => {
@@ -1476,10 +2441,17 @@ export const Resume = () => {
   }, []);
 
   const fitPreviewToPage = useCallback(() => {
-    if (selectedJsonTemplate) return;
+    if (!ENABLE_PREVIEW_PAGINATION) {
+      previewFontScaleRef.current = 1;
+      return;
+    }
     const frame = previewFrameRef.current;
     const doc = frame?.contentDocument;
     if (!doc) return;
+    if (previewUsesInternalFit(doc)) {
+      previewFontScaleRef.current = 1;
+      return;
+    }
     const root = ensurePreviewRoot(doc);
     if (!root) return;
 
@@ -1493,14 +2465,18 @@ export const Resume = () => {
       }
     }
     previewFontScaleRef.current = appliedScale;
-  }, [activePageSize.height, applyPreviewFontScale, ensurePreviewRoot, selectedJsonTemplate]);
+  }, [activePageSize.height, applyPreviewFontScale, ensurePreviewRoot, previewUsesInternalFit]);
 
   const attachPreviewContentObserver = useCallback(() => {
-    if (selectedJsonTemplate) return;
     const frame = previewFrameRef.current;
     const doc = frame?.contentDocument;
     const view = doc?.defaultView;
     if (!doc || !view) return;
+    if (!ENABLE_PREVIEW_PAGINATION) {
+      previewContentObserverRef.current?.disconnect();
+      return;
+    }
+    if (previewUsesInternalFit(doc)) return;
     const root = ensurePreviewRoot(doc);
     if (!root) return;
     previewContentObserverRef.current?.disconnect();
@@ -1509,14 +2485,13 @@ export const Resume = () => {
     });
     observer.observe(root);
     previewContentObserverRef.current = observer;
-  }, [ensurePreviewRoot, fitPreviewToPage, selectedJsonTemplate]);
+  }, [ensurePreviewRoot, fitPreviewToPage, previewUsesInternalFit]);
 
   const handleCreateResumeClick = useCallback(() => {
     ensureEditModeReady();
   }, [ensureEditModeReady]);
 
   const applyPreviewPagination = useCallback(() => {
-    if (selectedJsonTemplate) return;
     const frame = previewFrameRef.current;
     const doc = frame?.contentDocument;
     if (!doc) return;
@@ -1528,41 +2503,18 @@ export const Resume = () => {
       body.dataset.originalHtml = originalHtml;
       body.dataset.paginated = 'disabled';
       const styleId = 'resume-preview-pagination-style';
-      let styleTag = doc.getElementById(styleId) as HTMLStyleElement | null;
-      const styleContent = `
-        html, body {
-          width: ${activePageSize.width}px;
-          height: ${activePageSize.height}px;
-          margin: 0;
-          padding: 0;
-          overflow: hidden;
-          background: #ffffff;
-        }
-        #resume-preview-root {
-          width: 100%;
-          min-height: 100%;
-          box-sizing: border-box;
-        }
-        #resume-preview-root * {
-          box-sizing: border-box;
-          overflow-wrap: anywhere;
-          word-break: break-word;
-        }
-      `.trim();
-      if (!styleTag) {
-        styleTag = doc.createElement('style');
-        styleTag.id = styleId;
-        doc.head.appendChild(styleTag);
+      const styleTag = doc.getElementById(styleId) as HTMLStyleElement | null;
+      if (styleTag) {
+        styleTag.textContent = '';
       }
-      styleTag.textContent = styleContent;
-      body.innerHTML = `<div id="resume-preview-root">${originalHtml}</div>`;
-      const root = doc.getElementById('resume-preview-root') as HTMLElement | null;
-      if (root) {
-        body.dataset.measureWidth = String(root.scrollWidth || activePageSize.width);
-        body.dataset.measureHeight = String(root.scrollHeight || activePageSize.height);
-        previewContentHeightRef.current = root.scrollHeight || activePageSize.height;
+      if (body.innerHTML !== originalHtml) {
+        body.innerHTML = originalHtml;
       }
-      fitPreviewToPage();
+
+      const { width, height } = getPreviewDocumentSize(doc, activePageSize);
+      body.dataset.measureWidth = String(width);
+      body.dataset.measureHeight = String(height);
+      previewContentHeightRef.current = height;
       return;
     }
 
@@ -1586,8 +2538,9 @@ export const Resume = () => {
         padding: 0;
         background: transparent;
         display: flex;
-        justify-content: flex-start;
+        justify-content: center;
         align-items: flex-start;
+        width: 100%;
       }
       .resume-preview-viewport {
         width: ${activePageSize.width}px;
@@ -1613,6 +2566,7 @@ export const Resume = () => {
         overflow: hidden;
         display: flex;
         flex: 0 0 auto;
+        justify-content: center;
       }
       .resume-preview-page-content {
         width: 100%;
@@ -1795,10 +2749,9 @@ export const Resume = () => {
       createPage();
     }
     pagesWrapper.style.transform = 'translateX(0px)';
-  }, [activePageSize.height, activePageSize.width, fitPreviewToPage, resolvedPageSize, selectedJsonTemplate]);
+  }, [activePageSize.height, activePageSize.width, fitPreviewToPage, resolvedPageSize]);
 
   const updatePreviewPaging = useCallback(() => {
-    if (selectedJsonTemplate) return;
     if (!ENABLE_PREVIEW_PAGINATION) {
       setPreviewPageCount(1);
       setPreviewPage(1);
@@ -1812,7 +2765,7 @@ export const Resume = () => {
       : Math.max(1, Math.ceil((previewContentHeightRef.current || pageHeight) / pageHeight));
     setPreviewPageCount(count);
     setPreviewPage((prev) => Math.min(Math.max(prev, 1), count));
-  }, [activePageSize.height, selectedJsonTemplate]);
+  }, [activePageSize.height]);
 
   const updatePreviewShellScale = useCallback((pageWidth: number, pageHeight: number) => {
     const shell = previewShellRef.current;
@@ -1831,7 +2784,6 @@ export const Resume = () => {
   }, []);
 
   const updatePreviewFrameSize = useCallback(() => {
-    if (selectedJsonTemplate) return;
     const frame = previewFrameRef.current;
     if (!frame) return;
     const pageWidth = activePageSize.width;
@@ -1841,6 +2793,18 @@ export const Resume = () => {
     const doc = frame.contentDocument;
     if (!doc) return;
     const body = doc.body;
+    if (!body) return;
+    if (!ENABLE_PREVIEW_PAGINATION) {
+      const { width, height } = getPreviewDocumentSize(doc, activePageSize);
+      body.dataset.measureWidth = String(width);
+      body.dataset.measureHeight = String(height);
+      previewContentHeightRef.current = height;
+      frame.style.width = `${width}px`;
+      frame.style.height = `${height}px`;
+      updatePreviewShellScale(width, height);
+      updatePreviewPaging();
+      return;
+    }
     const measuredWidth = Number(body.dataset.measureWidth || pageWidth) || pageWidth;
     const measuredHeight = Number(body.dataset.measureHeight || pageHeight) || pageHeight;
     const height = pageHeight;
@@ -1875,21 +2839,11 @@ export const Resume = () => {
     activePageSize.width,
     autoDetectedPageSize,
     previewPageSizeMode,
-    selectedJsonTemplate,
     updatePreviewShellScale,
     updatePreviewPaging,
   ]);
 
-  const updateJsonPreviewScale = useCallback(() => {
-    const template = selectedJsonTemplate?.definition;
-    if (!template) return;
-    const pageWidth = template.page.widthPx;
-    const pageHeight = template.page.heightPx;
-    updatePreviewShellScale(pageWidth, pageHeight);
-  }, [selectedJsonTemplate, updatePreviewShellScale]);
-
   const syncPreviewPagePosition = useCallback((targetPage: number) => {
-    if (selectedJsonTemplate) return;
     if (!ENABLE_PREVIEW_PAGINATION) return;
     const frame = previewFrameRef.current;
     const doc = frame?.contentDocument;
@@ -1900,15 +2854,9 @@ export const Resume = () => {
     const maxPage = Math.max(1, Math.ceil((previewContentHeightRef.current || activePageSize.height) / activePageSize.height));
     const clamped = Math.min(maxPage, Math.max(1, targetPage));
     pagesWrapper.style.transform = `translateX(-${(clamped - 1) * (pageWidth + PAGE_GAP_PX)}px)`;
-  }, [activePageSize.height, activePageSize.width, selectedJsonTemplate]);
+  }, [activePageSize.height, activePageSize.width]);
 
   const scrollPreviewToPage = useCallback((targetPage: number) => {
-    if (selectedJsonTemplate) {
-      const maxPage = Math.max(1, previewPageCount);
-      const clamped = Math.min(maxPage, Math.max(1, targetPage));
-      setPreviewPage(clamped);
-      return;
-    }
     if (!ENABLE_PREVIEW_PAGINATION) {
       setPreviewPage(1);
       return;
@@ -1918,17 +2866,33 @@ export const Resume = () => {
     const clamped = Math.min(maxPage, Math.max(1, targetPage));
     setPreviewPage(clamped);
     syncPreviewPagePosition(clamped);
-  }, [activePageSize.height, previewPageCount, selectedJsonTemplate, syncPreviewPagePosition]);
+  }, [activePageSize.height, syncPreviewPagePosition]);
 
   const handlePreviewLoad = useCallback(() => {
-    if (selectedJsonTemplate) return;
     applyPreviewPagination();
+    const frame = previewFrameRef.current;
+    const doc = frame?.contentDocument;
     requestAnimationFrame(() => {
       updatePreviewFrameSize();
       fitPreviewToPage();
       attachPreviewContentObserver();
     });
-  }, [applyPreviewPagination, attachPreviewContentObserver, fitPreviewToPage, selectedJsonTemplate, updatePreviewFrameSize]);
+
+    if (!doc || ENABLE_PREVIEW_PAGINATION) return;
+
+    const refreshPreviewSize = () => {
+      requestAnimationFrame(() => {
+        updatePreviewFrameSize();
+      });
+    };
+
+    doc.fonts?.ready.then(refreshPreviewSize).catch(() => {});
+    Array.from(doc.images).forEach((image) => {
+      if (image.complete) return;
+      image.addEventListener('load', refreshPreviewSize, { once: true });
+      image.addEventListener('error', refreshPreviewSize, { once: true });
+    });
+  }, [applyPreviewPagination, attachPreviewContentObserver, fitPreviewToPage, updatePreviewFrameSize]);
 
   const normalizeImportKey = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, '');
   const humanizeFileName = (name: string) =>
@@ -2157,237 +3121,315 @@ export const Resume = () => {
     }
   }, [ensureEditModeReady, findFirstByKeys]);
 
+  const buildPdfExportHtml = useCallback(async (filenameBase: string) => {
+    const inlineImageUrl = async (src: string) => {
+      const trimmed = src.trim();
+      if (!trimmed || trimmed.startsWith('data:')) return trimmed;
+
+      try {
+        const response = await fetch(trimmed);
+        if (!response.ok) return trimmed;
+        const blob = await response.blob();
+        return await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('Failed to inline image.'));
+          reader.readAsDataURL(blob);
+        });
+      } catch {
+        return trimmed;
+      }
+    };
+
+    const inlineImagesInNode = async (root: ParentNode) => {
+      const images = Array.from(root.querySelectorAll<HTMLImageElement>('img[src]'));
+      await Promise.all(images.map(async (image) => {
+        const source = image.getAttribute('src');
+        if (!source) return;
+        const inlinedSource = await inlineImageUrl(source);
+        if (inlinedSource) {
+          image.setAttribute('src', inlinedSource);
+        }
+      }));
+    };
+
+    const serializeHtmlDocument = (doc: Document) => `<!DOCTYPE html>\n${doc.documentElement.outerHTML}`;
+
+    if (templateSourceHtml) {
+      const renderedTemplateHtml = applyRichTextLineStylesToTemplateHtml(
+        applyActiveTemplateCustomization(
+          renderTemplateWithSchema(templateSourceHtml, buildTemplateRenderView())
+        )
+      );
+
+      if (typeof DOMParser === 'undefined') {
+        return renderedTemplateHtml;
+      }
+
+      const doc = new DOMParser().parseFromString(renderedTemplateHtml, 'text/html');
+      doc.title = `${filenameBase} Resume`;
+      await inlineImagesInNode(doc);
+      return serializeHtmlDocument(doc);
+    }
+
+    if (selectedTemplate) {
+      throw new Error('The selected template is still loading. Wait for the preview to finish, then download again.');
+    }
+
+    const pdfData = buildJsonResumeData();
+    const photoUrl = await inlineImageUrl((pdfData.photo_url || '').toString());
+    const contactItems = (pdfData.contact || [])
+      .map((item: { label?: string; value?: string }) => {
+        const label = (item.label || '').toString().trim();
+        const value = (item.value || '').toString().trim();
+        if (!label || !value) return null;
+
+        const lowerLabel = label.toLowerCase();
+        let href = '';
+        if (lowerLabel.includes('email')) href = `mailto:${value}`;
+        else if (lowerLabel.includes('phone')) href = `tel:${value.replace(/\s+/g, '')}`;
+        else if (/^(https?:)?\/\//i.test(value)) href = value;
+        else if (lowerLabel.includes('website') || lowerLabel.includes('linkedin') || lowerLabel.includes('github')) {
+          href = `https://${value.replace(/^https?:\/\//i, '')}`;
+        }
+
+        return { label, value, href };
+      })
+      .filter(Boolean) as Array<{ label: string; value: string; href?: string }>;
+
+    const stripBulletMarker = (value: string) => value.replace(/^[-*\u2022\u2023]+\s*/, '').trim();
+
+    return buildResumePdfHtml({
+      fullName: (pdfData.full_name || filenameBase || 'Resume').toString(),
+      role: (pdfData.role || '').toString(),
+      summary: (pdfData.summary || '').toString(),
+      photoUrl,
+      accentColor: activeTemplateAccentColor,
+      contactItems,
+      experience: (pdfData.experience || []).map((item: {
+        role?: string;
+        company?: string;
+        dates?: string;
+        bullets?: string[];
+        highlights?: string;
+      }) => ({
+        title: (item.role || 'Experience').toString().trim(),
+        subtitle: (item.company || '').toString().trim(),
+        dates: (item.dates || '').toString().trim(),
+        bullets: Array.isArray(item.bullets) && item.bullets.length > 0
+          ? item.bullets.map((bullet) => stripBulletMarker((bullet || '').toString())).filter(Boolean)
+          : parseNewline((item.highlights || '').toString()),
+      })),
+      education: (pdfData.education || []).map((item: {
+        degree?: string;
+        school?: string;
+        dates?: string;
+        bullets?: string[];
+        highlights?: string;
+      }) => ({
+        title: (item.degree || 'Education').toString().trim(),
+        subtitle: (item.school || '').toString().trim(),
+        dates: (item.dates || '').toString().trim(),
+        bullets: Array.isArray(item.bullets) && item.bullets.length > 0
+          ? item.bullets.map((bullet) => stripBulletMarker((bullet || '').toString())).filter(Boolean)
+          : parseNewline((item.highlights || '').toString()),
+      })),
+      projects: (pdfData.projects || []).map((item: { title?: string; name?: string; value?: string }) => ({
+        title: ((item.title || item.name || item.value || '') as string).trim(),
+      })),
+      skills: (pdfData.skills || []).map((item: { name?: string; value?: string } | string) => {
+        if (typeof item === 'string') return item.trim();
+        return ((item.name || item.value || '') as string).trim();
+      }),
+      languages: (pdfData.languages || []).map((item: { name?: string; value?: string } | string) => {
+        if (typeof item === 'string') return item.trim();
+        return ((item.name || item.value || '') as string).trim();
+      }),
+      details: [
+        ...(pdfData.custom_details || []).map((item: { label?: string; value?: string }) => ({
+          label: (item.label || '').toString().trim(),
+          value: (item.value || '').toString().trim(),
+        })),
+        ...[
+          { label: 'Certifications', value: (pdfData.certifications_text || pdfData.certifications || '').toString().trim() },
+          { label: 'Languages', value: (pdfData.languages_text || '').toString().trim() },
+          { label: 'Achievements / Awards', value: (pdfData.awards_text || pdfData.awards || pdfData.achievements || '').toString().trim() },
+          { label: 'References', value: (pdfData.references || '').toString().trim() },
+        ].filter((item) => item.value),
+      ],
+      sectionOrder: sectionOrder.filter((id) =>
+        ['summary', 'experience', 'education', 'skills'].includes(id)
+      ).concat('custom') as Array<'summary' | 'experience' | 'education' | 'skills' | 'custom'>,
+    }, `${filenameBase} Resume`);
+  }, [
+    activeTemplateAccentColor,
+    applyActiveTemplateCustomization,
+    applyRichTextLineStylesToTemplateHtml,
+    buildTemplateRenderView,
+    buildJsonResumeData,
+    classicTemplateStyleSettings,
+    parseNewline,
+    sectionOrder,
+    selectedTemplate,
+    selectedTemplateSlug,
+    templateSourceHtml,
+  ]);
+
   const handleDownloadPDF = async () => {
-    const html = templateSourceHtml
-      ? renderTemplateWithSchema(templateSourceHtml, buildResumeView())
-      : null;
-    if (!html) return;
     const filenameBase = contactName
       || getTemplateFieldValue('name')
       || getTemplateFieldValue('full_name')
       || getTemplateFieldValue('fullname')
       || getTemplateFieldValue('full-name')
       || 'Resume';
-    const iframe = document.getElementById('generated-resume') as HTMLIFrameElement | null;
-    const sourceDoc = iframe?.contentDocument || new DOMParser().parseFromString(html, 'text/html');
-    sourceDoc.querySelectorAll('script').forEach((node) => node.remove());
 
-    const PX_PER_MM = 96 / 25.4;
-    const A4_WIDTH_MM = 210;
-    const A4_HEIGHT_MM = 297;
-    const a4WidthPx = Math.round(A4_WIDTH_MM * PX_PER_MM);
-    const a4HeightPx = Math.round(A4_HEIGHT_MM * PX_PER_MM);
+    const parsePdfErrorMessage = async (error: unknown) => {
+      const responseData = (error as {
+        response?: { data?: Blob | ArrayBuffer | string | { error?: string; details?: string } };
+        message?: string;
+        code?: string;
+      })?.response?.data;
 
-    const element = document.createElement('div');
-    const headAssets = Array.from(sourceDoc.querySelectorAll('style'))
-      .map((node) => node.outerHTML)
-      .join('\n');
-    const styleContainer = document.createElement('div');
-    styleContainer.innerHTML = headAssets;
-    const pdfPaginationStyle = document.createElement('style');
-    pdfPaginationStyle.textContent = `
-      @page {
-        size: A4 portrait;
-        margin: 0;
-      }
-      p,
-      li,
-      blockquote,
-      pre,
-      table,
-      tr,
-      td,
-      th,
-      .section,
-      .experience-item,
-      .education-item,
-      .project-item {
-        break-inside: avoid;
-        page-break-inside: avoid;
-      }
-      h1,
-      h2,
-      h3,
-      h4,
-      h5,
-      h6 {
-        break-after: avoid;
-        page-break-after: avoid;
-      }
-      p,
-      li {
-        orphans: 3;
-        widows: 3;
-        overflow-wrap: anywhere;
-      }
-    `;
-    styleContainer.appendChild(pdfPaginationStyle);
-    const contentWrapper = document.createElement('div');
-    contentWrapper.innerHTML = sourceDoc.body?.innerHTML || '';
-    element.appendChild(styleContainer);
-    element.appendChild(contentWrapper);
-    element.style.position = 'fixed';
-    element.style.left = '0';
-    element.style.top = '0';
-    element.style.opacity = '1';
-    element.style.pointerEvents = 'none';
-    element.style.width = `${a4WidthPx}px`;
-    element.style.zIndex = '2147483647';
-    element.style.background = '#ffffff';
-    contentWrapper.style.width = `${a4WidthPx}px`;
-    document.body.appendChild(element);
-
-    const adjustLayoutForA4 = () => {
-      const resumeContainer = contentWrapper.querySelector('.max-w-5xl') as HTMLElement | null;
-      if (resumeContainer) {
-        resumeContainer.style.maxWidth = '100%';
-        resumeContainer.style.width = '100%';
-        resumeContainer.style.margin = '0';
-        resumeContainer.style.borderRadius = '0';
-        resumeContainer.style.boxShadow = 'none';
-      }
-      const grid = resumeContainer?.querySelector('.grid') as HTMLElement | null;
-      if (grid) {
-        grid.style.minHeight = 'auto';
-      }
-      contentWrapper.style.margin = '0';
-      contentWrapper.style.padding = '0';
-    };
-
-    const replaceEditableFields = (root: HTMLElement) => {
-      const fields = root.querySelectorAll('input, textarea, select');
-      fields.forEach((field) => {
-        const tag = field.tagName.toLowerCase();
-        let value = '';
-        if (tag === 'select') {
-          const select = field as HTMLSelectElement;
-          const option = select.options[select.selectedIndex];
-          value = option ? option.text : '';
-        } else {
-          value = (field as HTMLInputElement | HTMLTextAreaElement).value || field.getAttribute('value') || '';
+      if (!responseData) {
+        const networkMessage = (error as { message?: string; code?: string })?.message || '';
+        if (
+          (error as { code?: string })?.code === 'ERR_NETWORK'
+          || /network error/i.test(networkMessage)
+          || /failed to fetch/i.test(networkMessage)
+          || /load failed/i.test(networkMessage)
+        ) {
+          const target = pdfApiUrl('/render-resume-pdf');
+          const isLocalPdfTarget = /localhost:5000|127\.0\.0\.1:5000/i.test(target);
+          return isLocalPdfTarget
+            ? `Cannot reach the PDF service at ${target}. Start the Node backend in c:/Hirevo/server and check whether a browser extension is blocking the request.`
+            : `Cannot reach the PDF service at ${target}. Verify VITE_PDF_API_BASE points to a Node service that hosts /render-resume-pdf.`;
         }
-        if (!value.trim()) {
-          value = field.getAttribute('placeholder') || '';
+      }
+
+      if (responseData instanceof Blob) {
+        const text = await responseData.text().catch(() => '');
+        if (text) {
+          try {
+            const parsed = JSON.parse(text) as { error?: string; details?: string };
+            return parsed.details || parsed.error || text;
+          } catch {
+            return text;
+          }
         }
-        const replacement = document.createElement(tag === 'textarea' ? 'div' : 'span');
-        replacement.className = (field as HTMLElement).className;
-        replacement.style.whiteSpace = tag === 'textarea' ? 'pre-line' : 'normal';
-        replacement.style.overflowWrap = 'anywhere';
-        replacement.textContent = value;
-        field.replaceWith(replacement);
-      });
-      root.querySelectorAll('[contenteditable="true"]').forEach((el) => {
-        el.removeAttribute('contenteditable');
-      });
-    };
+      }
 
-    const inlineImages = async (root: HTMLElement) => {
-      const images = Array.from(root.querySelectorAll('img'));
-      await Promise.all(images.map(async (img) => {
-        const src = (img.getAttribute('src') || '').trim();
-        if (!src || src === '#' || src === 'about:blank' || src.includes('via.placeholder.com')) {
-          img.remove();
-          return;
+      if (responseData instanceof ArrayBuffer) {
+        const text = new TextDecoder().decode(new Uint8Array(responseData)).trim();
+        if (text) {
+          try {
+            const parsed = JSON.parse(text) as { error?: string; details?: string };
+            return parsed.details || parsed.error || text;
+          } catch {
+            return text;
+          }
         }
-        if (src.startsWith('data:') || src.startsWith('blob:')) return;
-        try {
-          const res = await fetch(src, { mode: 'cors' });
-          if (!res.ok) throw new Error('Image fetch failed');
-          const blob = await res.blob();
-          const dataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = () => reject(new Error('Image read failed'));
-            reader.readAsDataURL(blob);
-          });
-          img.setAttribute('src', dataUrl);
-        } catch {
-          img.remove();
-        }
-      }));
+      }
+
+      if (typeof responseData === 'string' && responseData.trim()) {
+        return responseData;
+      }
+
+      if (responseData && typeof responseData === 'object') {
+        const payload = responseData as { details?: string; error?: string };
+        return payload.details || payload.error || (error as { message?: string })?.message || '';
+      }
+
+      const statusCode = (error as { response?: { status?: number } })?.response?.status;
+      if (statusCode === 404) {
+        const target = pdfApiUrl('/render-resume-pdf');
+        return `PDF route not found at ${target}. Point VITE_PDF_API_BASE to the Node PDF service or run the local backend on port 5000.`;
+      }
+
+      return (error as { message?: string })?.message || 'Failed to generate PDF.';
     };
 
-    const waitForImages = async (root: HTMLElement) => {
-      const images = Array.from(root.querySelectorAll('img'));
-      await Promise.all(images.map((img) => {
-        if (img.complete) return Promise.resolve();
-        return new Promise<void>((resolve) => {
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
-        });
-      }));
-    };
-
-    adjustLayoutForA4();
-    replaceEditableFields(contentWrapper);
-    await inlineImages(contentWrapper);
-    if (document.fonts && 'ready' in document.fonts) {
-      await document.fonts.ready;
-    }
-    await waitForImages(contentWrapper);
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    const rect = contentWrapper.getBoundingClientRect();
-    const safeWidth = Math.max(1, Math.ceil(rect.width || contentWrapper.scrollWidth || 800));
-    const safeHeight = Math.max(1, Math.ceil(contentWrapper.scrollHeight || rect.height || 1000));
-    if (!contentWrapper.textContent || !contentWrapper.textContent.trim()) {
-      console.warn('PDF export: empty content detected.');
-    }
-    console.info('PDF export size', {
-      width: safeWidth,
-      height: safeHeight,
-      scrollWidth: contentWrapper.scrollWidth,
-      scrollHeight: contentWrapper.scrollHeight,
-      a4WidthPx,
-      a4HeightPx,
-    });
-
-    const exportScale = 3;
-    const opt = {
-      margin: 0,
-      filename: `${filenameBase.replace(/\s+/g, '_')}.pdf`,
-      image: { type: 'png' as const, quality: 1 },
-      html2canvas: {
-        scale: exportScale,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        windowWidth: a4WidthPx,
-        windowHeight: safeHeight,
-        letterRendering: true,
-      },
-      pagebreak: {
-        mode: ['css', 'legacy'],
-        avoid: ['p', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'table', 'tr', 'img'],
-      },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
-    };
+    setGenerateError(null);
+    setDownloadingPdf(true);
 
     try {
-      const { default: html2pdf } = await import('html2pdf.js');
-      await html2pdf()
-        .set(opt)
-        .from(contentWrapper)
-        .save();
+      const exportHtml = await buildPdfExportHtml(filenameBase);
+
+      const pdfEndpoints = buildPdfEndpointCandidates();
+      if (!pdfEndpoints.length) {
+        throw new Error('No PDF service is configured. Set VITE_PDF_API_BASE to a Node backend that hosts /render-resume-pdf.');
+      }
+
+      let response: Blob | null = null;
+      let lastError: unknown = null;
+
+      for (const endpoint of pdfEndpoints) {
+        try {
+          response = await requestPdfBlob(endpoint, {
+            html: exportHtml,
+            filenameBase,
+          });
+          lastError = null;
+          break;
+        } catch (error) {
+          const networkMessage = (error as { message?: string; code?: string })?.message || '';
+          const networkCode = (error as { code?: string })?.code || '';
+          if (
+            networkCode === 'ERR_NETWORK'
+            || /network error/i.test(networkMessage)
+            || /failed to fetch/i.test(networkMessage)
+            || /load failed/i.test(networkMessage)
+          ) {
+            const isLocalPdfTarget = /localhost:5000|127\.0\.0\.1:5000/i.test(endpoint);
+            lastError = new Error(
+              isLocalPdfTarget
+                ? `Cannot reach the PDF service at ${endpoint}. Start the Node backend in c:/Hirevo/server and try again.`
+                : `Cannot reach the PDF service at ${endpoint}. Verify VITE_PDF_API_BASE points to a Node service that hosts /render-resume-pdf.`,
+            );
+            continue;
+          }
+          lastError = error;
+        }
+      }
+
+      if (!response) {
+        throw lastError ?? new Error('PDF server unavailable.');
+      }
+
+      const downloadUrl = window.URL.createObjectURL(response);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `${filenameBase.replace(/\s+/g, '_')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      const message = await parsePdfErrorMessage(error);
+      console.error('PDF download failed:', error);
+      setGenerateError(message || 'Failed to generate PDF.');
     } finally {
-      element.remove();
+      setDownloadingPdf(false);
     }
   };
 
   const previewHtml = useMemo(() => {
-    if (selectedJsonTemplate) return null;
     if (templateSourceHtml) {
       try {
-        return renderTemplateWithSchema(templateSourceHtml, buildResumeView());
+        return applyRichTextLineStylesToTemplateHtml(
+          applyActiveTemplateCustomization(
+            renderTemplateWithSchema(templateSourceHtml, buildTemplateRenderView())
+          )
+        );
       } catch (error) {
         console.error('Preview render failed:', error);
         return templatePreviewHtml;
       }
     }
     return templatePreviewHtml;
-  }, [buildResumeView, selectedJsonTemplate, templatePreviewHtml, templateSourceHtml]);
+  }, [applyActiveTemplateCustomization, applyRichTextLineStylesToTemplateHtml, buildTemplateRenderView, templatePreviewHtml, templateSourceHtml]);
 
   useEffect(() => {
-    if (!previewHtml || selectedJsonTemplate) return;
+    if (!previewHtml) return;
     const timer = window.setTimeout(() => {
       applyPreviewPagination();
       updatePreviewFrameSize();
@@ -2395,14 +3437,9 @@ export const Resume = () => {
       attachPreviewContentObserver();
     }, 100);
     return () => window.clearTimeout(timer);
-  }, [applyPreviewPagination, attachPreviewContentObserver, fitPreviewToPage, previewHtml, selectedJsonTemplate, updatePreviewFrameSize]);
+  }, [applyPreviewPagination, attachPreviewContentObserver, fitPreviewToPage, previewHtml, updatePreviewFrameSize]);
 
   useEffect(() => {
-    if (selectedJsonTemplate) {
-      setPreviewPage(1);
-      setPreviewPageCount(1);
-      return;
-    }
     if (!previewHtml) {
       setPreviewPage(1);
       setPreviewPageCount(1);
@@ -2410,19 +3447,17 @@ export const Resume = () => {
     }
     autoDetectLockedRef.current = false;
     updatePreviewPaging();
-  }, [previewHtml, selectedJsonTemplate, updatePreviewPaging]);
+  }, [previewHtml, updatePreviewPaging]);
 
   useEffect(() => {
-    if (!selectedJsonTemplate) return;
-    updateJsonPreviewScale();
-  }, [jsonPreviewData, selectedJsonTemplate, updateJsonPreviewScale]);
-
-  useEffect(() => {
-    if (selectedJsonTemplate) {
-      previewContentObserverRef.current?.disconnect();
-      previewContentObserverRef.current = null;
+    if (!selectedTemplate) return;
+    const body = previewBodyRef.current;
+    if (body) {
+      body.scrollTop = 0;
+      body.scrollLeft = 0;
     }
-  }, [selectedJsonTemplate]);
+    setPreviewPage(1);
+  }, [selectedTemplate]);
 
   useEffect(() => () => {
     previewContentObserverRef.current?.disconnect();
@@ -2448,12 +3483,8 @@ export const Resume = () => {
 
   useEffect(() => {
     const refreshScale = () => {
-      if (selectedJsonTemplate) {
-        updateJsonPreviewScale();
-      } else {
-        updatePreviewFrameSize();
-        fitPreviewToPage();
-      }
+      updatePreviewFrameSize();
+      fitPreviewToPage();
     };
 
     const body = previewBodyRef.current;
@@ -2476,29 +3507,23 @@ export const Resume = () => {
       observer.disconnect();
       window.removeEventListener('resize', refreshScale);
     };
-  }, [fitPreviewToPage, selectedJsonTemplate, updateJsonPreviewScale, updatePreviewFrameSize]);
+  }, [fitPreviewToPage, updatePreviewFrameSize]);
 
   useEffect(() => {
     if (!isEditorRoute) return;
-    const jsonMatch = findJsonTemplateBySlug(effectiveTemplateId);
-    if (jsonMatch) {
-      setSelectedJsonTemplate(jsonMatch);
-      setTemplateStep('edit');
-      return;
-    }
     const match = findTemplateBySlug(effectiveTemplateId);
     if (match) {
-      setSelectedJsonTemplate(null);
-      selectTemplate(match.name);
+      if (selectedTemplate !== match.name) {
+        selectTemplate(match.name);
+      }
       setTemplateStep('edit');
       return;
     }
-    if (templates.length > 0) {
-      setSelectedJsonTemplate(null);
+    if (templates.length > 0 && !selectedTemplate) {
       selectTemplate(templates[0].name);
       setTemplateStep('edit');
     }
-  }, [effectiveTemplateId, findJsonTemplateBySlug, findTemplateBySlug, isEditorRoute, selectTemplate, templates]);
+  }, [effectiveTemplateId, findTemplateBySlug, isEditorRoute, selectTemplate, selectedTemplate, templates]);
 
   const getEditorSnapshot = useCallback(() => {
     return JSON.stringify({
@@ -2519,13 +3544,14 @@ export const Resume = () => {
       unlockedSections,
       activeSectionId,
       selectedTemplate,
-      selectedJsonTemplate: selectedJsonTemplate?.slug ?? null,
       selectedColorPreset,
       customTemplateColor,
+      classicTemplateStyleSettings,
       templateFieldValues,
     });
   }, [
     activeSectionId,
+    classicTemplateStyleSettings,
     contactEmail,
     contactLocation,
     contactName,
@@ -2540,7 +3566,6 @@ export const Resume = () => {
     sectionOrder,
     customTemplateColor,
     selectedColorPreset,
-    selectedJsonTemplate,
     selectedTemplate,
     skillsText,
     summaryText,
@@ -2590,6 +3615,11 @@ export const Resume = () => {
       if (typeof next.customTemplateColor === 'string' && /^#[0-9a-f]{6}$/i.test(next.customTemplateColor)) {
         setCustomTemplateColor(next.customTemplateColor);
       }
+      if (next.classicTemplateStyleSettings && typeof next.classicTemplateStyleSettings === 'object') {
+        setClassicTemplateStyleSettings(
+          sanitizeClassicTemplateStyleSettings(next.classicTemplateStyleSettings)
+        );
+      }
       if (Array.isArray(next.customDetails)) setCustomDetails(next.customDetails as any);
       if (Array.isArray(next.educationItems)) setEducationItems(next.educationItems as any);
       if (Array.isArray(next.experienceItems)) setExperienceItems(next.experienceItems as any);
@@ -2598,13 +3628,22 @@ export const Resume = () => {
       if (typeof next.activeSectionId === 'string' || next.activeSectionId === null) {
         setActiveSectionId(next.activeSectionId as any);
       }
+      if (next.templateFieldValues && typeof next.templateFieldValues === 'object' && !Array.isArray(next.templateFieldValues)) {
+        const restoredFieldValues = Object.fromEntries(
+          Object.entries(next.templateFieldValues as Record<string, unknown>).map(([key, value]) => [
+            key,
+            typeof value === 'string' ? value : value == null ? '' : String(value),
+          ])
+        );
+        replaceTemplateFieldValues(restoredFieldValues);
+      }
     } finally {
       // let state settle before we allow pushing history again
       window.setTimeout(() => {
         isApplyingHistoryRef.current = false;
       }, 0);
     }
-  }, []);
+  }, [replaceTemplateFieldValues]);
 
   const handleUndo = useCallback(() => {
     if (!isEditorRoute) return;
@@ -2732,10 +3771,115 @@ export const Resume = () => {
     return Math.round((completed / values.length) * 100);
   }, [sectionCompletion]);
 
+  const requiredDownloadSectionIds = useMemo(() => {
+    const requiredSectionSet = new Set(['contact', 'summary', 'experience', 'education', 'skills']);
+    return availableSections.filter((id) => requiredSectionSet.has(id));
+  }, [availableSections]);
+
   const canDownload = useMemo(() => {
+    if (requiredDownloadSectionIds.length === 0) return false;
+    return requiredDownloadSectionIds.every((id) => sectionCompletion[id]);
+  }, [requiredDownloadSectionIds, sectionCompletion]);
+
+  const canCustomize = useMemo(() => {
     if (availableSections.length === 0) return false;
-    return availableSections.every((id) => sectionCompletion[id]);
-  }, [availableSections, sectionCompletion]);
+    return hasUnlockedCustomize || isLastStep;
+  }, [availableSections.length, hasUnlockedCustomize, isLastStep]);
+
+  const goToCustomizeSection = useCallback(() => {
+    if (!canCustomize) return;
+    setActiveEditorTab('customize');
+  }, [canCustomize]);
+
+  const incompleteSectionLabels = useMemo(() => {
+    return requiredDownloadSectionIds
+      .filter((id) => !sectionCompletion[id])
+      .map((id) => RESUME_SECTION_TITLES[id] || id);
+  }, [requiredDownloadSectionIds, sectionCompletion]);
+
+  const isTemplateReadyForDownload = useMemo(() => {
+    if (combinedTemplateLoading) return false;
+    if (selectedTemplate) {
+      return Boolean(templateSourceHtml) && !templatePreviewLoading;
+    }
+    return false;
+  }, [
+    combinedTemplateLoading,
+    selectedTemplate,
+    templatePreviewLoading,
+    templateSourceHtml,
+  ]);
+
+  const downloadBlockedReason = useMemo(() => {
+    if (downloadingPdf) return 'PDF download is already in progress.';
+    if (combinedTemplateError) return combinedTemplateError;
+    if (!selectedTemplate) return 'Select a resume template before downloading.';
+    if (!isTemplateReadyForDownload) return 'Please wait for the selected template to finish loading.';
+    if (!canDownload) {
+      return incompleteSectionLabels.length > 0
+        ? `Complete these sections first: ${incompleteSectionLabels.join(', ')}.`
+        : 'Complete the required resume sections before downloading.';
+    }
+    return null;
+  }, [
+    canDownload,
+    combinedTemplateError,
+    downloadingPdf,
+    incompleteSectionLabels,
+    isTemplateReadyForDownload,
+    selectedTemplate,
+  ]);
+
+  const renderDetectedFieldSection = useCallback((fields: string[], helperText?: string) => {
+    if (fields.length === 0) return null;
+
+    return (
+      <div className="space-y-4">
+        {helperText && (
+          <div className="text-sm text-gray-500">
+            {helperText}
+          </div>
+        )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {fields.map((field) => {
+            const label = formatTemplateFieldLabel(field);
+            const longField = isLongDetectedField(field);
+            const value = getDetectedFieldValue(field);
+            return (
+              <div
+                key={field}
+                className={`form-group ${longField ? 'md:col-span-2' : ''}`}
+              >
+                <label className="block text-sm font-semibold mb-2 text-gray-700">{label}</label>
+                {longField ? (
+                  <RichTextEditor
+                    value={value}
+                    onChange={(next) => setDetectedFieldValue(field, next)}
+                    placeholder={`Enter ${label.toLowerCase()}...`}
+                    minHeight={110}
+                    toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
+                  />
+                ) : (
+                  <input
+                    type={getDetectedFieldInputType(field)}
+                    placeholder={`Enter ${label.toLowerCase()}`}
+                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                    value={value}
+                    onChange={(e) => setDetectedFieldValue(field, e.target.value)}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }, [
+    getDetectedFieldInputType,
+    getDetectedFieldValue,
+    isLongDetectedField,
+    setDetectedFieldValue,
+  ]);
 
   useEffect(() => {
     // Recover from any stale body scroll lock when entering the resume editor.
@@ -2749,14 +3893,12 @@ export const Resume = () => {
     if (initialResumeReady) return;
 
     const waitingForInitialTemplate =
-      !selectedJsonTemplate &&
       Boolean(selectedTemplate) &&
       !templateSourceHtml &&
       !templateError;
 
     if (
       templateLoading ||
-      jsonTemplateLoading ||
       (templatePreviewLoading && waitingForInitialTemplate) ||
       waitingForInitialTemplate
     ) {
@@ -2766,8 +3908,6 @@ export const Resume = () => {
     setInitialResumeReady(true);
   }, [
     initialResumeReady,
-    jsonTemplateLoading,
-    selectedJsonTemplate,
     selectedTemplate,
     templateError,
     templateLoading,
@@ -2786,26 +3926,88 @@ export const Resume = () => {
 
   const previewPanel = (
     <div className="builder-preview-panel">
+      {stepSections.length > 0 && (
+        <div className="preview-progress-card">
+          <div className="preview-progress-track">
+            <div
+              className="preview-stepper"
+              role="list"
+              aria-label="Resume builder progress"
+              style={{ gridTemplateColumns: `repeat(${stepSections.length}, minmax(0, 1fr))` }}
+            >
+              {stepSections.map((sectionId, index) => {
+                const isComplete = Boolean(sectionCompletion[sectionId]);
+                const isActive = sectionId === currentStepId;
+                const sectionTitle = RESUME_SECTION_TITLES[sectionId] || sectionId;
+                const statusLabel = isComplete ? 'Complete' : isActive ? 'Editing now' : 'Pending';
+
+                return (
+                  <button
+                    key={`preview-step-${sectionId}`}
+                    type="button"
+                    role="listitem"
+                    className={`preview-step ${isComplete ? 'is-complete' : ''} ${isActive ? 'is-active' : ''} ${!isComplete && isActive ? 'has-logo-marker' : ''}`}
+                    onClick={() => setActiveSectionId(sectionId)}
+                    aria-current={isActive ? 'step' : undefined}
+                  >
+                    <span className="preview-step-line preview-step-line-left" aria-hidden="true" />
+                    <span className="preview-step-line preview-step-line-right" aria-hidden="true" />
+                    <span className={`preview-step-marker ${!isComplete && isActive ? 'is-logo' : ''}`}>
+                      {isComplete ? (
+                        '✓'
+                      ) : isActive ? (
+                        <svg
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                          focusable="false"
+                          className="preview-step-marker-logo"
+                        >
+                          <path
+                            d="M6.25 2.75h8.35a1.75 1.75 0 0 1 1.24.51l3.4 3.4a1.75 1.75 0 0 1 .51 1.24v10.85a2.5 2.5 0 0 1-2.5 2.5h-11a2.5 2.5 0 0 1-2.5-2.5v-13.5a2.5 2.5 0 0 1 2.5-2.5Z"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.75"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <path
+                            d="M14.5 2.75V6.5A1.5 1.5 0 0 0 16 8h3.75"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.75"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <circle cx="10.1" cy="10.2" r="2.15" fill="currentColor" />
+                          <path
+                            d="M6.95 15.1c.95-1.95 2.05-2.9 3.2-2.9 1.18 0 2.3.95 3.25 2.9"
+                            fill="currentColor"
+                          />
+                          <path
+                            d="M14.8 11.6h3.1M7.25 17.35h10.6M7.25 20h7.2"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      ) : (
+                        index + 1
+                      )}
+                    </span>
+                    <span className="preview-step-label">{sectionTitle}</span>
+                    <span className="preview-step-status">{statusLabel}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="preview-card" ref={previewCardRef}>
         <div className="preview-card-body">
           <div className="preview-scroll" ref={previewBodyRef} onScroll={updatePreviewPaging}>
-            {selectedJsonTemplate ? (
-              <div className="preview-iframe-shell" ref={previewShellRef}>
-                <div className="preview-json-frame">
-                  <ResumeTemplatePreview
-                    template={previewJsonTemplateDefinition ?? selectedJsonTemplate.definition}
-                    data={jsonPreviewData}
-                    currentPage={previewPage}
-                    onPageChange={setPreviewPage}
-                    onPageCountChange={setPreviewPageCount}
-                    sectionOrder={jsonSectionOrder}
-                    onSectionOrderChange={setJsonSectionOrder}
-                    inlineEditing
-                    onFieldChange={handleInlineFieldChange}
-                  />
-                </div>
-              </div>
-            ) : previewHtml ? (
+            {previewHtml ? (
               <div className="preview-iframe-shell" ref={previewShellRef}>
                 <iframe
                   title="Resume preview"
@@ -2822,44 +4024,382 @@ export const Resume = () => {
               </div>
             )}
           </div>
-          <div className="preview-overlay">
-            <button
-              type="button"
-              className="preview-overlay-btn"
-              disabled={previewPage <= 1}
-              onClick={() => scrollPreviewToPage(previewPage - 1)}
-            >
-              &lt;
-            </button>
-            <span className="preview-overlay-text">Page {previewPage} of {previewPageCount}</span>
-            <button
-              type="button"
-              className="preview-overlay-btn"
-              disabled={previewPage >= previewPageCount}
-              onClick={() => scrollPreviewToPage(previewPage + 1)}
-            >
-              &gt;
-            </button>
-            {ENABLE_PREVIEW_PAGINATION && !selectedJsonTemplate && (
-              <div className="preview-overlay-size">
-                {pageSizeOptions.map((option) => (
+          {(previewPageCount > 1 || ENABLE_PREVIEW_PAGINATION) && (
+            <div className="preview-overlay">
+              <button
+                type="button"
+                className="preview-overlay-btn"
+                disabled={previewPage <= 1}
+                onClick={() => scrollPreviewToPage(previewPage - 1)}
+              >
+                &lt;
+              </button>
+              <span className="preview-overlay-text">Page {previewPage} of {previewPageCount}</span>
+              <button
+                type="button"
+                className="preview-overlay-btn"
+                disabled={previewPage >= previewPageCount}
+                onClick={() => scrollPreviewToPage(previewPage + 1)}
+              >
+                &gt;
+              </button>
+              {ENABLE_PREVIEW_PAGINATION && (
+                <div className="preview-overlay-size">
+                  {pageSizeOptions.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      className={`preview-size-btn ${previewPageSizeMode === option ? 'is-active' : ''}`}
+                      onClick={() => setPreviewPageSizeMode(option)}
+                      title={
+                        option === 'auto'
+                          ? `Auto (${PAGE_SIZES[resolvedPageSize].label})`
+                          : PAGE_SIZES[option].label
+                      }
+                    >
+                      {option === 'auto' ? 'Auto' : PAGE_SIZES[option].label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderCustomizePanel = (mode: 'tab' | 'inline' = 'tab') => (
+    <div className={`resume-tab-panel ${mode === 'inline' ? 'inline-customize-panel' : ''}`}>
+      <div className="tab-panel-header">
+        <div>
+          <h2>Customize your template</h2>
+          <p>Switch layouts or tweak the look before editing content.</p>
+        </div>
+        {mode === 'tab' && (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setActiveEditorTab('edit')}
+          >
+            Back to Edit
+          </button>
+        )}
+      </div>
+      <div className="tab-panel-body">
+        <div className="tab-section">
+          <h3>Select a template</h3>
+          {combinedTemplateLoading ? (
+            <div className="template-state">Loading templates...</div>
+          ) : combinedTemplateError ? (
+            <div className="template-state template-error">{combinedTemplateError}</div>
+          ) : filteredTemplates.length === 0 ? (
+            <div className="template-state">No templates available.</div>
+          ) : (
+            <div className="template-compact-grid">
+              {filteredTemplates.map((t) => {
+                const displayName = t.displayName.toLowerCase();
+                const isSelected = selectedTemplate === t.name;
+                return (
                   <button
-                    key={option}
+                    key={`customize:${t.name}`}
                     type="button"
-                    className={`preview-size-btn ${previewPageSizeMode === option ? 'is-active' : ''}`}
-                    onClick={() => setPreviewPageSizeMode(option)}
-                    title={
-                      option === 'auto'
-                        ? `Auto (${PAGE_SIZES[resolvedPageSize].label})`
-                        : PAGE_SIZES[option].label
-                    }
+                    onClick={() => handleCustomizeTemplateSelect(t)}
+                    className={`template-card-compact ${isSelected ? 'is-selected' : ''}`}
+                    title={displayName}
                   >
-                    {option === 'auto' ? 'Auto' : PAGE_SIZES[option].label}
+                    <div className="template-card-compact-preview">
+                      {t.thumbnailUrl ? (
+                        <img
+                          src={t.thumbnailUrl}
+                          alt={`${t.displayName} template`}
+                          loading="lazy"
+                          decoding="async"
+                          width={420}
+                          height={594}
+                        />
+                      ) : (
+                        <div className="template-preview-placeholder">
+                          <div className="template-preview-paper" />
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <div className="tab-section">
+          <h3>Accent color</h3>
+          {supportsClassicTemplateCustomization ? (
+            <>
+              <p className="tab-helper">
+                Pick the accent used for section labels, dividers, and the portrait background tint.
+              </p>
+              <div className="color-preset-grid">
+                {TEMPLATE_COLOR_PRESETS.map((preset) => (
+                  <button
+                    key={`accent-${preset.id}`}
+                    type="button"
+                    className={`color-preset-card ${selectedColorPreset === preset.id ? 'is-selected' : ''}`}
+                    onClick={() => setSelectedColorPreset(preset.id)}
+                  >
+                    <span
+                      className="color-preset-swatch"
+                      style={{ backgroundColor: preset.accent }}
+                      aria-hidden="true"
+                    />
+                    <span className="color-preset-label">{preset.label}</span>
                   </button>
                 ))}
+                <button
+                  type="button"
+                  className={`color-preset-card ${selectedColorPreset === 'custom' ? 'is-selected' : ''}`}
+                  onClick={() => setSelectedColorPreset('custom')}
+                >
+                  <span
+                    className="color-preset-swatch"
+                    style={{ background: 'linear-gradient(135deg, #c3aa72 0%, #1d4d8f 100%)' }}
+                    aria-hidden="true"
+                  />
+                  <span className="color-preset-label">Custom</span>
+                </button>
               </div>
-            )}
+              {selectedColorPreset === 'custom' && (
+                <div className="color-custom-controls">
+                  <label className="color-custom-label" htmlFor="custom-template-color">
+                    Custom accent
+                  </label>
+                  <div className="color-custom-inputs">
+                    <input
+                      id="custom-template-color"
+                      type="color"
+                      className="color-picker-input"
+                      value={normalizedCustomTemplateColor}
+                      onChange={(e) => setCustomTemplateColor(e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      className="color-hex-input"
+                      value={customTemplateColor}
+                      placeholder="#c3aa72"
+                      onChange={(e) => setCustomTemplateColor(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="setting-card">
+              <span>Availability</span>
+              <strong>Switch to Classic Portrait Sidebar to unlock accent color controls.</strong>
+            </div>
+          )}
+        </div>
+        <div className="tab-section">
+          <h3>Typography & rich text</h3>
+          {supportsClassicTemplateCustomization ? (
+            <>
+              <p className="tab-helper">
+                These H1-H6 controls apply only to rich-text content, and the sizes now auto-correct to keep a proper heading order from largest to smallest.
+              </p>
+              <div className="style-control-grid">
+                <div className="style-control-card">
+                  <label className="style-control-label" htmlFor="classic-body-font">
+                    Body font family
+                  </label>
+                  <select
+                    id="classic-body-font"
+                    className="tab-input"
+                    value={classicTemplateStyleSettings.bodyFontFamily}
+                    onChange={(e) => updateClassicTemplateStyleFont('bodyFontFamily', e.target.value)}
+                  >
+                    {CLASSIC_TEMPLATE_FONT_OPTIONS.map((option) => (
+                      <option key={`body-font-${option.label}`} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="style-control-note">Applies to summary, bullets, contact lines, and paragraph text.</span>
+                </div>
+                <div className="style-control-card">
+                  <label className="style-control-label" htmlFor="classic-heading-font">
+                    Heading font family
+                  </label>
+                  <select
+                    id="classic-heading-font"
+                    className="tab-input"
+                    value={classicTemplateStyleSettings.headingFontFamily}
+                    onChange={(e) => updateClassicTemplateStyleFont('headingFontFamily', e.target.value)}
+                  >
+                    {CLASSIC_TEMPLATE_FONT_OPTIONS.map((option) => (
+                      <option key={`heading-font-${option.label}`} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="style-control-note">Used for the name, section labels, H1-H6, and role titles.</span>
+                </div>
+                <div className="style-control-card">
+                  <label className="style-control-label" htmlFor="classic-body-weight">
+                    Body font weight
+                  </label>
+                  <select
+                    id="classic-body-weight"
+                    className="tab-input"
+                    value={classicTemplateStyleSettings.bodyFontWeight}
+                    onChange={(e) => updateClassicTemplateStyleNumber('bodyFontWeight', Number(e.target.value))}
+                  >
+                    {CLASSIC_TEMPLATE_WEIGHT_OPTIONS.map((weight) => (
+                      <option key={`body-weight-${weight}`} value={weight}>
+                        {weight}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="style-control-note">Lighter values feel editorial, heavier values feel bold and compact.</span>
+                </div>
+                <div className="style-control-card">
+                  <label className="style-control-label" htmlFor="classic-heading-weight">
+                    Heading font weight
+                  </label>
+                  <select
+                    id="classic-heading-weight"
+                    className="tab-input"
+                    value={classicTemplateStyleSettings.headingFontWeight}
+                    onChange={(e) => updateClassicTemplateStyleNumber('headingFontWeight', Number(e.target.value))}
+                  >
+                    {CLASSIC_TEMPLATE_WEIGHT_OPTIONS.map((weight) => (
+                      <option key={`heading-weight-${weight}`} value={weight}>
+                        {weight}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="style-control-note">Controls the name, section labels, and heading hierarchy.</span>
+                </div>
+                <div className="style-control-card">
+                  <label className="style-control-label" htmlFor="classic-body-size">
+                    Base font size
+                  </label>
+                  <input
+                    id="classic-body-size"
+                    type="number"
+                    min={CLASSIC_TEMPLATE_NUMBER_LIMITS.bodyFontSize.min}
+                    max={CLASSIC_TEMPLATE_NUMBER_LIMITS.bodyFontSize.max}
+                    step="0.5"
+                    className="tab-input"
+                    value={classicTemplateStyleSettings.bodyFontSize}
+                    onChange={(e) => updateClassicTemplateStyleNumber('bodyFontSize', Number(e.target.value))}
+                  />
+                  <span className="style-control-note">This is the default paragraph size before H1-H6 overrides.</span>
+                </div>
+                <div className="style-control-card">
+                  <label className="style-control-label" htmlFor="classic-text-color">
+                    Text color
+                  </label>
+                  <input
+                    id="classic-text-color"
+                    type="color"
+                    className="style-color-input"
+                    value={classicTemplateStyleSettings.textColor}
+                    onChange={(e) => updateClassicTemplateStyleColor('textColor', e.target.value)}
+                  />
+                  <span className="style-control-note">{classicTemplateStyleSettings.textColor.toUpperCase()}</span>
+                </div>
+                <div className="style-control-card">
+                  <label className="style-control-label" htmlFor="classic-heading-color">
+                    Heading color
+                  </label>
+                  <input
+                    id="classic-heading-color"
+                    type="color"
+                    className="style-color-input"
+                    value={classicTemplateStyleSettings.headingColor}
+                    onChange={(e) => updateClassicTemplateStyleColor('headingColor', e.target.value)}
+                  />
+                  <span className="style-control-note">{classicTemplateStyleSettings.headingColor.toUpperCase()}</span>
+                </div>
+                <div className="style-control-card">
+                  <label className="style-control-label" htmlFor="classic-highlight-color">
+                    Highlight color
+                  </label>
+                  <input
+                    id="classic-highlight-color"
+                    type="color"
+                    className="style-color-input"
+                    value={classicTemplateStyleSettings.highlightColor}
+                    onChange={(e) => updateClassicTemplateStyleColor('highlightColor', e.target.value)}
+                  />
+                  <span className="style-control-note">Used for highlighted text inside rich-text content.</span>
+                </div>
+              </div>
+              <div className="heading-size-grid">
+                {CLASSIC_TEMPLATE_HEADING_FIELDS.map((field) => (
+                  <div className="style-control-card" key={field.key}>
+                    <label className="style-control-label" htmlFor={`classic-${field.key}`}>
+                      {field.label}
+                    </label>
+                    <input
+                      id={`classic-${field.key}`}
+                      type="number"
+                      min={CLASSIC_TEMPLATE_NUMBER_LIMITS[field.key].min}
+                      max={CLASSIC_TEMPLATE_NUMBER_LIMITS[field.key].max}
+                      step="0.5"
+                      className="tab-input"
+                      value={classicTemplateStyleSettings[field.key]}
+                      onChange={(e) => updateClassicTemplateStyleNumber(field.key, Number(e.target.value))}
+                    />
+                    <span className="style-control-note">{field.note}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="setting-card">
+              <span>Availability</span>
+              <strong>Switch to Classic Portrait Sidebar to edit H1-H6, font family, weights, text color, and highlights.</strong>
+            </div>
+          )}
+        </div>
+        <div className="tab-section">
+          <h3>Preview settings</h3>
+          <div className="preview-settings">
+            <div className="setting-card">
+              <span>Live preview mode</span>
+              <strong>Original template + style overrides</strong>
+            </div>
+            <div className="setting-card">
+              <span>Scaling in preview</span>
+              <strong>Whole-page fit</strong>
+            </div>
+            <div className="setting-card">
+              <span>Page size</span>
+              <strong>Template native size</strong>
+            </div>
           </div>
+        </div>
+        <div className="tab-section">
+          <h3>Download your resume</h3>
+          <div className="customize-download-card">
+            <div className="customize-download-copy">
+              <strong>Export the styled version as PDF</strong>
+              <p>When the preview looks right, download the latest version with your selected template, fonts, colors, and heading styles.</p>
+            </div>
+            <button
+              type="button"
+              className="resume-topbar-download customize-download-btn"
+              onClick={handleDownloadPDF}
+              disabled={Boolean(downloadBlockedReason)}
+              title={downloadBlockedReason || 'Download PDF'}
+            >
+              {downloadingPdf ? 'Downloading...' : 'Download PDF'} <span className="caret" aria-hidden="true" />
+            </button>
+          </div>
+          {downloadBlockedReason && (
+            <div className="customize-download-note">
+              {downloadBlockedReason}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -2948,12 +4488,10 @@ export const Resume = () => {
               <div className="template-compact-grid">
                 {filteredTemplates.map((t) => {
                   const displayName = t.displayName.toLowerCase();
-                  const isSelected = t.kind === 'json'
-                    ? selectedJsonTemplate?.slug === t.name
-                    : selectedTemplate === t.name;
+                  const isSelected = selectedTemplate === t.name;
                   return (
                     <button
-                      key={`${t.kind}:${t.name}`}
+                      key={t.name}
                       type="button"
                       onClick={() => handleTemplateSelect(t)}
                       className={`template-card-compact ${isSelected ? 'is-selected' : ''}`}
@@ -3026,6 +4564,7 @@ export const Resume = () => {
                   type="button"
                   className={`resume-topbar-pill ${activeEditorTab === 'customize' ? 'is-active' : ''}`}
                   onClick={() => setActiveEditorTab('customize')}
+                  title="Open customize"
                 >
                   Customize
                 </button>
@@ -3046,42 +4585,33 @@ export const Resume = () => {
                 </button>
               </div>
               <div className="resume-topbar-right">
-                {jsonTemplateSupportsColorPreset && (
-                  <div className="resume-topbar-colorbar" aria-label="Template color presets">
-                    {TEMPLATE_COLOR_PRESETS.map((preset) => (
-                      <button
-                        key={`topbar-preset:${preset.id}`}
-                        type="button"
-                        className={`topbar-color-swatch ${selectedColorPreset === preset.id ? 'is-selected' : ''}`}
-                        style={{ backgroundColor: preset.accent }}
-                        title={preset.label}
-                        aria-label={`Use ${preset.label} color`}
-                        onClick={() => setSelectedColorPreset(preset.id)}
-                      />
-                    ))}
-                    <label className={`topbar-color-custom ${selectedColorPreset === 'custom' ? 'is-selected' : ''}`} title="Choose custom color">
-                      <input
-                        type="color"
-                        value={normalizedCustomTemplateColor}
-                        aria-label="Choose custom template color"
-                        onChange={(e) => {
-                          setCustomTemplateColor(e.target.value);
-                          setSelectedColorPreset('custom');
-                        }}
-                      />
-                    </label>
-                  </div>
+                {isEditorRoute && (
+                  <button
+                    type="button"
+                    className="resume-topbar-outline"
+                    onClick={fillWithFakeData}
+                    disabled={isFillingDemo || downloadingPdf}
+                  >
+                    {isFillingDemo ? 'Filling...' : 'Fake Data'}
+                  </button>
                 )}
                 <button
                   type="button"
                   className="resume-topbar-outline"
                   onClick={() => (isEditorRoute ? setShowTemplatePicker(true) : navigate('/resume/templates'))}
+                  disabled={downloadingPdf}
                 >
                   Change Template
                 </button>
-                {canDownload && (
-                  <button type="button" className="resume-topbar-download" onClick={handleDownloadPDF}>
-                    Download <span className="caret" aria-hidden="true" />
+                {selectedTemplate && !canCustomize && (
+                  <button
+                    type="button"
+                    className="resume-topbar-download"
+                    onClick={handleDownloadPDF}
+                    disabled={Boolean(downloadBlockedReason)}
+                    title={downloadBlockedReason || 'Download PDF'}
+                  >
+                    {downloadingPdf ? 'Downloading...' : 'Download'} <span className="caret" aria-hidden="true" />
                   </button>
                 )}
                 <button type="button" className="resume-topbar-icon" aria-label="Settings">
@@ -3112,10 +4642,10 @@ export const Resume = () => {
                     <button
                       type="button"
                       className="resume-action-btn ghost"
-                      onClick={fillWithDemoData}
+                      onClick={fillWithFakeData}
                       disabled={isFillingDemo}
                     >
-                      {isFillingDemo ? 'Filling...' : 'Fill Sample Data'}
+                      {isFillingDemo ? 'Filling...' : 'Fill Fake Data'}
                     </button>
                     <button
                       type="button"
@@ -3140,9 +4670,7 @@ export const Resume = () => {
                       type="button"
                         className="btn btn-primary"
                         onClick={() => {
-                        if (selectedJsonTemplate) {
-                          refreshJsonTemplates();
-                        } else if (selectedTemplate) {
+                        if (selectedTemplate) {
                           selectTemplate(selectedTemplate);
                         } else {
                           refreshTemplates();
@@ -3155,7 +4683,7 @@ export const Resume = () => {
                 </div>
               )}
 
-              {templateSourceHtml && !selectedJsonTemplate && activeTemplateFields.length === 0 && (
+              {templateSourceHtml && activeTemplateFields.length === 0 && (
                 <div className="text-sm text-gray-500 mb-6">
                   This template has no placeholders. Use a dynamic template to enable live editing.
                 </div>
@@ -3186,42 +4714,18 @@ export const Resume = () => {
                 )}
                 {isStepMode && showStepChrome && currentStepId && (
                   <div className="step-header">
-                    <div className="step-header-title">
-                      <span className="step-count">Step {currentStepIndex + 1} of {totalSteps}</span>
-                      <h3>{{
-                        contact: 'Personal Details',
-                        summary: 'Professional Summary',
-                        experience: 'Work Experience',
-                        projects: 'Projects',
-                        education: 'Education',
-                        skills: 'Skills',
-                        custom: 'Custom Details',
-                        additional: 'Additional Information',
-                        extra: 'Other Fields',
-                      }[currentStepId] || 'Section'}</h3>
-                    </div>
+                    <div id={SECTION_RICH_TEXT_TOOLBAR_HOST_ID} className="step-rich-text-toolbar-host" />
                   </div>
                 )}
                 <div className="space-y-5">
                   {sectionOrder.map((sectionId) => {
-                    const sectionTitles: Record<string, string> = {
-                      contact: 'Personal Details',
-                      summary: 'Professional Summary',
-                      experience: 'Work Experience',
-                      projects: 'Projects',
-                      education: 'Education',
-                      skills: 'Skills',
-                      custom: 'Custom Details',
-                      additional: 'Additional Information',
-                      extra: 'Other Fields',
-                    };
-                    const sectionTitle = sectionTitles[sectionId];
+                    const sectionTitle = RESUME_SECTION_TITLES[sectionId];
                     const currentSectionIndex = sectionOrder.indexOf(sectionId);
                     const nextSectionId =
                       currentSectionIndex >= 0 && currentSectionIndex < sectionOrder.length - 1
                         ? sectionOrder[currentSectionIndex + 1]
                         : null;
-                    const nextSectionTitle = nextSectionId ? sectionTitles[nextSectionId] || 'Next Section' : '';
+                    const nextSectionTitle = nextSectionId ? RESUME_SECTION_TITLES[nextSectionId] || 'Next Section' : '';
 
                     const sectionContent = {
                       contact: (
@@ -3230,7 +4734,7 @@ export const Resume = () => {
                             <div className="contact-top-row">
                               {showRoleField && (
                                 <div className="form-group">
-                                  <label className="block text-sm font-semibold mb-2 text-gray-700">Job Target</label>
+                                  <label className="block text-sm font-semibold mb-2 text-gray-700">Professional Title</label>
                                   <input
                                     placeholder="e.g. Software Engineer"
                                     className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
@@ -3319,44 +4823,75 @@ export const Resume = () => {
                                   />
                                 </div>
                               )}
-                              <div className="form-group">
-                                <label className="block text-sm font-semibold mb-2 text-gray-700">LinkedIn URL</label>
-                                <input
-                                  placeholder="linkedin.com/in/you"
-                                  className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                                  value={getTemplateFieldValue('linkedin')}
-                                  onChange={(e) => setTemplateFieldValue('linkedin', e.target.value)}
-                                />
-                              </div>
-                              <div className="form-group">
-                                <label className="block text-sm font-semibold mb-2 text-gray-700">Postal Code</label>
-                                <input
-                                  placeholder="Postal code"
-                                  className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                                  value={getTemplateFieldValue('postal_code')}
-                                  onChange={(e) => setTemplateFieldValue('postal_code', e.target.value)}
-                                />
-                              </div>
+                              {showWebsiteField && (
+                                <div className="form-group">
+                                  <label className="block text-sm font-semibold mb-2 text-gray-700">Portfolio</label>
+                                  <input
+                                    type="url"
+                                    placeholder="www.yourportfolio.com"
+                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                    value={getTemplateFieldValue('website') || getTemplateFieldValue('portfolio')}
+                                    onChange={(e) => setTemplateFieldValue('portfolio', e.target.value)}
+                                  />
+                                </div>
+                              )}
+                              {showLinkedInField && (
+                                <div className="form-group">
+                                  <label className="block text-sm font-semibold mb-2 text-gray-700">LinkedIn URL</label>
+                                  <input
+                                    type="url"
+                                    placeholder="linkedin.com/in/you"
+                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                    value={getTemplateFieldValue('linkedin')}
+                                    onChange={(e) => setTemplateFieldValue('linkedin', e.target.value)}
+                                  />
+                                </div>
+                              )}
+                              {showGitHubField && (
+                                <div className="form-group">
+                                  <label className="block text-sm font-semibold mb-2 text-gray-700">GitHub URL</label>
+                                  <input
+                                    type="url"
+                                    placeholder="github.com/you"
+                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                    value={getTemplateFieldValue('github')}
+                                    onChange={(e) => setTemplateFieldValue('github', e.target.value)}
+                                  />
+                                </div>
+                              )}
+                              {showPostalCodeField && (
+                                <div className="form-group">
+                                  <label className="block text-sm font-semibold mb-2 text-gray-700">Postal Code</label>
+                                  <input
+                                    placeholder="Postal code"
+                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                    value={getTemplateFieldValue('postal_code')}
+                                    onChange={(e) => setTemplateFieldValue('postal_code', e.target.value)}
+                                  />
+                                </div>
+                              )}
                               {showLocationField && (
                                 <div className="form-group">
-                                  <label className="block text-sm font-semibold mb-2 text-gray-700">City, State</label>
+                                  <label className="block text-sm font-semibold mb-2 text-gray-700">City / Address</label>
                                   <input
-                                    placeholder="City, State"
+                                    placeholder="City / Address"
                                     className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                     value={contactLocation}
                                     onChange={(e) => setContactLocation(e.target.value)}
                                   />
                                 </div>
                               )}
-                              <div className="form-group">
-                                <label className="block text-sm font-semibold mb-2 text-gray-700">Country</label>
-                                <input
-                                  placeholder="Country"
-                                  className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                                  value={getTemplateFieldValue('country')}
-                                  onChange={(e) => setTemplateFieldValue('country', e.target.value)}
-                                />
-                              </div>
+                              {showCountryField && (
+                                <div className="form-group">
+                                  <label className="block text-sm font-semibold mb-2 text-gray-700">Country</label>
+                                  <input
+                                    placeholder="Country"
+                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                    value={getTemplateFieldValue('country')}
+                                    onChange={(e) => setTemplateFieldValue('country', e.target.value)}
+                                  />
+                                </div>
+                              )}
                             </div>
                             <div className="contact-footer">
                               <button type="button" className="add-details-btn">Add more details</button>
@@ -3373,12 +4908,13 @@ export const Resume = () => {
                       ),
                       summary: (
                         <div className="form-group">
-                          <label className="block text-sm font-semibold mb-2 text-gray-700">Summary</label>
+                          <label className="block text-sm font-semibold mb-2 text-gray-700">Professional Summary / Objective</label>
                           <RichTextEditor
                             value={summaryText}
                             onChange={setSummaryText}
-                            placeholder="Write a concise summary of your profile..."
+                            placeholder="Write your professional summary or objective..."
                             minHeight={160}
+                            toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
                           />
                         </div>
                       ),
@@ -3400,29 +4936,38 @@ export const Resume = () => {
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="form-group">
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Role</label>
-                                  <input
-                                    placeholder="e.g. Senior Developer"
-                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                  <RichTextEditor
                                     value={item.role}
-                                    onChange={(e) => updateExperienceItem(item.id, { role: e.target.value })}
+                                    onChange={(value) => updateExperienceItem(item.id, { role: value })}
+                                    placeholder="e.g. Senior Developer"
+                                    minHeight={58}
+                                    compact
+                                    spellCheck={false}
+                                    toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
                                   />
                                 </div>
                                 <div className="form-group">
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Company</label>
-                                  <input
-                                    placeholder="Company name"
-                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                  <RichTextEditor
                                     value={item.company}
-                                    onChange={(e) => updateExperienceItem(item.id, { company: e.target.value })}
+                                    onChange={(value) => updateExperienceItem(item.id, { company: value })}
+                                    placeholder="Company name"
+                                    minHeight={58}
+                                    compact
+                                    spellCheck={false}
+                                    toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
                                   />
                                 </div>
                                 <div className="form-group md:col-span-2">
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Dates</label>
-                                  <input
-                                    placeholder="e.g. Jan 2021 - Present"
-                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                  <RichTextEditor
                                     value={item.dates}
-                                    onChange={(e) => updateExperienceItem(item.id, { dates: e.target.value })}
+                                    onChange={(value) => updateExperienceItem(item.id, { dates: value })}
+                                    placeholder="e.g. Jan 2021 - Present"
+                                    minHeight={54}
+                                    compact
+                                    spellCheck={false}
+                                    toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
                                   />
                                 </div>
                                 <div className="form-group md:col-span-2">
@@ -3432,6 +4977,7 @@ export const Resume = () => {
                                     onChange={(value) => updateExperienceItem(item.id, { details: value })}
                                     placeholder="Built X feature...\nImproved Y by 20%..."
                                     minHeight={140}
+                                    toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
                                   />
                                 </div>
                               </div>
@@ -3443,17 +4989,6 @@ export const Resume = () => {
                           >
                             + Add Experience
                           </button>
-                        </div>
-                      ),
-                      projects: (
-                        <div className="form-group">
-                          <label className="block text-sm font-semibold mb-2 text-gray-700">Projects (one per line)</label>
-                          <RichTextEditor
-                            value={projectsText}
-                            onChange={setProjectsText}
-                            placeholder="Project A - brief description..."
-                            minHeight={140}
-                          />
                         </div>
                       ),
                       education: (
@@ -3474,29 +5009,38 @@ export const Resume = () => {
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="form-group">
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Degree</label>
-                                  <input
-                                    placeholder="e.g. BSc Computer Science"
-                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                  <RichTextEditor
                                     value={item.degree}
-                                    onChange={(e) => updateEducationItem(item.id, { degree: e.target.value })}
+                                    onChange={(value) => updateEducationItem(item.id, { degree: value })}
+                                    placeholder="e.g. BSc Computer Science"
+                                    minHeight={58}
+                                    compact
+                                    spellCheck={false}
+                                    toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
                                   />
                                 </div>
                                 <div className="form-group">
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">School</label>
-                                  <input
-                                    placeholder="University name"
-                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                  <RichTextEditor
                                     value={item.school}
-                                    onChange={(e) => updateEducationItem(item.id, { school: e.target.value })}
+                                    onChange={(value) => updateEducationItem(item.id, { school: value })}
+                                    placeholder="University name"
+                                    minHeight={58}
+                                    compact
+                                    spellCheck={false}
+                                    toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
                                   />
                                 </div>
                                 <div className="form-group md:col-span-2">
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Dates</label>
-                                  <input
-                                    placeholder="e.g. 2016 - 2020"
-                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                  <RichTextEditor
                                     value={item.dates}
-                                    onChange={(e) => updateEducationItem(item.id, { dates: e.target.value })}
+                                    onChange={(value) => updateEducationItem(item.id, { dates: value })}
+                                    placeholder="e.g. 2016 - 2020"
+                                    minHeight={54}
+                                    compact
+                                    spellCheck={false}
+                                    toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
                                   />
                                 </div>
                                 <div className="form-group md:col-span-2">
@@ -3506,6 +5050,7 @@ export const Resume = () => {
                                     onChange={(value) => updateEducationItem(item.id, { details: value })}
                                     placeholder="Honors, GPA, coursework..."
                                     minHeight={120}
+                                    toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
                                   />
                                 </div>
                               </div>
@@ -3563,50 +5108,65 @@ export const Resume = () => {
                           </div>
                         </div>
                       ),
-                      custom: (
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-semibold text-gray-700">Add extra details</span>
-                            <button
-                              type="button"
-                              onClick={addCustomDetail}
-                              className="text-sm font-semibold text-primary hover:text-primary-dark"
-                            >
-                              + Add Detail
-                            </button>
+                      languages: (
+                        <div className="form-group">
+                          <label className="block text-sm font-semibold mb-2 text-gray-700">Languages</label>
+                          <div className="skills-editor">
+                            <div className="skills-input-row">
+                              <input
+                                placeholder="Add a language (e.g. Urdu)"
+                                className="skills-input"
+                                value={languagesInput}
+                                onChange={(e) => setLanguagesInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    addLanguage();
+                                  }
+                                }}
+                              />
+                              <button type="button" className="add-skill-btn" onClick={addLanguage}>
+                                Add language
+                              </button>
+                            </div>
+                            {languageList.length > 0 ? (
+                              <div className="skills-chip-list">
+                                {languageList.map((language, index) => (
+                                  <span key={`${language}-${index}`} className="skills-chip">
+                                    {language}
+                                    <button
+                                      type="button"
+                                      className="skills-chip-remove"
+                                      aria-label={`Remove ${language}`}
+                                      onClick={() => removeLanguage(index)}
+                                    >
+                                      Ã—
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="skills-empty">Add your first language to get started.</div>
+                            )}
+                            <div className="skills-helper">Tip: You can paste multiple languages separated by commas.</div>
                           </div>
-                          {customDetails.length === 0 ? (
-                            <div className="text-sm text-gray-500">
-                              Add label/value pairs for extra details like Certifications, Awards, or Licenses.
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              {customDetails.map((item) => (
-                                <div key={item.id} className="grid grid-cols-1 md:grid-cols-[1fr,2fr,auto] gap-3">
-                                  <input
-                                    placeholder="Label (e.g. Certifications)"
-                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                                    value={item.label}
-                                    onChange={(e) => updateCustomDetail(item.id, { label: e.target.value })}
-                                  />
-                                  <input
-                                    placeholder="Value (e.g. BLS, ACLS)"
-                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-                                    value={item.value}
-                                    onChange={(e) => updateCustomDetail(item.id, { value: e.target.value })}
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => removeCustomDetail(item.id)}
-                                    className="text-sm font-semibold text-gray-500 hover:text-gray-700"
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
                         </div>
+                      ),
+                      personal_info: renderDetectedFieldSection(
+                        personalInfoFields,
+                        'These details are optional. Fill only what you want shown on the resume.'
+                      ),
+                      certifications: renderDetectedFieldSection(
+                        certificationFields,
+                        'Add certifications only if you want them shown on the resume.'
+                      ),
+                      awards: renderDetectedFieldSection(
+                        awardFields,
+                        'Add achievements or awards only when they apply to this candidate.'
+                      ),
+                      references: renderDetectedFieldSection(
+                        referenceFields,
+                        'References are optional. Fill them only when the candidate wants them included.'
                       ),
                     }[sectionId];
 
@@ -3617,6 +5177,7 @@ export const Resume = () => {
                     if (isStepMode && sectionId !== currentStepId) return null;
                     const isExpanded = activeSectionId === sectionId;
                     const isComplete = sectionCompletion[sectionId];
+                    const isOptionalSection = !REQUIRED_EDITOR_SECTION_IDS.has(sectionId);
 
                     return (
                       <div
@@ -3633,7 +5194,12 @@ export const Resume = () => {
                           onClick={() => setActiveSectionId(sectionId)}
                         >
                           <span className="drag-handle">::</span>
-                          <h3>{sectionTitle}</h3>
+                          <div className="builder-section-title-group">
+                            <h3>{sectionTitle}</h3>
+                            {isOptionalSection && (
+                              <span className="section-optional-badge">Optional</span>
+                            )}
+                          </div>
                           <span className="ai-help-btn">
                             Get help with writing
                           </span>
@@ -3663,32 +5229,40 @@ export const Resume = () => {
                   })}
                 </div>
                 {isStepMode && showStepChrome && activeEditorTab === 'edit' && (
-                  <div className="step-footer">
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={goPrevStep}
-                      disabled={currentStepIndex === 0}
-                    >
-                      Back
-                    </button>
-                    <div className="step-dots">
-                      {stepSections.map((_, index) => (
-                        <span
-                          key={`step-dot-${index}`}
-                          className={`step-dot ${index === currentStepIndex ? 'active' : ''}`}
-                        />
-                      ))}
+                  <>
+                    <div className="step-footer">
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={goPrevStep}
+                        disabled={currentStepIndex === 0}
+                      >
+                        Back
+                      </button>
+                      <div className="step-dots">
+                        {stepSections.map((_, index) => (
+                          <span
+                            key={`step-dot-${index}`}
+                            className={`step-dot ${index === currentStepIndex ? 'active' : ''}`}
+                          />
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={isLastStep ? goToCustomizeSection : goNextStep}
+                        disabled={isLastStep ? !canCustomize : false}
+                        title={isLastStep ? 'Go to customize section' : 'Go to next section'}
+                      >
+                        Next
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={currentStepIndex >= totalSteps - 1 ? handleDownloadPDF : goNextStep}
-                      disabled={currentStepIndex >= totalSteps - 1 ? !canDownload : false}
-                    >
-                      {currentStepIndex >= totalSteps - 1 ? 'Download' : 'Next'}
-                    </button>
-                  </div>
+                    {isLastStep && !canCustomize && (
+                      <div className="step-footer-note">
+                        Complete the required sections to open Customize.
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {generateError && (
@@ -3699,138 +5273,7 @@ export const Resume = () => {
                 )}
                   </>
                 ) : activeEditorTab === 'customize' ? (
-                  <div className="resume-tab-panel">
-                    <div className="tab-panel-header">
-                      <div>
-                        <h2>Customize your template</h2>
-                        <p>Switch layouts or tweak the look before editing content.</p>
-                      </div>
-                    </div>
-                    <div className="tab-panel-body">
-                      <div className="tab-section">
-                        <h3>Select a template</h3>
-                        {combinedTemplateLoading ? (
-                          <div className="template-state">Loading templates...</div>
-                        ) : combinedTemplateError ? (
-                          <div className="template-state template-error">{combinedTemplateError}</div>
-                        ) : filteredTemplates.length === 0 ? (
-                          <div className="template-state">No templates available.</div>
-                        ) : (
-                          <div className="template-compact-grid">
-                            {filteredTemplates.map((t) => {
-                              const displayName = t.displayName.toLowerCase();
-                              const isSelected = t.kind === 'json'
-                                ? selectedJsonTemplate?.slug === t.name
-                                : selectedTemplate === t.name;
-                              return (
-                                <button
-                                  key={`customize:${t.kind}:${t.name}`}
-                                  type="button"
-                                  onClick={() => handleCustomizeTemplateSelect(t)}
-                                  className={`template-card-compact ${isSelected ? 'is-selected' : ''}`}
-                                  title={displayName}
-                                >
-                                  <div className="template-card-compact-preview">
-                                    {t.thumbnailUrl ? (
-                                      <img
-                                        src={t.thumbnailUrl}
-                                        alt={`${t.displayName} template`}
-                                        loading="lazy"
-                                        decoding="async"
-                                        width={420}
-                                        height={594}
-                                      />
-                                    ) : (
-                                      <div className="template-preview-placeholder">
-                                        <div className="template-preview-paper" />
-                                      </div>
-                                    )}
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                      {jsonTemplateSupportsColorPreset && (
-                        <div className="tab-section">
-                          <h3>Color preset</h3>
-                          <div className="color-preset-grid">
-                            {TEMPLATE_COLOR_PRESETS.map((preset) => (
-                              <button
-                                key={preset.id}
-                                type="button"
-                                className={`color-preset-card ${selectedColorPreset === preset.id ? 'is-selected' : ''}`}
-                                onClick={() => setSelectedColorPreset(preset.id)}
-                              >
-                                <span className="color-preset-swatch" style={{ backgroundColor: preset.accent }} />
-                                <span className="color-preset-label">{preset.label}</span>
-                              </button>
-                            ))}
-                            <button
-                              type="button"
-                              className={`color-preset-card ${selectedColorPreset === 'custom' ? 'is-selected' : ''}`}
-                              onClick={() => setSelectedColorPreset('custom')}
-                            >
-                              <span className="color-preset-swatch" style={{ backgroundColor: normalizedCustomTemplateColor }} />
-                              <span className="color-preset-label">Custom</span>
-                            </button>
-                          </div>
-                          <div className="color-custom-controls">
-                            <label className="color-custom-label" htmlFor="template-color-picker">Choose your own color</label>
-                            <div className="color-custom-inputs">
-                              <input
-                                id="template-color-picker"
-                                type="color"
-                                className="color-picker-input"
-                                value={normalizedCustomTemplateColor}
-                                onChange={(e) => {
-                                  setCustomTemplateColor(e.target.value);
-                                  setSelectedColorPreset('custom');
-                                }}
-                              />
-                              <input
-                                type="text"
-                                className="color-hex-input"
-                                value={customTemplateColor}
-                                onChange={(e) => {
-                                  const next = e.target.value.trim();
-                                  setCustomTemplateColor(next);
-                                  setSelectedColorPreset('custom');
-                                }}
-                                onBlur={(e) => {
-                                  const value = e.target.value.trim();
-                                  if (/^#[0-9a-f]{6}$/i.test(value)) {
-                                    setCustomTemplateColor(value);
-                                    return;
-                                  }
-                                  setCustomTemplateColor(DEFAULT_CUSTOM_TEMPLATE_COLOR);
-                                }}
-                                placeholder="#c3aa72"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      <div className="tab-section">
-                        <h3>Preview settings</h3>
-                        <div className="preview-settings">
-                          <div className="setting-card">
-                            <span>Live preview fits to A4</span>
-                            <strong>Automatic</strong>
-                          </div>
-                          <div className="setting-card">
-                            <span>Font scaling in preview</span>
-                            <strong>Smart fit</strong>
-                          </div>
-                          <div className="setting-card">
-                            <span>Page size</span>
-                            <strong>A4</strong>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  renderCustomizePanel()
                 ) : activeEditorTab === 'review' ? (
                   <div className="resume-tab-panel">
                     <div className="tab-panel-header">
@@ -3849,17 +5292,7 @@ export const Resume = () => {
                         <div className="review-list">
                           {availableSections.map((sectionId) => (
                             <div key={`review-${sectionId}`} className={`review-item ${sectionCompletion[sectionId] ? 'complete' : 'missing'}`}>
-                              <span>{{
-                                contact: 'Personal Details',
-                                summary: 'Professional Summary',
-                                experience: 'Work Experience',
-                                projects: 'Projects',
-                                education: 'Education',
-                                skills: 'Skills',
-                                custom: 'Custom Details',
-                                additional: 'Additional Information',
-                                extra: 'Other Fields',
-                              }[sectionId] || sectionId}</span>
+                              <span>{RESUME_SECTION_TITLES[sectionId] || sectionId}</span>
                               <strong>{sectionCompletion[sectionId] ? 'Complete' : 'Needs attention'}</strong>
                             </div>
                           ))}
@@ -3946,12 +5379,10 @@ export const Resume = () => {
                 <div className="template-compact-grid">
                   {filteredTemplates.map((t) => {
                     const displayName = t.displayName.toLowerCase();
-                    const isSelected = t.kind === 'json'
-                      ? selectedJsonTemplate?.slug === t.name
-                      : selectedTemplate === t.name;
+                    const isSelected = selectedTemplate === t.name;
                     return (
                       <button
-                        key={`drawer:${t.kind}:${t.name}`}
+                        key={`drawer:${t.name}`}
                         type="button"
                         onClick={() => handleTemplatePickerSelect(t)}
                         className={`template-card-compact ${isSelected ? 'is-selected' : ''}`}
@@ -3982,6 +5413,16 @@ export const Resume = () => {
           </aside>
         </div>
       )}
+
+      <ImageCropModal
+        isOpen={Boolean(pendingPhotoCropSrc)}
+        imageSrc={pendingPhotoCropSrc}
+        imageName={pendingPhotoCropName}
+        outputSize={300}
+        title="Crop profile photo"
+        onCancel={handlePhotoCropCancel}
+        onConfirm={handlePhotoCropConfirm}
+      />
 
       <style>{`
         .resume-editor-layout {
@@ -4127,6 +5568,23 @@ export const Resume = () => {
           height: 100%;
         }
 
+        .inline-customize-wrapper {
+          margin-top: 18px;
+        }
+
+        .inline-customize-wrapper-top {
+          margin-top: 0;
+          margin-bottom: 18px;
+        }
+
+        .inline-customize-panel {
+          height: auto;
+        }
+
+        .inline-customize-panel .tab-panel-body {
+          overflow: visible;
+        }
+
         .tab-panel-header {
           display: flex;
           align-items: flex-start;
@@ -4168,7 +5626,64 @@ export const Resume = () => {
           color: #0f172a;
         }
 
+        .tab-helper {
+          margin: -2px 0 14px;
+          color: #64748b;
+          font-size: 0.92rem;
+          line-height: 1.5;
+        }
+
         .preview-settings {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          gap: 12px;
+        }
+
+        .customize-download-card {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 18px;
+          padding: 18px 20px;
+          border: 1px solid #dbe5ef;
+          border-radius: 16px;
+          background:
+            radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 38%),
+            linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        }
+
+        .customize-download-copy {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .customize-download-copy strong {
+          color: #0f172a;
+          font-size: 1rem;
+        }
+
+        .customize-download-copy p {
+          margin: 0;
+          color: #64748b;
+          font-size: 0.92rem;
+          line-height: 1.55;
+        }
+
+        .customize-download-btn {
+          flex-shrink: 0;
+        }
+
+        .customize-download-note {
+          margin-top: 10px;
+          color: #64748b;
+          font-size: 0.9rem;
+          line-height: 1.5;
+        }
+
+        .style-control-grid,
+        .heading-size-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
           gap: 12px;
@@ -4262,6 +5777,38 @@ export const Resume = () => {
           box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.12);
         }
 
+        .style-control-card {
+          border: 1px solid #e2e8f0;
+          border-radius: 14px;
+          padding: 14px;
+          background: #ffffff;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .style-control-label {
+          color: #0f172a;
+          font-size: 0.92rem;
+          font-weight: 700;
+        }
+
+        .style-control-note {
+          color: #64748b;
+          font-size: 0.82rem;
+          line-height: 1.45;
+        }
+
+        .style-color-input {
+          width: 100%;
+          height: 42px;
+          border: 1px solid #dbe5ef;
+          border-radius: 10px;
+          background: #ffffff;
+          padding: 4px;
+          cursor: pointer;
+        }
+
         .setting-card {
           border: 1px solid #e2e8f0;
           border-radius: 12px;
@@ -4343,11 +5890,21 @@ export const Resume = () => {
           border-radius: 12px;
           padding: 10px 12px;
           font-size: 0.95rem;
+          color: #0f172a;
+          caret-color: #0f172a;
+          -webkit-text-fill-color: #0f172a;
           outline: none;
         }
 
         .tab-textarea {
           resize: vertical;
+        }
+
+        .tab-input::placeholder,
+        .tab-textarea::placeholder {
+          color: rgba(100, 116, 139, 0.52);
+          -webkit-text-fill-color: rgba(100, 116, 139, 0.52);
+          opacity: 1;
         }
 
         .tab-actions {
@@ -4709,6 +6266,18 @@ export const Resume = () => {
 
         .resume-topbar-download:hover {
           background: #1d4ed8;
+        }
+
+        .resume-topbar-download:disabled {
+          background: #cbd5e1;
+          color: #ffffff;
+          cursor: not-allowed;
+          box-shadow: none;
+          opacity: 0.78;
+        }
+
+        .resume-topbar-download:disabled .caret {
+          border-top-color: rgba(255, 255, 255, 0.92);
         }
 
         .resume-topbar-icon {
@@ -5362,6 +6931,7 @@ export const Resume = () => {
           overflow-y: auto;
           overflow-x: hidden;
           overscroll-behavior: contain;
+          scroll-padding-top: 120px;
           padding-right: 6px;
           gap: 16px;
           scrollbar-width: none;
@@ -5628,9 +7198,186 @@ export const Resume = () => {
           min-width: 0;
           display: flex;
           flex-direction: column;
+          gap: 14px;
           min-height: 0;
           height: 100%;
           overflow: hidden;
+        }
+
+        .preview-progress-card {
+          border: 1px solid #d9e2f2;
+          border-radius: 18px;
+          background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 34%),
+            linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+          box-shadow: 0 18px 40px -30px rgba(15, 23, 42, 0.28);
+          padding: 8px 4px 8px;
+          overflow: hidden;
+        }
+
+        .preview-progress-track {
+          display: block;
+        }
+
+        .preview-stepper {
+          display: grid;
+          gap: 0;
+          overflow: visible;
+          padding-bottom: 0;
+        }
+
+        .preview-step {
+          position: relative;
+          border: none;
+          background: transparent;
+          min-width: 0;
+          padding: 0 4px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+          text-align: center;
+          cursor: pointer;
+          color: #64748b;
+        }
+
+        .preview-step-line {
+          position: absolute;
+          top: 10px;
+          height: 2px;
+          border-radius: 999px;
+          background: #dbe4f0;
+          transition: background 0.2s ease;
+          pointer-events: none;
+        }
+
+        .preview-step-line-left {
+          left: 0;
+          right: calc(50% + 11px);
+        }
+
+        .preview-step-line-right {
+          left: calc(50% + 11px);
+          right: 0;
+        }
+
+        .preview-step.has-logo-marker .preview-step-line-left {
+          right: calc(50% + 7px);
+          background: linear-gradient(90deg, #60a5fa 0%, #2563eb 100%);
+        }
+
+        .preview-step.has-logo-marker .preview-step-line-right {
+          left: calc(50% + 7px);
+        }
+
+        .preview-step:first-child .preview-step-line-left,
+        .preview-step:last-child .preview-step-line-right {
+          display: none;
+        }
+
+        .preview-step-marker {
+          position: relative;
+          z-index: 1;
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          border: 1.5px solid #cbd5e1;
+          background: #ffffff;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 0.64rem;
+          font-weight: 800;
+          color: #94a3b8;
+          box-shadow: 0 10px 20px -18px rgba(15, 23, 42, 0.3);
+          transition: all 0.2s ease;
+        }
+
+        .preview-step-marker-logo {
+          width: 26px;
+          height: 26px;
+          display: block;
+          color: #0f5b66;
+        }
+
+        .preview-step-marker.is-logo {
+          width: 30px;
+          height: 30px;
+          border: none;
+          border-radius: 0;
+          background: transparent;
+          box-shadow: none;
+          transform: translateY(-4px);
+        }
+
+        .preview-step-label {
+          font-size: 0.56rem;
+          line-height: 1.02;
+          font-weight: 700;
+          color: #334155;
+          overflow-wrap: anywhere;
+        }
+
+        .preview-step-status {
+          font-size: 0.47rem;
+          line-height: 1;
+          font-weight: 600;
+          color: #94a3b8;
+          overflow-wrap: anywhere;
+        }
+
+        .preview-step.is-complete .preview-step-marker {
+          border-color: #2563eb;
+          background: #2563eb;
+          color: #ffffff;
+        }
+
+        .preview-step.is-complete .preview-step-line-left,
+        .preview-step.is-complete .preview-step-line-right {
+          background: linear-gradient(90deg, #60a5fa 0%, #2563eb 100%);
+        }
+
+        .preview-step.is-active .preview-step-marker {
+          border-color: #2563eb;
+          color: #2563eb;
+          background: #ffffff;
+          box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .preview-step.is-active .preview-step-marker.is-logo {
+          border: none;
+          background: transparent;
+          box-shadow: none;
+          color: #0f5b66;
+        }
+
+        .preview-step.is-active .preview-step-label,
+        .preview-step.is-complete .preview-step-label {
+          color: #0f172a;
+        }
+
+        .preview-step.is-active .preview-step-status {
+          color: #2563eb;
+        }
+
+        .preview-step.is-complete .preview-step-status {
+          color: #16a34a;
+        }
+
+        .preview-step:hover .preview-step-marker,
+        .preview-step:focus-visible .preview-step-marker {
+          border-color: #2563eb;
+          color: #2563eb;
+        }
+
+        .preview-step:hover .preview-step-marker.is-logo,
+        .preview-step:focus-visible .preview-step-marker.is-logo {
+          border: none;
+          color: #0f5b66;
+        }
+
+        .preview-step:focus-visible {
+          outline: none;
         }
 
         .preview-card {
@@ -5782,14 +7529,28 @@ export const Resume = () => {
 
         .step-header {
           display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
+          flex-direction: column;
+          align-items: stretch;
+          justify-content: flex-start;
+          gap: 16px;
+          position: sticky;
+          top: 0;
+          z-index: 20;
           padding: 14px 18px;
           border: 1px solid #e2e8f0;
           border-radius: 16px;
-          background: #ffffff;
+          background: rgba(255, 255, 255, 0.96);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
           box-shadow: 0 18px 30px -26px rgba(15, 23, 42, 0.35);
+        }
+
+        .step-rich-text-toolbar-host {
+          width: 100%;
+        }
+
+        .step-rich-text-toolbar-host:empty {
+          display: none;
         }
 
         .step-header-title {
@@ -5819,9 +7580,9 @@ export const Resume = () => {
         }
 
         .step-footer {
-          display: flex;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
           align-items: center;
-          justify-content: space-between;
           gap: 12px;
           padding: 12px 16px;
           border: 1px solid #e2e8f0;
@@ -5831,10 +7592,30 @@ export const Resume = () => {
           box-shadow: 0 18px 30px -26px rgba(15, 23, 42, 0.35);
         }
 
+        .step-footer-note {
+          margin-top: 8px;
+          padding: 10px 12px;
+          border-radius: 12px;
+          background: #fff7ed;
+          border: 1px solid #fed7aa;
+          color: #9a3412;
+          font-size: 0.84rem;
+          line-height: 1.45;
+        }
+
         .step-dots {
           display: flex;
           align-items: center;
+          justify-content: center;
           gap: 6px;
+        }
+
+        .step-footer > .btn:first-child {
+          justify-self: start;
+        }
+
+        .step-footer > .btn:last-child {
+          justify-self: end;
         }
 
         .step-dot {
@@ -5901,7 +7682,8 @@ export const Resume = () => {
 
         .rte-content:empty:before {
           content: attr(data-placeholder);
-          color: #94a3b8;
+          color: rgba(100, 116, 139, 0.52);
+          opacity: 1;
         }
 
         .rte-content ul {
@@ -5967,6 +7749,27 @@ export const Resume = () => {
 
         .builder-section-header h3 {
           font-size: 1.15rem;
+        }
+
+        .builder-section-title-group {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-width: 0;
+        }
+
+        .section-optional-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 4px 10px;
+          border-radius: 999px;
+          background: #eff6ff;
+          color: #2563eb;
+          font-size: 0.72rem;
+          font-weight: 700;
+          letter-spacing: 0.02em;
+          white-space: nowrap;
         }
 
         .builder-section-body {
@@ -6178,11 +7981,17 @@ export const Resume = () => {
 
           .resume-builder-grid {
             grid-template-columns: 1fr;
+            height: auto;
           }
 
           /* Mobile Builder Layout Logic */
           .builder-panel {
             display: flex;
+            padding-right: 0;
+          }
+
+          .builder-preview-panel {
+            display: none;
           }
 
           .builder-preview {
@@ -6617,7 +8426,17 @@ export const Resume = () => {
         .resume-page .form-group select {
           border-color: #dbe5ef !important;
           background: #ffffff;
+          color: #0f172a !important;
+          caret-color: #0f172a;
+          -webkit-text-fill-color: #0f172a;
           transition: border-color 180ms ease, box-shadow 180ms ease;
+        }
+
+        .resume-page .form-group input::placeholder,
+        .resume-page .form-group textarea::placeholder {
+          color: rgba(100, 116, 139, 0.52);
+          -webkit-text-fill-color: rgba(100, 116, 139, 0.52);
+          opacity: 1;
         }
 
         .resume-page .form-group textarea,
@@ -6640,6 +8459,7 @@ export const Resume = () => {
 
         .resume-page.is-editor-route {
           background: #f1f5f9;
+          color-scheme: light;
         }
 
         .resume-page.is-editor-route::before,
@@ -6652,7 +8472,16 @@ export const Resume = () => {
         .resume-page.is-editor-route .form-group select {
           background: #f1f5f9;
           border-color: #e2e8f0 !important;
+          color: #0f172a !important;
+          caret-color: #0f172a;
+          -webkit-text-fill-color: #0f172a;
           box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.04);
+        }
+
+        .resume-page.is-editor-route .rte-content {
+          color: #0f172a !important;
+          caret-color: #0f172a;
+          -webkit-text-fill-color: #0f172a;
         }
 
         .resume-page.is-editor-route .form-group input:focus,
@@ -6807,9 +8636,62 @@ export const Resume = () => {
           color: #e2e8f0;
         }
 
+        [data-theme="dark"] .resume-page .resume-tab-panel,
+        [data-theme="dark"] .resume-page .setting-card,
+        [data-theme="dark"] .resume-page .style-control-card,
+        [data-theme="dark"] .resume-page .customize-download-card {
+          border-color: #334155;
+          background: #111827;
+          color: #e2e8f0;
+        }
+
+        [data-theme="dark"] .resume-page .tab-panel-header h2,
+        [data-theme="dark"] .resume-page .tab-section h3,
+        [data-theme="dark"] .resume-page .color-preset-label,
+        [data-theme="dark"] .resume-page .style-control-label,
+        [data-theme="dark"] .resume-page .tab-label {
+          color: #f1f5f9;
+        }
+
+        [data-theme="dark"] .resume-page .tab-helper,
+        [data-theme="dark"] .resume-page .style-control-note,
+        [data-theme="dark"] .resume-page .color-custom-label,
+        [data-theme="dark"] .resume-page .setting-card span,
+        [data-theme="dark"] .resume-page .tab-panel-header p,
+        [data-theme="dark"] .resume-page .customize-download-copy p,
+        [data-theme="dark"] .resume-page .customize-download-note {
+          color: #94a3b8;
+        }
+
+        [data-theme="dark"] .resume-page .customize-download-copy strong {
+          color: #f1f5f9;
+        }
+
+        [data-theme="dark"] .resume-page .color-preset-card {
+          border-color: #334155;
+          background: #0f172a;
+        }
+
+        [data-theme="dark"] .resume-page .color-preset-card.is-selected {
+          border-color: #5eead4;
+          box-shadow: 0 14px 28px -20px rgba(45, 212, 191, 0.35);
+        }
+
+        [data-theme="dark"] .resume-page .color-picker-input,
+        [data-theme="dark"] .resume-page .color-hex-input,
+        [data-theme="dark"] .resume-page .style-color-input,
+        [data-theme="dark"] .resume-page .tab-input,
+        [data-theme="dark"] .resume-page .tab-textarea {
+          border-color: #334155;
+          background: #0f172a;
+          color: #e2e8f0;
+        }
+
         [data-theme="dark"] .resume-page .form-group input::placeholder,
         [data-theme="dark"] .resume-page .form-group textarea::placeholder {
-          color: #94a3b8;
+          color: rgba(148, 163, 184, 0.58);
+          -webkit-text-fill-color: rgba(148, 163, 184, 0.58);
+          opacity: 1;
         }
 
         [data-theme="dark"] .resume-page .text-gray-500,
@@ -6860,6 +8742,7 @@ export const Resume = () => {
             flex-direction: column;
             align-items: flex-start;
           }
+
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -6874,3 +8757,4 @@ export const Resume = () => {
     </div>
   );
 };
+

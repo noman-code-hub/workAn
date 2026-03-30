@@ -2,12 +2,13 @@ import express from 'express';
 import Mustache from 'mustache';
 import { createClient } from '@supabase/supabase-js';
 import admin from 'firebase-admin';
+import { renderResumePdfWithPuppeteer } from '../services/resumePdfRenderer.js';
 
 const router = express.Router();
 
 // Initialize Supabase Client (Backend)
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
 
 let supabase = null;
 if (supabaseUrl && supabaseKey) {
@@ -154,6 +155,38 @@ router.post('/generate-resume', async (req, res) => {
     }
 });
 
+router.post('/render-resume-pdf', async (req, res) => {
+    const {
+        html,
+        filenameBase,
+    } = req.body || {};
+
+    if (typeof html !== 'string' || !html.trim()) {
+        return res.status(400).json({ error: 'HTML content is required.' });
+    }
+
+    try {
+        const { filename, pdfBuffer } = await renderResumePdfWithPuppeteer({
+            html,
+            filenameBase,
+        });
+        const binaryPdfBuffer = Buffer.isBuffer(pdfBuffer)
+            ? pdfBuffer
+            : Buffer.from(pdfBuffer);
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Length', String(binaryPdfBuffer.byteLength));
+        res.end(binaryPdfBuffer);
+    } catch (error) {
+        console.error('PDF render error:', error);
+        res.status(500).json({
+            error: 'Failed to render resume PDF',
+            details: error.message
+        });
+    }
+});
+
 // Create 'resume_templates' bucket if it doesn't exist (Helper endpoint)
 router.post('/init-templates', async (req, res) => {
     if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
@@ -187,6 +220,31 @@ router.post('/init-templates', async (req, res) => {
         res.json({ message: 'Bucket initialized and sample template uploaded.' });
     } catch (err) {
         console.error('Init templates error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.post('/init-resumes', async (req, res) => {
+    if (!supabase) return res.status(500).json({ error: 'Supabase not configured' });
+
+    try {
+        const { error } = await supabase.storage.createBucket('resumes', {
+            public: true,
+            fileSizeLimit: 10485760,
+            allowedMimeTypes: [
+                'application/pdf',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            ],
+        });
+
+        if (error && error.message !== 'The resource already exists') {
+            throw error;
+        }
+
+        res.json({ message: 'Resumes bucket initialized.' });
+    } catch (err) {
+        console.error('Init resumes error:', err);
         res.status(500).json({ error: err.message });
     }
 });

@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
-import { BUILT_IN_RESUME_TEMPLATE_CARDS } from '../data/templates/builtInResumeTemplates';
 import './ResumeBuilderLanding.css';
 
 /* ── helpers ──────────────────── */
@@ -132,23 +131,10 @@ export const ResumeBuilderLanding = () => {
   }, []);
 
   const previews = useMemo(
-    () => {
-      const htmlTemplates = templates
-        .filter(t => t.thumbnailUrl)
-        .map(t => ({ name: t.displayName, slug: slugify(t.name), thumb: t.thumbnailUrl }));
-
-      const merged = new Map<string, { name: string; slug: string; thumb?: string }>();
-      BUILT_IN_RESUME_TEMPLATE_CARDS.forEach((template) => {
-        merged.set(template.slug, { name: template.displayName, slug: template.slug, thumb: template.thumbnailUrl });
-      });
-      htmlTemplates.forEach((template) => {
-        if (!merged.has(template.slug)) {
-          merged.set(template.slug, template);
-        }
-      });
-
-      return Array.from(merged.values()).slice(0, 10);
-    },
+    () => templates
+      .filter((template) => template.thumbnailUrl)
+      .map((template) => ({ name: template.displayName, slug: slugify(template.name), thumb: template.thumbnailUrl }))
+      .slice(0, 10),
     [templates],
   );
 

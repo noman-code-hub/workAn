@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
-import { BUILT_IN_RESUME_TEMPLATE_CARDS } from '../data/templates/builtInResumeTemplates';
 
 const slugify = (v: string) =>
   v.toLowerCase().replace(/\.html$/i, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
@@ -16,22 +15,9 @@ export const ResumeBuilderTemplates = () => {
   const { templates, templateLoading, templateError } = useResumeTemplate(user, { autoSelectFirst: false });
 
   const templatesWithSlugs = useMemo(
-    () => {
-      const htmlTemplates = templates
-        .filter(t => t.thumbnailUrl)
-        .map(t => ({ ...t, slug: slugify(t.name) }));
-
-      const merged = new Map<string, { name: string; displayName: string; thumbnailUrl?: string; slug: string }>();
-      BUILT_IN_RESUME_TEMPLATE_CARDS.forEach((template) => {
-        merged.set(template.slug, template);
-      });
-      htmlTemplates.forEach((template) => {
-        if (!merged.has(template.slug)) {
-          merged.set(template.slug, template);
-        }
-      });
-      return Array.from(merged.values());
-    },
+    () => templates
+      .filter((template) => template.thumbnailUrl)
+      .map((template) => ({ ...template, slug: slugify(template.name) })),
     [templates],
   );
 

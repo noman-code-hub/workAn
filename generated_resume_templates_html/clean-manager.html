@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clean Manager - {{full_name}}</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #eef2f7;
+      color: #1f1f1f;
+    }
+
+    body {
+      padding: 24px;
+      font-family: Georgia, "Times New Roman", serif;
+    }
+
+    .legacy-template-page {
+      margin: 0 auto;
+      width:794px;min-height:1123px;background:#ffffff;color:#1f1f1f;font-family:Georgia, "Times New Roman", serif;line-height:1.55;padding-top:22px;padding-right:22px;padding-bottom:24px;padding-left:22px;display:grid;gap:18px;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.10);
+    }
+
+    .legacy-template-page img {
+      display: block;
+      max-width: 100%;
+    }
+
+    .legacy-template-page p {
+      margin: 0 0 6px;
+    }
+
+    .legacy-template-page p:last-child {
+      margin-bottom: 0;
+    }
+
+    .legacy-richtext ul,
+    .legacy-richtext ol {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .legacy-richtext li + li {
+      margin-top: 4px;
+    }
+
+    @media print {
+      body {
+        padding: 0;
+        background: #ffffff;
+      }
+
+      .legacy-template-page {
+        box-shadow: none;
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="legacy-template-page" data-template-slug="clean-manager">
+    
+    <section class="legacy-section legacy-section-clean-manager-header" style="display:grid;gap:8px">
+      
+      <div class="legacy-section-body" style="display:grid;gap:8px">
+        <div class="legacy-block"><div style="color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;align-items:center;margin-bottom:16px;display:grid;gap:16px;grid-template-columns:minmax(0, 1fr) 128px minmax(0, 1fr)"><div style="display:grid;gap:8px;color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55"><div class="legacy-block"><hr style="border:none;border-top:1px solid #3a3a3a;margin-top:24px;margin-bottom:0px" /></div></div><div style="display:grid;gap:8px;color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55">{{#photo_url}}<div class="legacy-block"><img src="{{photo_url}}" alt="" style="color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;display:block;margin-left:auto;margin-right:auto;width:128px;height:128px;object-fit:cover;border-radius:999px" /></div>{{/photo_url}}</div><div style="display:grid;gap:8px;color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55"><div class="legacy-block"><hr style="border:none;border-top:1px solid #3a3a3a;margin-top:24px;margin-bottom:0px" /></div></div></div></div><div class="legacy-block"><div style="color:#1c1c1c;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;font-size:34px;font-weight:500;text-align:center;letter-spacing:3.5px;margin-bottom:6px">{{full_name}}</div></div><div class="legacy-block"><div style="color:#242424;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;font-size:15px;text-align:center;font-weight:500;letter-spacing:5px;text-transform:uppercase;margin-bottom:10px">{{title}}</div></div>
+      </div>
+    </section>
+  
+
+    <section class="legacy-section legacy-section-clean-manager-body" style="display:grid;gap:8px">
+      
+      <div class="legacy-section-body" style="display:grid;gap:8px">
+        <div class="legacy-block"><div style="color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;display:grid;gap:36px;grid-template-columns:210px minmax(0, 1fr)"><div style="display:grid;gap:8px;color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;min-width:210px"><div class="legacy-block"><div style="color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;font-size:18px;font-weight:500;text-transform:uppercase;background:#ecebe3;padding-top:6px;padding-right:10px;padding-bottom:6px;padding-left:10px;letter-spacing:2.2px;margin-bottom:14px">{{education_heading}}</div></div>{{#has_education_items}}<div class="legacy-block">
+    <div style="color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;display:grid;gap:20px">
+      {{#education_items}}
+        <div style="display:grid;gap:4px"><div class="legacy-block"><div style="color:#202020;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;font-size:14px;font-weight:500;margin-bottom:6px">{{date_range}}</div></div><div class="legacy-block"><div style="color:#202020;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.45;font-size:12.5px;margin-bottom:4px">{{degree}}</div></div><div class="legacy-block"><div class="legacy-richtext" style="color:#262626;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.45;font-size:12px;white-space:pre-line">{{{highlights}}}</div></div></div>
+      {{/education_items}}
+    </div>
+  </div>{{/has_education_items}}<div class="legacy-block"><div style="color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;font-size:18px;font-weight:500;text-transform:uppercase;background:#ecebe3;padding-top:6px;padding-right:10px;padding-bottom:6px;padding-left:10px;letter-spacing:2.2px;margin-top:6px;margin-bottom:16px">{{additional_skills_heading}}</div></div>{{#has_skills_items}}<div class="legacy-block">
+    <div style="color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;display:grid;gap:12px">
+      {{#skills_items}}
+        <div style="display:grid;gap:4px"><div class="legacy-block"><div style="color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;display:grid;gap:10px;grid-template-columns:minmax(0, 1fr) 74px"><div style="display:grid;gap:8px;color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55"><div class="legacy-block"><div style="color:#222222;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;font-size:13px">{{name}}</div></div></div><div style="display:grid;gap:8px;color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55"><div class="legacy-block"><hr style="border:none;border-top:4px solid #9fa3a8;margin-top:12px;margin-bottom:0px" /></div></div></div></div></div>
+      {{/skills_items}}
+    </div>
+  </div>{{/has_skills_items}}<div class="legacy-block"><div style="color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;font-size:18px;font-weight:500;text-transform:uppercase;background:#ecebe3;padding-top:6px;padding-right:10px;padding-bottom:6px;padding-left:10px;letter-spacing:2.2px;margin-top:10px;margin-bottom:16px">{{contacts_heading}}</div></div>{{#has_sidebar_contact_items}}<div class="legacy-block">
+    <div style="color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;display:grid;gap:8px">
+      {{#sidebar_contact_items}}
+        <div style="display:grid;gap:4px"><div class="legacy-block"><div style="color:#222222;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.45;font-size:12.5px">{{value}}</div></div></div>
+      {{/sidebar_contact_items}}
+    </div>
+  </div>{{/has_sidebar_contact_items}}</div><div style="display:grid;gap:8px;color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55"><div class="legacy-block"><div style="color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;font-size:18px;font-weight:500;text-transform:uppercase;background:#ecebe3;padding-top:6px;padding-right:10px;padding-bottom:6px;padding-left:10px;letter-spacing:2.2px;margin-bottom:14px">{{about_myself_heading}}</div></div><div class="legacy-block"><div class="legacy-richtext" style="color:#232323;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;font-size:13.5px;margin-bottom:16px;white-space:pre-line">{{{summary}}}</div></div><div class="legacy-block"><div style="color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;font-size:18px;font-weight:500;text-transform:uppercase;background:#ecebe3;padding-top:6px;padding-right:10px;padding-bottom:6px;padding-left:10px;letter-spacing:2.2px;margin-top:4px;margin-bottom:14px">{{experience_heading}}</div></div>{{#has_experience_items}}<div class="legacy-block">
+    <div style="color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;display:grid;gap:22px">
+      {{#experience_items}}
+        <div style="display:grid;gap:4px"><div class="legacy-block"><div style="color:#202020;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;font-size:14px;font-weight:500;margin-bottom:4px">{{date_range}}</div></div><div class="legacy-block"><div style="color:#202020;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;font-size:14px;margin-bottom:2px">{{company}}</div></div><div class="legacy-block"><div style="color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;font-size:14.5px;font-weight:600;margin-bottom:6px">{{role}}</div></div>{{#has_bullet_lines}}<div class="legacy-block">
+    <div style="color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;display:grid;gap:5px">
+      {{#bullet_lines}}
+        <div style="display:grid;gap:4px"><div class="legacy-block"><div style="color:#232323;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.5;font-size:13px">{{value}}</div></div></div>
+      {{/bullet_lines}}
+    </div>
+  </div>{{/has_bullet_lines}}</div>
+      {{/experience_items}}
+    </div>
+  </div>{{/has_experience_items}}<div class="legacy-block"><div style="color:#1f1f1f;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;font-size:18px;font-weight:500;text-transform:uppercase;background:#ecebe3;padding-top:6px;padding-right:10px;padding-bottom:6px;padding-left:10px;letter-spacing:2.2px;margin-top:12px;margin-bottom:14px">{{certifications_heading}}</div></div><div class="legacy-block"><div class="legacy-richtext" style="color:#232323;font-family:Georgia, &quot;Times New Roman&quot;, serif;line-height:1.55;font-size:13.5px;white-space:pre-line">{{{certifications_text}}}</div></div></div></div></div>
+      </div>
+    </section>
+  
+  </div>
+</body>
+</html>

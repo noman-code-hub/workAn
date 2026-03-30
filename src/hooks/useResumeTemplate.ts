@@ -31,7 +31,7 @@ export const useResumeTemplate = (
   const [templateFields, setTemplateFields] = useState<string[]>([]);
   const [templateFieldValues, setTemplateFieldValues] = useState<Record<string, string>>({});
   const [templatePreviewLoading, setTemplatePreviewLoading] = useState(false);
-  const [templateLoading, setTemplateLoading] = useState(false);
+  const [templateLoading, setTemplateLoading] = useState(true);
   const [templateError, setTemplateError] = useState<string | null>(null);
   const supabaseClient = isSupabaseConfigured ? supabase : null;
   const loadIdRef = useRef(0);
@@ -120,7 +120,6 @@ export const useResumeTemplate = (
   const selectTemplate = useCallback((templateName: string) => {
     setSelectedTemplate(templateName);
     setTemplateFields([]);
-    setTemplateFieldValues({});
     setTemplateSourceHtml(null);
     void loadTemplateHtml(templateName);
   }, [loadTemplateHtml]);
@@ -248,6 +247,10 @@ export const useResumeTemplate = (
     setTemplateFieldValues((prev) => ({ ...prev, [field]: value }));
   }, []);
 
+  const replaceFields = useCallback((values: Record<string, string>) => {
+    setTemplateFieldValues(values);
+  }, []);
+
   return {
     templates,
     selectedTemplate,
@@ -260,6 +263,7 @@ export const useResumeTemplate = (
     templateFieldValues,
     selectTemplate,
     updateField,
+    replaceFields,
     refreshTemplates: fetchTemplates,
   };
 };

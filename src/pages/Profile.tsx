@@ -6,6 +6,7 @@ import { uploadFile } from '@/services/userService';
 import axios from 'axios';
 import { apiUrl } from '@/config/api';
 import type { Job } from '@/types';
+import { openResumeFile } from '@/utils/resumeFile';
 
 import { AboutSection } from '@/components/AboutSection';
 import { BlogSection } from '@/components/BlogSection';
@@ -34,6 +35,18 @@ export const Profile = () => {
     const handleAvatarClick = () => avatarInputRef.current?.click();
     const handleBannerClick = () => bannerInputRef.current?.click();
     const handleResumeClick = () => resumeInputRef.current?.click();
+
+    const handleViewResume = async (event: React.MouseEvent<HTMLAnchorElement>) => {
+        event.preventDefault();
+        if (!user?.resumeURL) return;
+
+        try {
+            await openResumeFile(user.resumeURL);
+        } catch (error) {
+            console.error('Resume preview failed:', error);
+            alert((error as Error).message || 'Failed to open resume. Please upload it again.');
+        }
+    };
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, path: 'avatars' | 'banners' | 'resumes') => {
         const file = e.target.files?.[0];
@@ -398,6 +411,7 @@ export const Profile = () => {
                                 {user?.resumeURL && (
                                     <a
                                         href={user.resumeURL}
+                                        onClick={handleViewResume}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="view-resume-link"

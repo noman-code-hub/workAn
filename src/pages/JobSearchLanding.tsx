@@ -7,11 +7,11 @@ import {
   ArrowRight, Zap, Award, CheckCircle2, Star, Smile, CheckCheck, ChevronLeft
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { fetchAggregatedJobs } from '../services/jobSearchService';
 import type { AggregatedJob } from '../types/jobSearch';
-import { BUILT_IN_RESUME_TEMPLATE_CARDS } from '../data/templates/builtInResumeTemplates';
 
 const JOB_CATEGORIES = [
   { name: 'Real Estate', icon: <Building2 className="cat-icon" />, count: '1,200 jobs' },
@@ -272,8 +272,10 @@ const LANDING_FAQS = [
 
 
 export const JobSearchLanding = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const routeLocation = useLocation();
+  const { templates } = useResumeTemplate(user, { autoSelectFirst: false });
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState('');
 
@@ -344,23 +346,14 @@ export const JobSearchLanding = () => {
     };
   }, []);
 
-  const { templates, templateLoading } = useResumeTemplate(undefined, { autoSelectFirst: false });
   const showcaseTemplates = useMemo(() => {
-    const htmlTemplates = templates.filter((t) => t.thumbnailUrl);
-    const merged = new Map<string, { name: string; thumbnailUrl?: string }>();
-
-    BUILT_IN_RESUME_TEMPLATE_CARDS.forEach((template) => {
-      merged.set(template.slug, { name: template.displayName, thumbnailUrl: template.thumbnailUrl });
-    });
-
-    htmlTemplates.forEach((template) => {
-      const slug = template.name.toLowerCase().replace(/\.html$/i, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-      if (!merged.has(slug)) {
-        merged.set(slug, { name: template.displayName, thumbnailUrl: template.thumbnailUrl });
-      }
-    });
-
-    return Array.from(merged.values()).slice(0, 3);
+    return templates
+      .filter((template) => template.thumbnailUrl)
+      .slice(0, 3)
+      .map((template) => ({
+        name: template.displayName,
+        thumbnailUrl: template.thumbnailUrl,
+      }));
   }, [templates]);
 
   const jobsForYou = useMemo(() => featuredJobs.slice(0, Math.max(5, RECOMMENDED_JOBS.length)), [featuredJobs]);
@@ -610,28 +603,28 @@ export const JobSearchLanding = () => {
             </div>
 
             <div className="rs-templates">
-              {templateLoading || showcaseTemplates.length < 3 ? (
+              {showcaseTemplates.length < 3 ? (
                 <>
                   <div className="rs-template-card t-left">
-                     <img src="https://images.unsplash.com/photo-1586281380117-5a60ae2050cc?auto=format&fit=crop&w=400&q=80" alt="Resume Placeholder" />
+                     <img src="https://images.unsplash.com/photo-1586281380117-5a60ae2050cc?auto=format&fit=crop&w=400&q=80" alt="Resume Placeholder" loading="lazy" decoding="async" />
                   </div>
                   <div className="rs-template-card t-center">
-                     <img src="https://images.unsplash.com/photo-1586282391129-76a6df230234?auto=format&fit=crop&w=400&q=80" alt="Resume Placeholder" />
+                     <img src="https://images.unsplash.com/photo-1586282391129-76a6df230234?auto=format&fit=crop&w=400&q=80" alt="Resume Placeholder" loading="lazy" decoding="async" />
                   </div>
                   <div className="rs-template-card t-right">
-                     <img src="https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&w=400&q=80" alt="Resume Placeholder" />
+                     <img src="https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&w=400&q=80" alt="Resume Placeholder" loading="lazy" decoding="async" />
                   </div>
                 </>
               ) : (
                 <>
                   <div className="rs-template-card t-left">
-                     <img src={showcaseTemplates[0]?.thumbnailUrl} alt={showcaseTemplates[0]?.name} />
+                     <img src={showcaseTemplates[0]?.thumbnailUrl} alt={showcaseTemplates[0]?.name} loading="lazy" decoding="async" />
                   </div>
                   <div className="rs-template-card t-center">
-                     <img src={showcaseTemplates[1]?.thumbnailUrl} alt={showcaseTemplates[1]?.name} />
+                     <img src={showcaseTemplates[1]?.thumbnailUrl} alt={showcaseTemplates[1]?.name} loading="lazy" decoding="async" />
                   </div>
                   <div className="rs-template-card t-right">
-                     <img src={showcaseTemplates[2]?.thumbnailUrl} alt={showcaseTemplates[2]?.name} />
+                     <img src={showcaseTemplates[2]?.thumbnailUrl} alt={showcaseTemplates[2]?.name} loading="lazy" decoding="async" />
                   </div>
                 </>
               )}
