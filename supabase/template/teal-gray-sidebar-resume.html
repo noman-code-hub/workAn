@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teal Gray Sidebar Resume</title>
+  <style>
+    *,::before,::after{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    html{line-height:1.5;-webkit-text-size-adjust:100%;font-family:"Segoe UI",Arial,Helvetica,sans-serif}
+    body{margin:0;min-height:100vh;padding:24px;background:#edf1f5;display:flex;justify-content:center;color:#45484d}
+    img,svg{display:block;max-width:100%;height:auto}
+    h1,h2,h3,h4,h5,h6,p,ul,ol{margin:0;padding:0}
+    a{color:inherit;text-decoration:none}
+    .bg-slate-100{background:#edf1f5}
+    .mt-3{margin-top:12px}
+    .min-w-0{min-width:0}
+    :root{--fit-scale:1;--accent:#237c69;--sidebar:#dcdcdc;--ink:#44484d;--copy:#5d6166}
+    @page{size:A4;margin:0}
+    .resume-page{--sidebar-width:63mm;--sidebar-pad-x:5.8mm;--sidebar-pad-top:8.2mm;--sidebar-pad-bottom:7mm;--main-pad-x:9.8mm;--main-pad-top:10.8mm;--main-pad-bottom:8mm;--section-gap:10px;--section-space:16px;--sidebar-section-space:18px;--line-height:1.34;--body-size:12.2px;--small-size:10.4px;--heading-size:17px;--name-size:25px;--role-size:11.4px;--sidebar-title-size:12.3px;--bullet-gap:4px;--timeline-offset:18px;--timeline-dot:12px;--project-gap:10px;--column-gap:12px;--photo-size:33.5mm}
+    .resume-page[data-fit-step="1"]{--section-gap:8px;--project-gap:8px;--bullet-gap:3px}
+    .resume-page[data-fit-step="2"]{--section-space:13px;--sidebar-section-space:14px}
+    .resume-page[data-fit-step="3"]{--line-height:1.26}
+    .resume-page[data-fit-step="4"]{--body-size:11.2px;--small-size:10px}
+    .resume-page[data-fit-step="5"]{--heading-size:15px;--sidebar-title-size:11.7px}
+    .resume-page[data-fit-step="6"]{--name-size:21px;--role-size:10.8px;--photo-size:30mm}
+    .resume-page[data-fit-step="7"]{--column-gap:9px;--sidebar-width:60mm;--main-pad-x:8.6mm}
+    .resume-page[data-fit-step="8"]{--section-space:10px;--sidebar-section-space:11px;--line-height:1.2}
+    .resume-page[data-fit-step="9"]{--body-size:10.4px;--small-size:10px;--heading-size:13px;--sidebar-title-size:11px}
+    .resume-page[data-fit-step="10"]{--name-size:18px;--role-size:10px;--section-gap:6px;--column-gap:7px;--photo-size:27mm}
+    .resume-page[data-fit-step="11"]{--main-pad-x:8mm;--main-pad-top:9mm;--main-pad-bottom:6.8mm;--sidebar-pad-x:5mm;--sidebar-pad-top:7mm;--sidebar-pad-bottom:6mm;--section-space:8px;--sidebar-section-space:9px}
+    .resume-page[data-fit-step="12"]{--body-size:10px;--small-size:10px;--line-height:1.14;--section-gap:5px;--project-gap:6px;--bullet-gap:2px}
+    .resume-page[data-fit-step="13"]{--heading-size:12.4px;--sidebar-title-size:10.4px;--sidebar-width:57mm;--photo-size:24mm;--column-gap:6px}
+    .resume-page[data-fit-step="14"]{--main-pad-x:6.8mm;--main-pad-top:7.2mm;--main-pad-bottom:5.8mm;--sidebar-pad-x:4.2mm;--sidebar-pad-top:6.2mm;--sidebar-pad-bottom:5.4mm;--section-space:6px;--sidebar-section-space:7px;--timeline-offset:15px;--timeline-dot:10px}
+    .resume-sheet{overflow:hidden;width:210mm;height:297mm;margin-inline:auto;background:#fff;box-shadow:0 20px 40px rgba(15,23,42,.12)}
+    .resume-scaler{width:calc(100% / var(--fit-scale));transform:scale(var(--fit-scale));transform-origin:top left}
+    .resume-content{min-height:297mm;font-size:var(--body-size);line-height:var(--line-height);color:var(--copy);overflow-wrap:anywhere;word-wrap:break-word;word-break:break-word;hyphens:auto}
+    .resume-content,.resume-content *{font-family:"Segoe UI",Arial,Helvetica,sans-serif}
+    .wrap-safe{white-space:normal;overflow-wrap:anywhere;word-break:break-word;hyphens:auto}
+    .resume-grid{display:grid;grid-template-columns:var(--sidebar-width) minmax(0,1fr);min-height:297mm}
+    .sidebar-panel{background:var(--sidebar);padding:var(--sidebar-pad-top) var(--sidebar-pad-x) var(--sidebar-pad-bottom);display:flex;flex-direction:column;gap:var(--sidebar-section-space)}
+    .main-panel{padding:var(--main-pad-top) var(--main-pad-x) var(--main-pad-bottom);display:flex;flex-direction:column;gap:var(--section-space);background:#fff}
+    .photo-shell{width:var(--photo-size);height:var(--photo-size);border-radius:999px;border:3px solid var(--accent);overflow:hidden;margin:0 auto 2px;background:#efefef}
+    .photo-shell img,.photo-shell svg{width:100%;height:100%;object-fit:cover}
+    .role-label{font-size:var(--role-size);line-height:1.2;font-weight:600;color:#666b70}
+    .candidate-name{margin-top:2px;color:var(--ink);font-size:var(--name-size);line-height:1.05;font-weight:700;letter-spacing:.02em;text-transform:uppercase}
+    .sidebar-title{color:var(--ink);font-size:var(--sidebar-title-size);line-height:1.1;font-weight:700}
+    .section-title{color:var(--ink);font-size:var(--heading-size);line-height:1.06;font-weight:500;letter-spacing:.01em;text-transform:uppercase}
+    .info-list,.contact-list,.skill-list,.compact-list,.project-list,.timeline-list{display:grid;gap:var(--section-gap)}
+    .info-row,.compact-row,.summary-copy,.richtext,.project-copy,.reference-copy,.language-copy,.cert-copy{color:var(--copy);font-size:var(--body-size);line-height:var(--line-height)}
+    .info-row strong,.compact-row strong{color:var(--ink);font-weight:700}
+    .contact-item{display:grid;grid-template-columns:15px minmax(0,1fr);gap:9px;align-items:start;color:var(--copy);font-size:var(--body-size);line-height:var(--line-height)}
+    .contact-icon{width:15px;height:15px;margin-top:1px;color:var(--accent)}
+    .skill-chip,.compact-pill{color:var(--copy);font-size:calc(var(--body-size) - .2px);line-height:1.22;padding:6px 8px;border-left:2px solid var(--accent);background:rgba(255,255,255,.42)}
+    .language-plain{background:transparent;border-left:none;padding:0}
+    .section-block{break-inside:avoid;page-break-inside:avoid}
+    .summary-copy{text-align:justify}
+    .richtext p + p,.richtext ul + p,.richtext ol + p,.richtext p + ul,.richtext p + ol{margin-top:4px}
+    .richtext ul,.richtext ol{padding-left:18px}
+    .richtext li + li{margin-top:var(--bullet-gap)}
+    .timeline-list{position:relative;padding-left:0}
+    .timeline-list::before{content:"";position:absolute;top:4px;bottom:4px;left:0;width:2px;background:rgba(35,124,105,.7)}
+    .timeline-item{position:relative;padding-left:calc(var(--timeline-offset) + 4px);min-width:0}
+    .timeline-item::before{content:"";position:absolute;top:6px;left:calc(var(--timeline-offset) * -.5);width:var(--timeline-dot);height:var(--timeline-dot);border-radius:999px;background:var(--accent);box-shadow:0 0 0 3px rgba(35,124,105,.16)}
+    .entry-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--column-gap);align-items:start}
+    .entry-company,.project-name,.education-degree{color:var(--ink);font-size:calc(var(--body-size) + 2.4px);line-height:1.18;font-weight:700}
+    .entry-location{color:var(--accent);font-size:calc(var(--body-size) + .1px);line-height:1.15;font-weight:500;text-align:right;white-space:normal;overflow-wrap:anywhere;word-break:break-word;max-width:31mm}
+    .entry-role{margin-top:2px;color:var(--ink);font-size:calc(var(--body-size) + 1.8px);line-height:1.18;font-weight:700}
+    .entry-date,.education-meta{margin-top:2px;color:#61666d;font-size:var(--small-size);line-height:1.2;font-weight:500}
+    .entry-points{margin-top:5px;padding-left:16px;color:var(--copy);font-size:var(--body-size);line-height:var(--line-height);list-style:disc}
+    .entry-points li + li{margin-top:var(--bullet-gap)}
+    .project-card{padding-left:11px;border-left:2px solid rgba(35,124,105,.7);min-width:0}
+    .project-name{font-size:calc(var(--body-size) + 1.6px)}
+    .project-copy{margin-top:2px}
+    .sidebar-divider{height:1px;background:rgba(69,72,77,.14);margin-top:-4px;margin-bottom:-4px}
+    @media screen and (max-width:980px){body{padding:12px}.resume-sheet,.resume-page{width:100%;height:auto;min-width:320px}.resume-scaler{width:100%;transform:none}.resume-content{min-height:auto}.resume-grid{grid-template-columns:1fr}.sidebar-panel,.main-panel{padding:20px}.entry-head{grid-template-columns:1fr}.entry-location{text-align:left;white-space:normal}.timeline-list::before{left:1px}.timeline-item::before{left:-6px}}
+    @media print{html,body{background:#fff}body{padding:0}.resume-sheet{box-shadow:none;margin:0}}
+    body[data-hirevo-live-preview="true"]{padding:24px !important}
+    body[data-hirevo-live-preview="true"] .resume-sheet{width:210mm !important;height:297mm !important;min-width:0 !important}
+    body[data-hirevo-live-preview="true"] .resume-page{width:210mm !important;height:297mm !important}
+    body[data-hirevo-live-preview="true"] .resume-scaler{width:calc(100% / var(--fit-scale)) !important;transform:scale(var(--fit-scale)) !important}
+    body[data-hirevo-live-preview="true"] .resume-content{min-height:297mm !important}
+    body[data-hirevo-live-preview="true"] .resume-grid{grid-template-columns:var(--sidebar-width) minmax(0,1fr) !important;min-height:297mm !important}
+    body[data-hirevo-live-preview="true"] .sidebar-panel{padding:var(--sidebar-pad-top) var(--sidebar-pad-x) var(--sidebar-pad-bottom) !important}
+    body[data-hirevo-live-preview="true"] .main-panel{padding:var(--main-pad-top) var(--main-pad-x) var(--main-pad-bottom) !important}
+    body[data-hirevo-live-preview="true"] .entry-head{grid-template-columns:minmax(0,1fr) auto !important}
+    body[data-hirevo-live-preview="true"] .entry-location{text-align:right !important;white-space:normal !important;overflow-wrap:anywhere !important;word-break:break-word !important}
+    body[data-hirevo-live-preview="true"] .timeline-list::before{left:0 !important}
+    body[data-hirevo-live-preview="true"] .timeline-item::before{left:calc(var(--timeline-offset) * -.5) !important}
+  </style>
+</head>
+<body class="bg-slate-100">
+  <div class="resume-sheet resume-page" id="resume-page" data-template-slug="teal-gray-sidebar-resume" data-template-source="classic-portrait-sidebar" data-preview-fit-managed="true">
+    <div class="resume-scaler" id="resume-scaler">
+      <div class="resume-content" id="resume-content">
+        <div class="resume-grid">
+          <aside class="sidebar-panel">
+            <header class="section-block">
+              <div class="photo-shell">
+                {{#photo_url}}<img src="{{photo_url}}" alt="" />{{/photo_url}}
+                {{^photo_url}}<svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="240" height="240" fill="#eeeeee"></rect><circle cx="120" cy="86" r="46" fill="#f8f8f8"></circle><path d="M50 205c14-40 40-63 70-63s56 23 70 63" fill="#f8f8f8"></path></svg>{{/photo_url}}
+              </div>
+              <p class="role-label wrap-safe">{{#title}}{{title}}{{/title}}{{^title}}{{role}}{{/title}}</p>
+              <h1 class="candidate-name wrap-safe">{{#full_name}}{{full_name}}{{/full_name}}{{^full_name}}{{name}}{{/full_name}}</h1>
+            </header>
+
+            <section class="section-block" data-empty-section>
+              <h2 class="sidebar-title">Personal Information</h2>
+              <div class="info-list mt-3" data-empty-body>
+                <p class="info-row wrap-safe" data-empty-line><strong>Date of Birth:</strong> <span data-empty-value>{{date_of_birth}}</span></p>
+                <p class="info-row wrap-safe" data-empty-line><strong>Nationality:</strong> <span data-empty-value>{{nationality}}</span></p>
+                <p class="info-row wrap-safe" data-empty-line><strong>Gender:</strong> <span data-empty-value>{{gender}}</span></p>
+                <p class="info-row wrap-safe" data-empty-line><strong>Marital Status:</strong> <span data-empty-value>{{marital_status}}</span></p>
+              </div>
+            </section>
+
+            <section class="section-block" data-empty-section>
+              <h2 class="sidebar-title">Contact</h2>
+              <div class="contact-list mt-3" data-empty-body>
+                <div class="contact-item" data-empty-line><svg class="contact-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1-.24c1.11.37 2.31.56 3.54.56a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.85 21 3 13.15 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.23.19 2.43.56 3.54a1 1 0 0 1-.24 1l-2.2 2.25Z"/></svg><p class="wrap-safe"><span data-empty-value>{{phone}}</span></p></div>
+                <div class="contact-item" data-empty-line><svg class="contact-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 18.5v-13Zm2.1.18L12 11.15l6.9-5.47a.5.5 0 0 0-.4-.18h-13a.5.5 0 0 0-.4.18Zm13.4 2.02-6.19 4.91a.5.5 0 0 1-.62 0L5.5 7.7v10.8c0 .28.22.5.5.5h12c.28 0 .5-.22.5-.5V7.7Z"/></svg><p class="wrap-safe"><span data-empty-value>{{email}}</span></p></div>
+                <div class="contact-item" data-empty-line><svg class="contact-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a7 7 0 0 1 7 7c0 4.75-5.03 10.74-6.32 12.2a.9.9 0 0 1-1.36 0C10.03 19.74 5 13.75 5 9a7 7 0 0 1 7-7Zm0 9.5A2.5 2.5 0 1 0 12 6a2.5 2.5 0 0 0 0 5.5Z"/></svg><p class="wrap-safe"><span data-empty-value>{{#location}}{{location}}{{/location}}{{^location}}{{#city}}{{city}}{{#country}}, {{country}}{{/country}}{{/city}}{{^city}}{{country}}{{/city}}{{/location}}</span></p></div>
+                <div class="contact-item" data-empty-line><svg class="contact-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.94 8.5a1.56 1.56 0 1 1 0-3.12 1.56 1.56 0 0 1 0 3.12ZM5.5 9.75h2.88V18H5.5V9.75Zm4.68 0h2.76v1.13h.04c.39-.73 1.34-1.5 2.77-1.5 2.96 0 3.5 1.95 3.5 4.48V18h-2.88v-3.67c0-.88-.02-2-.97-2s-1.12.76-1.12 1.94V18h-2.88V9.75Z"/></svg><p class="wrap-safe"><span data-empty-value>{{linkedin}}</span></p></div>
+                <div class="contact-item" data-empty-line><svg class="contact-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18Zm5.84 8h-3.02a14.7 14.7 0 0 0-1.02-4A7.04 7.04 0 0 1 17.84 11Zm-5.09-5.82c.58.87 1.08 2.23 1.37 3.82h-4.24c.29-1.59.79-2.95 1.37-3.82a2.78 2.78 0 0 1 1.5 0ZM6.2 7a14.7 14.7 0 0 0-1.02 4H2.16A7.04 7.04 0 0 1 6.2 7Zm-4.04 6h3.02c.15 1.4.5 2.76 1.02 4A7.04 7.04 0 0 1 2.16 13Zm7.77 5.82c-.58-.87-1.08-2.23-1.37-3.82h4.24c-.29 1.59-.79 2.95-1.37 3.82a2.78 2.78 0 0 1-1.5 0ZM8.19 13c.11 1.11.37 2.22.76 3.24A12.2 12.2 0 0 1 7.7 13h.49Zm.76-2a12.2 12.2 0 0 1 1.25-3.24A12.2 12.2 0 0 1 11.45 11H8.95Zm4.1 0a12.2 12.2 0 0 1 1.25-3.24A12.2 12.2 0 0 1 15.05 11h-2Zm0 2h2a12.2 12.2 0 0 1-1.25 3.24A12.2 12.2 0 0 1 13.05 13Zm4.79 0a7.04 7.04 0 0 1-4.04 4c.52-1.24.87-2.6 1.02-4h3.02Z"/></svg><p class="wrap-safe"><span data-empty-value>{{#portfolio}}{{portfolio}}{{/portfolio}}{{^portfolio}}{{website}}{{/portfolio}}</span></p></div>
+              </div>
+            </section>
+
+            <div class="sidebar-divider"></div>
+
+            {{#has_languages_items}}
+            <section class="section-block">
+              <h2 class="sidebar-title">Languages</h2>
+              <div class="compact-list mt-3">
+                {{#languages_items}}<p class="language-plain language-copy wrap-safe">{{#name}}{{name}}{{/name}}{{^name}}{{#label}}{{label}}{{/label}}{{^label}}Language{{/label}}{{/name}}{{#value}} - {{value}}{{/value}}</p>{{/languages_items}}
+              </div>
+            </section>
+            {{/has_languages_items}}
+
+          </aside>
+
+          <main class="main-panel">
+            {{#summary}}
+            <section class="section-block">
+              <h2 class="section-title">About Myself</h2>
+              <div class="mt-3">
+                <div class="richtext summary-copy wrap-safe">{{{summary}}}</div>
+              </div>
+            </section>
+            {{/summary}}
+            {{^summary}}{{#objective}}
+            <section class="section-block">
+              <h2 class="section-title">About Myself</h2>
+              <div class="mt-3">
+                <div class="richtext summary-copy wrap-safe">{{{objective}}}</div>
+              </div>
+            </section>
+            {{/objective}}{{/summary}}
+
+            {{#has_experience_items}}
+            <section class="section-block">
+              <h2 class="section-title">Work Experience</h2>
+              <div class="timeline-list mt-3">
+                {{#experience_items}}
+                <article class="timeline-item">
+                  <div class="entry-head">
+                    <div class="min-w-0">
+                      {{#company}}<p class="entry-company wrap-safe">{{company}}</p>{{/company}}
+                      {{#role}}<p class="entry-role wrap-safe">{{role}}</p>{{/role}}
+                      {{#date_range}}<p class="entry-date wrap-safe">{{date_range}}</p>{{/date_range}}
+                    </div>
+                  </div>
+                  {{#highlights}}<div class="richtext mt-1 wrap-safe">{{{highlights}}}</div>{{/highlights}}
+                  {{^highlights}}{{#has_bullet_lines}}
+                  <ul class="entry-points">
+                    {{#bullet_lines}}<li class="wrap-safe">{{value}}</li>{{/bullet_lines}}
+                  </ul>
+                  {{/has_bullet_lines}}{{^has_bullet_lines}}{{#has_bullets}}
+                  <ul class="entry-points">
+                    {{#bullets}}<li class="wrap-safe">{{value}}</li>{{/bullets}}
+                  </ul>
+                  {{/has_bullets}}{{/has_bullet_lines}}
+                  {{/highlights}}
+                </article>
+                {{/experience_items}}
+              </div>
+            </section>
+            {{/has_experience_items}}
+
+            {{#has_education_items}}
+            <section class="section-block">
+              <h2 class="section-title">Education &amp; Training</h2>
+              <div class="timeline-list mt-3">
+                {{#education_items}}
+                <article class="timeline-item">
+                  <div class="entry-head">
+                    <div class="min-w-0">
+                      {{#degree}}<p class="education-degree wrap-safe">{{degree}}</p>{{/degree}}
+                      {{#school}}<p class="entry-role wrap-safe">{{school}}</p>{{/school}}
+                      {{#score}}<p class="education-meta wrap-safe">{{score}}</p>{{/score}}
+                      {{^score}}{{#result}}<p class="education-meta wrap-safe">{{result}}</p>{{/result}}{{/score}}
+                    </div>
+                    <div class="min-w-0">
+                      {{#date_range}}<p class="entry-date wrap-safe">{{date_range}}</p>{{/date_range}}
+                    </div>
+                  </div>
+                </article>
+                {{/education_items}}
+              </div>
+            </section>
+            {{/has_education_items}}
+
+            {{#has_project_items}}
+            <section class="section-block">
+              <h2 class="section-title">Projects</h2>
+              <div class="project-list mt-3">
+                {{#project_items}}
+                <article class="project-card">
+                  {{#name}}<p class="project-name wrap-safe">{{name}}</p>{{/name}}
+                  {{#description}}<p class="project-copy wrap-safe">{{description}}</p>{{/description}}
+                </article>
+                {{/project_items}}
+              </div>
+            </section>
+            {{/has_project_items}}
+
+            {{#has_skills_items}}
+            <section class="section-block">
+              <h2 class="section-title">Skills</h2>
+              <div class="skill-list mt-3">
+                {{#skills_items}}<p class="skill-chip wrap-safe">{{#name}}{{name}}{{/name}}{{^name}}{{label}}{{/name}}</p>{{/skills_items}}
+              </div>
+            </section>
+            {{/has_skills_items}}
+
+            {{#certifications}}
+            <section class="section-block">
+              <h2 class="section-title">Certifications</h2>
+              <div class="compact-list mt-3">
+                <div class="richtext cert-copy wrap-safe">{{{certifications}}}</div>
+              </div>
+            </section>
+            {{/certifications}}
+
+            {{#references}}
+            <section class="section-block">
+              <h2 class="section-title">References</h2>
+              <div class="compact-list mt-3">
+                <div class="richtext reference-copy wrap-safe">{{{references}}}</div>
+              </div>
+            </section>
+            {{/references}}
+          </main>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div data-hirevo-standard-schema="v3" style="display:none !important;visibility:hidden;height:0;overflow:hidden" aria-hidden="true">
+    {{photo_url}}{{full_name}}{{name}}{{first_name}}{{last_name}}{{title}}{{role}}{{phone}}{{email}}{{location}}{{address}}{{city}}{{country}}{{portfolio}}{{website}}{{linkedin}}
+    {{{summary}}}{{{objective}}}{{education}}{{skills}}{{experience}}{{projects}}{{{certifications}}}{{{languages}}}{{{references}}}
+    {{date_of_birth}}{{nationality}}{{gender}}{{marital_status}}
+  </div>
+
+  <script>
+    (function () {
+      const page = document.getElementById('resume-page');
+      const scaler = document.getElementById('resume-scaler');
+      const content = document.getElementById('resume-content');
+      if (!page || !content || !scaler) return;
+      const maxSteps = 14;
+      const normalizeText = (value) => (value || '').replace(/\s+/g, ' ').trim();
+      const cleanEmptySections = () => {
+        document.querySelectorAll('[data-empty-line]').forEach((line) => {
+          const values = line.querySelectorAll('[data-empty-value]');
+          if (!values.length) return;
+          const hasValue = Array.from(values).some((node) => normalizeText(node.textContent).length > 0);
+          if (!hasValue) line.remove();
+        });
+        document.querySelectorAll('[data-empty-section]').forEach((section) => {
+          const contentNodes = Array.from(section.children).filter((node) => {
+            const element = node;
+            return !(element.classList && element.classList.contains('sidebar-title'));
+          });
+          const hasVisibleContent = contentNodes.some((node) => normalizeText(node.textContent).length > 0);
+          if (!hasVisibleContent) section.remove();
+        });
+      };
+      const fit = () => {
+        const isMobile = window.matchMedia('(max-width: 980px)').matches && document.body.getAttribute('data-hirevo-live-preview') !== 'true';
+        if (isMobile) {
+          page.dataset.fitStep = '0';
+          page.style.setProperty('--fit-scale', '1');
+          return;
+        }
+        page.dataset.fitStep = '0';
+        page.style.setProperty('--fit-scale', '1');
+        let step = 0;
+        while (
+          step < maxSteps &&
+          (content.scrollHeight > page.clientHeight + 1 || content.scrollWidth > page.clientWidth + 1)
+        ) {
+          step += 1;
+          page.dataset.fitStep = String(step);
+        }
+        if (content.scrollHeight > page.clientHeight + 1 || content.scrollWidth > page.clientWidth + 1) {
+          const pageHeight = page.getBoundingClientRect().height || page.clientHeight;
+          const pageWidth = page.getBoundingClientRect().width || page.clientWidth;
+          let ratio = page.clientHeight / content.scrollHeight;
+          let widthRatio = page.clientWidth / Math.max(content.scrollWidth, page.clientWidth);
+          let nextScale = Math.min(1, Math.max(0.64, Math.min(ratio, widthRatio)));
+          page.style.setProperty('--fit-scale', String(nextScale));
+          let pass = 0;
+          while (pass < 6) {
+            const scaledHeight = scaler.getBoundingClientRect().height;
+            const scaledWidth = scaler.getBoundingClientRect().width;
+            if (scaledHeight <= pageHeight + 0.5 && scaledWidth <= pageWidth + 0.5) break;
+            ratio = pageHeight / Math.max(scaledHeight, pageHeight);
+            widthRatio = pageWidth / Math.max(scaledWidth, pageWidth);
+            const adjustedScale = Math.min(1, Math.max(0.6, nextScale * Math.min(ratio, widthRatio)));
+            if (Math.abs(adjustedScale - nextScale) < 0.002) break;
+            nextScale = adjustedScale;
+            page.style.setProperty('--fit-scale', String(nextScale));
+            pass += 1;
+          }
+        }
+      };
+      let fitQueued = false;
+      const scheduleFit = () => {
+        if (fitQueued) return;
+        fitQueued = true;
+        window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+          fitQueued = false;
+          cleanEmptySections();
+          fit();
+        }));
+      };
+      window.addEventListener('load', scheduleFit);
+      window.addEventListener('resize', scheduleFit);
+      if (document.fonts?.ready) {
+        document.fonts.ready.then(scheduleFit).catch(() => {});
+      }
+      Array.from(document.images || []).forEach((image) => {
+        if (image.complete) return;
+        image.addEventListener('load', scheduleFit, { once: true });
+        image.addEventListener('error', scheduleFit, { once: true });
+      });
+      if ('MutationObserver' in window) {
+        new MutationObserver(() => scheduleFit()).observe(content, {
+          childList: true,
+          subtree: true,
+          characterData: true,
+        });
+      }
+      if ('ResizeObserver' in window) {
+        const resizeObserver = new ResizeObserver(() => scheduleFit());
+        resizeObserver.observe(content);
+        resizeObserver.observe(page);
+      }
+      scheduleFit();
+    }());
+  </script>
+</body>
+</html>

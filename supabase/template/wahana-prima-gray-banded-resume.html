@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wahana Prima Gray Banded Resume{{#full_name}} - {{full_name}}{{/full_name}}{{^full_name}}{{#name}} - {{name}}{{/name}}{{/full_name}}</title>
+  <style>
+    *,::before,::after{box-sizing:border-box;border:0 solid #e5e7eb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    html{line-height:1.5;-webkit-text-size-adjust:100%;tab-size:4;font-family:"Montserrat","Aptos","Segoe UI",Arial,sans-serif}
+    body{margin:0;padding:24px;width:100%;background:#eef2f7;color:#1f2329;font-family:"Montserrat","Aptos","Segoe UI",Arial,sans-serif;display:flex;justify-content:center}
+    img,svg{display:block;max-width:100%;height:auto}
+    a{color:inherit;text-decoration:none}
+    h1,h2,h3,h4,h5,h6,p,ul,ol{margin:0;padding:0}
+    @page{size:A4;margin:0}
+    :root{
+      --fit-scale:1;--text-scale:.94;--resume-font:"Montserrat","Aptos","Segoe UI",Arial,sans-serif;--page-pad-x:13.5mm;--page-pad-top:10.5mm;--page-pad-bottom:8.6mm;
+      --body-size:11.5px;--body-leading:1.36;--name-size:29px;--role-size:15.8px;--section-title-size:12.2px;--section-title-track:.24em;
+      --section-gap:5.8mm;--entry-gap:3.9mm;--paragraph-gap:2px;--bullet-gap:1px;--date-col:26mm;--header-gap:7mm;--header-pad-bottom:6.4mm;
+      --header-line-width:24mm;--header-line-gap:5mm;--photo-size:28mm;--contact-size:11.3px;--subtle-band-height:13.2mm;--band-bg:#f2f2f2;
+      --muted:#555c63;--text:#1f2329;--bold:#1d2127;--group-gap:2mm;--additional-grid-gap:3.2mm;--skills-columns:2;--additional-columns:1;
+      --section-body-pad:2.4mm;--section-body-pad-compact:1.8mm;--entry-main-gap:3px;--contact-extended-gap-y:4px;--contact-extended-gap-x:10px
+    }
+    .resume-page[data-fit-step="1"]{--section-gap:5mm;--entry-gap:3.2mm;--paragraph-gap:1px;--group-gap:1.5mm}
+    .resume-page[data-fit-step="2"]{--page-pad-top:9.6mm;--page-pad-bottom:7.9mm;--header-pad-bottom:5.5mm;--body-leading:1.3;--section-gap:4.3mm;--entry-gap:2.8mm}
+    .resume-page[data-fit-step="3"]{--page-pad-x:13.6mm;--body-size:11.6px;--contact-size:11.8px;--role-size:17px;--subtle-band-height:14.3mm;--header-gap:7mm;--date-col:27mm}
+    .resume-page[data-fit-step="4"]{--page-pad-x:12.6mm;--page-pad-top:10mm;--page-pad-bottom:8.5mm;--body-size:11px;--name-size:29px;--role-size:15.8px;--section-title-size:12.3px;--section-gap:5mm;--entry-gap:3.3mm;--body-leading:1.35;--skills-columns:2}
+    .resume-page[data-fit-step="5"]{--page-pad-x:11.8mm;--body-size:10.6px;--contact-size:11.1px;--name-size:25px;--role-size:14.6px;--section-title-size:12px;--header-line-width:24mm;--header-line-gap:5.5mm;--subtle-band-height:13.4mm;--section-gap:4.4mm;--entry-gap:2.9mm;--body-leading:1.3}
+    .resume-page[data-fit-step="6"]{--page-pad-x:10.9mm;--page-pad-top:9.2mm;--page-pad-bottom:8mm;--body-size:10.2px;--contact-size:10.6px;--name-size:21px;--role-size:13.4px;--section-title-size:12px;--header-gap:5.8mm;--date-col:24mm;--section-gap:3.8mm;--entry-gap:2.5mm;--body-leading:1.24}
+    .resume-page[data-fit-step="7"]{--page-pad-x:10.1mm;--page-pad-top:8.7mm;--page-pad-bottom:7.6mm;--body-size:10px;--contact-size:10px;--name-size:18px;--role-size:12.4px;--section-title-size:12px;--section-gap:3.2mm;--entry-gap:2.1mm;--body-leading:1.18;--skills-columns:2;--section-body-pad:2.8mm;--section-body-pad-compact:2.2mm;--additional-grid-gap:3.2mm}
+    .resume-page[data-fit-step="8"]{--page-pad-x:9.6mm;--page-pad-top:8.3mm;--page-pad-bottom:7.1mm;--body-size:10px;--contact-size:10px;--name-size:18px;--role-size:12px;--section-title-size:12px;--section-gap:2.7mm;--entry-gap:1.8mm;--body-leading:1.12;--header-gap:4.8mm;--header-pad-bottom:5.6mm;--header-line-gap:3.6mm;--header-line-width:22mm;--subtle-band-height:11.4mm;--date-col:21mm;--paragraph-gap:1px;--bullet-gap:1px;--group-gap:1.8mm;--additional-grid-gap:2.6mm;--section-body-pad:2.2mm;--section-body-pad-compact:1.6mm;--additional-columns:1;--skills-columns:2}
+    .resume-page[data-fit-step="9"]{--page-pad-x:9.1mm;--page-pad-top:7.8mm;--page-pad-bottom:6.8mm;--body-size:10px;--contact-size:10px;--name-size:18px;--role-size:12px;--section-title-size:12px;--section-gap:2.2mm;--entry-gap:1.4mm;--body-leading:1.08;--header-gap:4.2mm;--header-pad-bottom:4.8mm;--header-line-gap:3mm;--header-line-width:18mm;--subtle-band-height:10.6mm;--date-col:19mm;--paragraph-gap:0px;--bullet-gap:0px;--group-gap:1.3mm;--additional-grid-gap:2mm;--section-body-pad:1.7mm;--section-body-pad-compact:1.2mm;--additional-columns:1;--skills-columns:1}
+    .resume-page[data-fit-step="10"]{--page-pad-x:8.6mm;--page-pad-top:7.3mm;--page-pad-bottom:6.3mm;--body-size:10px;--contact-size:10px;--name-size:18px;--role-size:12px;--section-title-size:12px;--section-gap:1.8mm;--entry-gap:1.1mm;--body-leading:1.04;--header-gap:3.6mm;--header-pad-bottom:4.1mm;--header-line-gap:2.4mm;--header-line-width:16mm;--subtle-band-height:9.8mm;--date-col:17mm;--paragraph-gap:0px;--bullet-gap:0px;--group-gap:1mm;--additional-grid-gap:1.6mm;--section-body-pad:1.2mm;--section-body-pad-compact:.9mm;--additional-columns:1;--skills-columns:1;--photo-size:27mm;--entry-main-gap:2px;--contact-extended-gap-y:4px;--contact-extended-gap-x:10px}
+    .resume-page[data-fit-step="11"]{--page-pad-x:8.1mm;--page-pad-top:6.8mm;--page-pad-bottom:5.8mm;--body-size:10px;--contact-size:10px;--name-size:18px;--role-size:12px;--section-title-size:12px;--section-gap:1.4mm;--entry-gap:.8mm;--body-leading:1.01;--header-gap:3.2mm;--header-pad-bottom:3.5mm;--header-line-gap:2mm;--header-line-width:14mm;--subtle-band-height:9mm;--date-col:15mm;--paragraph-gap:0px;--bullet-gap:0px;--group-gap:.7mm;--additional-grid-gap:1.2mm;--section-body-pad:.8mm;--section-body-pad-compact:.5mm;--additional-columns:1;--skills-columns:1;--photo-size:24mm;--entry-main-gap:1px;--contact-extended-gap-y:3px;--contact-extended-gap-x:8px}
+    .resume-sheet{width:210mm;height:297mm;overflow:hidden;margin:auto;background:#fff;box-shadow:0 18px 40px rgba(15,23,42,.1)}
+    .resume-page{width:210mm;height:297mm;overflow:hidden;background:#fff}
+    .resume-scaler{width:calc(100% / var(--fit-scale));transform:scale(var(--fit-scale));transform-origin:top left}
+    .resume-content{min-height:297mm;padding:var(--page-pad-top) var(--page-pad-x) var(--page-pad-bottom);font-family:var(--resume-font);font-size:calc(var(--body-size) * var(--text-scale));line-height:var(--body-leading);color:var(--text);overflow-wrap:break-word;word-wrap:break-word;word-break:break-word;text-rendering:optimizeLegibility;font-kerning:normal}
+    .resume-content,.resume-content *{font-family:var(--resume-font)}
+    .wrap-safe{white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+    .resume-stack{display:flex;flex-direction:column;gap:var(--section-gap)}
+    .section-block{display:flex;flex-direction:column;break-inside:avoid;page-break-inside:avoid;min-width:0}
+    .header-block{padding-bottom:var(--header-pad-bottom)}
+    .header-grid{display:grid;grid-template-columns:var(--photo-size) minmax(0,1fr);gap:var(--header-gap);align-items:center}
+    .photo-shell{width:var(--photo-size);height:var(--photo-size);border-radius:999px;overflow:hidden;background:#dde3e8;align-self:start;margin-top:1px}
+    .photo-shell img,.photo-shell svg{width:100%;height:100%;object-fit:cover}
+    .header-main{min-width:0;display:flex;flex-direction:column;justify-content:center}
+    .header-name{font-size:calc(var(--name-size) * var(--text-scale));line-height:1.02;font-weight:800;letter-spacing:-.035em;color:var(--bold)}
+    .header-role{margin-top:5px;font-size:calc(var(--role-size) * var(--text-scale));line-height:1.18;font-weight:500;color:#2b2f35}
+    .header-rule{width:var(--header-line-width);height:1.5px;background:#3a3e45;margin-top:var(--header-line-gap);margin-bottom:var(--header-line-gap)}
+    .contact-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 18px;align-items:start;min-width:0}
+    .contact-item{display:flex;align-items:center;gap:7px;min-width:0;font-size:calc(var(--contact-size) * var(--text-scale));line-height:1.3;color:#252a31}
+    .contact-item svg{width:17px;height:17px;flex:0 0 auto;fill:#20242a}
+    .contact-extended{margin-top:6px;display:flex;flex-wrap:wrap;gap:var(--contact-extended-gap-y) var(--contact-extended-gap-x);min-width:0}
+    .contact-link{display:inline-flex;align-items:center;gap:6px;min-width:0;font-size:calc((var(--contact-size) - .1px) * var(--text-scale));line-height:1.28;color:#31353b}
+    .contact-link svg{width:15px;height:15px;flex:0 0 auto;fill:#22262c}
+    .section-band{width:calc(100% + (var(--page-pad-x) * 2));margin-left:calc(var(--page-pad-x) * -1);background:var(--band-bg);min-height:var(--subtle-band-height);display:flex;align-items:center;justify-content:center;padding:3.5mm var(--page-pad-x);text-align:center}
+    .section-title{font-size:calc(var(--section-title-size) * var(--text-scale));line-height:1;letter-spacing:var(--section-title-track);font-weight:800;text-transform:uppercase;color:#23272d}
+    .section-body{padding-top:var(--section-body-pad);min-width:0}
+    .section-body.compact{padding-top:var(--section-body-pad-compact)}
+    .summary-copy,.body-copy,.reference-copy,.content-richtext{font-size:calc(var(--body-size) * var(--text-scale));line-height:var(--body-leading);color:var(--text)}
+    .content-richtext p{margin:0}
+    .content-richtext p + p,.content-richtext p + ul,.content-richtext ul + p,.content-richtext ul + ul,.content-richtext ol + p,.content-richtext p + ol{margin-top:var(--paragraph-gap)}
+    .content-richtext ul,.content-richtext ol{margin:0;padding-left:1.2rem;list-style-position:outside}
+    .content-richtext ul{list-style:disc}
+    .content-richtext ol{list-style:decimal}
+    .content-richtext li + li{margin-top:var(--bullet-gap)}
+    .entry-stack{display:grid;gap:var(--entry-gap)}
+    .entry-row{display:grid;grid-template-columns:var(--date-col) minmax(0,1fr);column-gap:7.2mm;align-items:start;min-width:0}
+    .entry-dates{font-size:calc((var(--body-size) + 2.3px) * var(--text-scale));line-height:1.16;font-weight:500;letter-spacing:-.01em;color:#252a31;padding-top:1px}
+    .entry-main{min-width:0;display:flex;flex-direction:column;gap:var(--entry-main-gap)}
+    .entry-heading{font-size:calc((var(--body-size) + 1.2px) * var(--text-scale));line-height:1.2;font-weight:800;letter-spacing:.02em;text-transform:uppercase;color:#25292f}
+    .entry-subheading{font-size:calc((var(--body-size) + .15px) * var(--text-scale));line-height:1.24;font-weight:700;color:#23272d;margin-top:-1px}
+    .skills-list{columns:var(--skills-columns);column-gap:14mm;padding-left:1.1rem;margin:0}
+    .skills-list li{break-inside:avoid;margin-bottom:max(1.7mm,var(--bullet-gap));padding-right:2mm}
+    .additional-grid{display:grid;grid-template-columns:repeat(var(--additional-columns),minmax(0,1fr));gap:var(--additional-grid-gap) 8mm;min-width:0}
+    .info-group{min-width:0;break-inside:avoid;page-break-inside:avoid;display:flex;flex-direction:column;gap:4px}
+    .info-group-title{font-size:calc((var(--body-size) + .6px) * var(--text-scale));line-height:1.16;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#23272d}
+    .mini-stack,.references-stack,.project-stack{display:grid;gap:var(--group-gap)}
+    .project-item{display:flex;flex-direction:column;gap:2px}
+    .project-name{font-size:calc((var(--body-size) + .2px) * var(--text-scale));line-height:1.18;font-weight:700;color:#25292f}
+    .inline-label{font-weight:700;color:#25292f}
+    .muted-copy{color:var(--muted)}
+    .hidden-photo-placeholder{width:100%;height:100%;background:#dde3e8}
+    @media screen and (max-width:980px){body{padding:10px;background:#dfe5ec}.resume-sheet,.resume-page{width:100%;height:auto;min-height:auto}.resume-scaler{width:100%;transform:none}.resume-content{min-height:auto}}
+    @media print{body{padding:0;background:#fff}.resume-sheet{box-shadow:none}}
+  </style>
+</head>
+<body>
+  <div class="resume-sheet" data-resume-export-page-source="true">
+    <div id="resume-page" class="resume-page" data-resume-template-page="true">
+      <div id="resume-scaler" class="resume-scaler">
+        <div id="resume-content" class="resume-content" data-resume-template-page-content="true">
+          <div class="resume-stack">
+            <header class="section-block header-block" data-empty-section>
+              <div class="header-grid">
+                <div class="photo-shell">
+                  {{#photo_url}}<img src="{{photo_url}}" alt="{{#full_name}}{{full_name}}{{/full_name}}{{^full_name}}{{#name}}{{name}}{{/name}}{{/full_name}} profile photo" />{{/photo_url}}
+                  {{^photo_url}}<div class="hidden-photo-placeholder"></div>{{/photo_url}}
+                </div>
+                <div class="header-main">
+                  <h1 class="header-name wrap-safe" data-empty-line><span data-empty-value>{{#full_name}}{{full_name}}{{/full_name}}{{^full_name}}{{#name}}{{name}}{{/name}}{{/full_name}}{{^full_name}}{{^name}}{{first_name}} {{last_name}}{{/name}}{{/full_name}}</span></h1>
+                  <p class="header-role wrap-safe" data-empty-line><span data-empty-value>{{#profession_name}}{{profession_name}}{{/profession_name}}{{^profession_name}}{{#title}}{{title}}{{/title}}{{/profession_name}}{{^profession_name}}{{^title}}{{#role}}{{role}}{{/role}}{{/title}}{{/profession_name}}</span></p>
+                  <div class="header-rule"></div>
+                  <div class="contact-grid">
+                    <div class="contact-item wrap-safe" data-empty-line><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.01-.24c1.11.37 2.3.56 3.58.56a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.3 21 3 13.7 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.28.19 2.47.56 3.58a1 1 0 0 1-.24 1.01z"/></svg><span data-empty-value>{{phone}}</span></div>
+                    <div class="contact-item wrap-safe" data-empty-line><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4H4a2 2 0 0 0-2 2v.4l10 6.25L22 6.4V6a2 2 0 0 0-2-2zm2 4.75-9.47 5.92a1 1 0 0 1-1.06 0L2 8.75V18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2z"/></svg><span data-empty-value>{{email}}</span></div>
+                    <div class="contact-item wrap-safe" data-empty-line><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg><span data-empty-value>{{#location}}{{location}}{{/location}}{{^location}}{{#address}}{{address}}{{/address}}{{^address}}{{#city}}{{city}}{{#country}}, {{country}}{{/country}}{{/city}}{{/address}}{{/location}}</span></div>
+                  </div>
+                  <div class="contact-extended">
+                    <div class="contact-link wrap-safe" data-empty-line><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.59 13.41a1.98 1.98 0 0 0 2.82 0l3.59-3.59a2 2 0 0 0-2.83-2.82l-1.16 1.17a1 1 0 1 1-1.42-1.42l1.17-1.17a4 4 0 1 1 5.66 5.66l-3.59 3.59a4 4 0 0 1-5.66 0 1 1 0 0 1 1.42-1.42zm2.82-2.82a1 1 0 0 1 0 1.41l-1.17 1.17a4 4 0 0 1-5.66-5.66l3.59-3.59a4 4 0 0 1 5.66 0 1 1 0 0 1-1.42 1.42 1.98 1.98 0 0 0-2.82 0L8 9.17a2 2 0 1 0 2.83 2.82l1.16-1.17a1 1 0 0 1 1.42 0z"/></svg><span data-empty-value>{{#portfolio}}{{portfolio}}{{/portfolio}}{{^portfolio}}{{website}}{{/portfolio}}</span></div>
+                    <div class="contact-link wrap-safe" data-empty-line><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.94 7.5A1.44 1.44 0 1 1 6.94 4.62a1.44 1.44 0 0 1 0 2.88zM5.5 8.75h2.88V18H5.5zM10.13 8.75h2.76v1.28h.04c.38-.73 1.32-1.5 2.72-1.5 2.91 0 3.45 1.91 3.45 4.39V18h-2.88v-4.48c0-1.07-.02-2.45-1.49-2.45-1.49 0-1.72 1.16-1.72 2.37V18h-2.88z"/></svg><span data-empty-value>{{linkedin}}</span></div>
+                  </div>
+                </div>
+              </div>
+            </header>
+            <section class="section-block" data-empty-section>
+              <div class="section-band"><div class="section-title">About Me</div></div>
+              <div class="section-body">
+                {{#summary}}<div class="content-richtext summary-copy wrap-safe" data-empty-line><span data-empty-value>{{{summary}}}</span></div>{{/summary}}
+                {{^summary}}{{#professional_summary}}<div class="content-richtext summary-copy wrap-safe" data-empty-line><span data-empty-value>{{{professional_summary}}}</span></div>{{/professional_summary}}{{/summary}}
+                {{^summary}}{{^professional_summary}}{{#objective}}<div class="content-richtext summary-copy wrap-safe" data-empty-line><span data-empty-value>{{{objective}}}</span></div>{{/objective}}{{/professional_summary}}{{/summary}}
+              </div>
+            </section>
+            <section class="section-block" data-empty-section>
+              <div class="section-band"><div class="section-title">Education</div></div>
+              <div class="section-body">
+                <div class="entry-stack">
+                  {{#has_education_items}}{{#education_items}}
+                  <article class="entry-row" data-empty-section>
+                    <div class="entry-dates wrap-safe" data-empty-line><span data-empty-value>{{#date}}{{date}}{{/date}}{{^date}}{{#dates}}{{dates}}{{/dates}}{{/date}}{{^date}}{{^dates}}{{#start_date}}{{start_date}}{{/start_date}}{{#end_date}} - {{end_date}}{{/end_date}}{{/dates}}{{/date}}</span></div>
+                    <div class="entry-main">
+                      <div class="entry-heading wrap-safe" data-empty-line><span data-empty-value>{{#institution}}{{institution}}{{/institution}}{{^institution}}{{#school}}{{school}}{{/school}}{{/institution}}{{#degree}} | {{degree}}{{/degree}}{{^degree}}{{#title}} | {{title}}{{/title}}{{/degree}}</span></div>
+                      <div class="entry-subheading wrap-safe" data-empty-line><span data-empty-value>{{#field}}{{field}}{{/field}}{{^field}}{{#program}}{{program}}{{/program}}{{/field}}{{#score}} | {{score}}{{/score}}{{^score}}{{#cgpa}} | CGPA {{cgpa}}{{/cgpa}}{{/score}}{{^score}}{{^cgpa}}{{#grade}} | {{grade}}{{/grade}}{{/cgpa}}{{/score}}</span></div>
+                      {{#description}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{description}}}</span></div>{{/description}}
+                    </div>
+                  </article>
+                  {{/education_items}}{{/has_education_items}}
+                  {{^has_education_items}}
+                  <article class="entry-row" data-empty-section"><div class="entry-dates wrap-safe" data-empty-line><span data-empty-value>{{bs_years}}</span></div><div class="entry-main"><div class="entry-heading wrap-safe" data-empty-line><span data-empty-value>{{#bs_institute}}{{bs_institute}}{{/bs_institute}}{{#bs_degree}} | {{bs_degree}}{{/bs_degree}}</span></div><div class="entry-subheading wrap-safe" data-empty-line><span data-empty-value>{{#bs_score}}{{bs_score}}{{/bs_score}}{{^bs_score}}{{bs_cgpa}}{{/bs_score}}</span></div>{{#bs_description}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{bs_description}}}</span></div>{{/bs_description}}</div></article>
+                  <article class="entry-row" data-empty-section"><div class="entry-dates wrap-safe" data-empty-line><span data-empty-value>{{fsc_years}}</span></div><div class="entry-main"><div class="entry-heading wrap-safe" data-empty-line><span data-empty-value>{{#fsc_institute}}{{fsc_institute}}{{/fsc_institute}}{{#fsc_degree}} | {{fsc_degree}}{{/fsc_degree}}</span></div><div class="entry-subheading wrap-safe" data-empty-line><span data-empty-value>{{fsc_score}}</span></div>{{#fsc_description}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{fsc_description}}}</span></div>{{/fsc_description}}</div></article>
+                  <article class="entry-row" data-empty-section"><div class="entry-dates wrap-safe" data-empty-line><span data-empty-value>{{matric_years}}</span></div><div class="entry-main"><div class="entry-heading wrap-safe" data-empty-line><span data-empty-value>{{#matric_institute}}{{matric_institute}}{{/matric_institute}}{{#matric_degree}} | {{matric_degree}}{{/matric_degree}}</span></div><div class="entry-subheading wrap-safe" data-empty-line><span data-empty-value>{{matric_score}}</span></div>{{#matric_description}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{matric_description}}}</span></div>{{/matric_description}}</div></article>
+                  {{/has_education_items}}
+                  {{^has_education_items}}{{#education}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{education}}}</span></div>{{/education}}{{/has_education_items}}
+                </div>
+              </div>
+            </section>
+            <section class="section-block" data-empty-section>
+              <div class="section-band"><div class="section-title">Work Experience</div></div>
+              <div class="section-body">
+                <div class="entry-stack">
+                  {{#has_experience_items}}{{#experience_items}}
+                  <article class="entry-row" data-empty-section>
+                    <div class="entry-dates wrap-safe" data-empty-line><span data-empty-value>{{#date}}{{date}}{{/date}}{{^date}}{{#dates}}{{dates}}{{/dates}}{{/date}}{{^date}}{{^dates}}{{#start_date}}{{start_date}}{{/start_date}}{{#end_date}} - {{end_date}}{{/end_date}}{{/dates}}{{/date}}</span></div>
+                    <div class="entry-main">
+                      <div class="entry-heading wrap-safe" data-empty-line><span data-empty-value>{{#company}}{{company}}{{/company}}{{^company}}{{#employer}}{{employer}}{{/employer}}{{/company}}{{#title}} | {{title}}{{/title}}{{^title}}{{#job_title}} | {{job_title}}{{/job_title}}{{/title}}</span></div>
+                      <div class="entry-subheading wrap-safe" data-empty-line><span data-empty-value>{{#location}}{{location}}{{/location}}{{^location}}{{#employment_type}}{{employment_type}}{{/employment_type}}{{/location}}</span></div>
+                      {{#description}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{description}}}</span></div>{{/description}}
+                      {{#summary}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{summary}}}</span></div>{{/summary}}
+                    </div>
+                  </article>
+                  {{/experience_items}}{{/has_experience_items}}
+                  {{^has_experience_items}}{{#experience}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{experience}}}</span></div>{{/experience}}{{/has_experience_items}}
+                </div>
+              </div>
+            </section>
+            <section class="section-block" data-empty-section>
+              <div class="section-band"><div class="section-title">Projects</div></div>
+              <div class="section-body compact">
+                <div class="project-stack">
+                  {{#has_project_items}}{{#project_items}}<div class="project-item" data-empty-section><div class="project-name wrap-safe" data-empty-line><span data-empty-value>{{#name}}{{name}}{{/name}}{{^name}}{{title}}{{/name}}</span></div><div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{#description}}{{{description}}}{{/description}}{{^description}}{{value}}{{/description}}</span></div></div>{{/project_items}}{{/has_project_items}}
+                  {{^has_project_items}}{{#projects_text}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{projects_text}}}</span></div>{{/projects_text}}{{/has_project_items}}
+                  {{^has_project_items}}{{^projects_text}}{{#projects}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{projects}}}</span></div>{{/projects}}{{/projects_text}}{{/has_project_items}}
+                </div>
+              </div>
+            </section>
+            <section class="section-block" data-empty-section>
+              <div class="section-band"><div class="section-title">Skills</div></div>
+              <div class="section-body compact">
+                {{#has_skills_items}}<ul class="skills-list">{{#skills_items}}<li class="wrap-safe" data-empty-line><span data-empty-value>{{#name}}{{name}}{{/name}}{{^name}}{{label}}{{/name}}{{#value}} - {{value}}{{/value}}</span></li>{{/skills_items}}</ul>{{/has_skills_items}}
+                {{^has_skills_items}}{{#skills_text}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{skills_text}}}</span></div>{{/skills_text}}{{/has_skills_items}}
+                {{^has_skills_items}}{{^skills_text}}{{#skills}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{skills}}}</span></div>{{/skills}}{{/skills_text}}{{/has_skills_items}}
+              </div>
+            </section>
+            <section class="section-block" data-empty-section>
+              <div class="section-band"><div class="section-title">Additional Information</div></div>
+              <div class="section-body compact">
+                <div class="additional-grid">
+                  <div class="info-group" data-empty-section><div class="info-group-title">Certifications</div><div class="mini-stack">{{#certifications}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{certifications}}}</span></div>{{/certifications}}{{^certifications}}{{#certifications_text}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{certifications_text}}}</span></div>{{/certifications_text}}{{/certifications}}{{^certifications}}{{^certifications_text}}{{#certificates}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{certificates}}}</span></div>{{/certificates}}{{/certifications_text}}{{/certifications}}{{^certifications}}{{^certifications_text}}{{^certificates}}{{#certificate}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{certificate}}}</span></div>{{/certificate}}{{/certificates}}{{/certifications_text}}{{/certifications}}</div></div>
+                  <div class="info-group" data-empty-section><div class="info-group-title">Languages</div><div class="mini-stack">{{#has_languages_items}}{{#languages_items}}<p class="body-copy wrap-safe" data-empty-line><span data-empty-value>{{#name}}{{name}}{{/name}}{{^name}}{{label}}{{/name}}{{#value}} - {{value}}{{/value}}</span></p>{{/languages_items}}{{/has_languages_items}}{{^has_languages_items}}{{#languages_text}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{languages_text}}}</span></div>{{/languages_text}}{{/has_languages_items}}{{^has_languages_items}}{{^languages_text}}{{#languages}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{languages}}}</span></div>{{/languages}}{{/languages_text}}{{/has_languages_items}}{{^has_languages_items}}{{^languages_text}}{{^languages}}{{#language_text}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{language_text}}}</span></div>{{/language_text}}{{/languages}}{{/languages_text}}{{/has_languages_items}}{{^has_languages_items}}{{^languages_text}}{{^languages}}{{^language_text}}{{#language}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{language}}}</span></div>{{/language}}{{/language_text}}{{/languages}}{{/languages_text}}{{/has_languages_items}}</div></div>
+                  <div class="info-group" data-empty-section><div class="info-group-title">Personal Details</div><div class="mini-stack"><p class="body-copy wrap-safe" data-empty-line><span class="inline-label">Date of Birth:</span> <span data-empty-value>{{date_of_birth}}</span></p><p class="body-copy wrap-safe" data-empty-line><span class="inline-label">Nationality:</span> <span data-empty-value>{{nationality}}</span></p><p class="body-copy wrap-safe" data-empty-line><span class="inline-label">Marital Status:</span> <span data-empty-value>{{marital_status}}</span></p>{{#personal_information}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{personal_information}}}</span></div>{{/personal_information}}{{^personal_information}}{{#personal_details}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{personal_details}}}</span></div>{{/personal_details}}{{/personal_information}}{{^personal_information}}{{^personal_details}}{{#personal_detail}}<div class="content-richtext body-copy wrap-safe" data-empty-line><span data-empty-value>{{{personal_detail}}}</span></div>{{/personal_detail}}{{/personal_details}}{{/personal_information}}</div></div>
+                  <div class="info-group" data-empty-section><div class="info-group-title">References</div><div class="references-stack"><p class="reference-copy wrap-safe" data-empty-line><span data-empty-value>{{reference_primary_name}}</span>{{#reference_primary_title}}<span class="muted-copy"> - {{reference_primary_title}}</span>{{/reference_primary_title}}{{#reference_primary_phone}}<span class="muted-copy"> - {{reference_primary_phone}}</span>{{/reference_primary_phone}}{{#reference_primary_email}}<span class="muted-copy"> - {{reference_primary_email}}</span>{{/reference_primary_email}}</p><p class="reference-copy wrap-safe" data-empty-line><span data-empty-value>{{reference_secondary_name}}</span>{{#reference_secondary_title}}<span class="muted-copy"> - {{reference_secondary_title}}</span>{{/reference_secondary_title}}{{#reference_secondary_phone}}<span class="muted-copy"> - {{reference_secondary_phone}}</span>{{/reference_secondary_phone}}{{#reference_secondary_email}}<span class="muted-copy"> - {{reference_secondary_email}}</span>{{/reference_secondary_email}}</p>{{#references}}<div class="content-richtext reference-copy wrap-safe" data-empty-line><span data-empty-value>{{{references}}}</span></div>{{/references}}{{^references}}{{#reference_text}}<div class="content-richtext reference-copy wrap-safe" data-empty-line><span data-empty-value>{{{reference_text}}}</span></div>{{/reference_text}}{{/references}}{{^references}}{{^reference_text}}{{#reference}}<div class="content-richtext reference-copy wrap-safe" data-empty-line><span data-empty-value>{{{reference}}}</span></div>{{/reference}}{{/reference_text}}{{/references}}</div></div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div data-hirevo-standard-schema="v3" style="display:none !important;visibility:hidden;height:0;overflow:hidden" aria-hidden="true">
+    {{photo_url}}{{full_name}}{{name}}{{first_name}}{{last_name}}{{title}}{{role}}{{profession_name}}{{phone}}{{email}}{{location}}{{address}}{{city}}{{country}}{{linkedin}}{{portfolio}}{{website}}
+    {{{summary}}}{{{professional_summary}}}{{{objective}}}{{education}}{{experience}}{{skills}}{{skills_text}}{{projects}}{{{projects_text}}}
+    {{{certifications}}}{{{certifications_text}}}{{{certificates}}}{{{certificate}}}{{{languages}}}{{{languages_text}}}{{{language}}}{{{language_text}}}{{{personal_information}}}{{{personal_details}}}{{{personal_detail}}}{{{references}}}{{{reference_text}}}{{{reference}}}
+    {{date_of_birth}}{{nationality}}{{marital_status}}{{reference_primary_name}}{{reference_primary_title}}{{reference_primary_phone}}{{reference_primary_email}}
+    {{reference_secondary_name}}{{reference_secondary_title}}{{reference_secondary_phone}}{{reference_secondary_email}}
+    {{bs_degree}}{{bs_institute}}{{bs_years}}{{bs_score}}{{bs_cgpa}}{{{bs_description}}}{{fsc_degree}}{{fsc_institute}}{{fsc_years}}{{fsc_score}}{{{fsc_description}}}{{matric_degree}}{{matric_institute}}{{matric_years}}{{matric_score}}{{{matric_description}}}
+  </div>
+  <script>
+    (function(){
+      const page=document.getElementById('resume-page');
+      const scaler=document.getElementById('resume-scaler');
+      const content=document.getElementById('resume-content');
+      if(!page||!scaler||!content)return;
+      const normalizeText=(value)=>(value||'').replace(/\s+/g,' ').trim();
+      const cleanEmptyLines=()=>{document.querySelectorAll('[data-empty-line]').forEach((node)=>{const targets=node.querySelectorAll('[data-empty-value]');if(!targets.length)return;const hasValue=Array.from(targets).some((target)=>normalizeText(target.textContent).length>0);if(!hasValue)node.remove();});};
+      const cleanEmptySections=()=>{document.querySelectorAll('[data-empty-section]').forEach((section)=>{const exempt=new Set(['section-band','info-group-title']);const contentNodes=Array.from(section.children).filter((child)=>{const classList=child.classList||[];return !Array.from(classList).some((name)=>exempt.has(name));});const hasVisibleContent=contentNodes.some((child)=>normalizeText(child.textContent).length>0);if(!hasVisibleContent)section.remove();});};
+      const maxSteps=11;
+      const minTextScale=.85;
+      const fit=()=>{
+        page.dataset.fitStep='0';
+        page.style.setProperty('--fit-scale','1');
+        page.style.setProperty('--text-scale','1');
+
+        let step=0;
+        while(step<maxSteps&&(content.scrollHeight>page.clientHeight+1||content.scrollWidth>page.clientWidth+1)){
+          step+=1;
+          page.dataset.fitStep=String(step);
+        }
+
+        if(content.scrollHeight>page.clientHeight+1||content.scrollWidth>page.clientWidth+1){
+          let textScale=1;
+          let pass=0;
+          while(pass<8&&(content.scrollHeight>page.clientHeight+1||content.scrollWidth>page.clientWidth+1)&&textScale>minTextScale){
+            textScale=Math.max(minTextScale,Number((textScale-.03).toFixed(3)));
+            page.style.setProperty('--text-scale',String(textScale));
+            pass+=1;
+          }
+        }
+
+        if(content.scrollHeight>page.clientHeight+1||content.scrollWidth>page.clientWidth+1){
+          const pageHeight=page.getBoundingClientRect().height||page.clientHeight;
+          const pageWidth=page.getBoundingClientRect().width||page.clientWidth;
+          const heightRatio=page.clientHeight/content.scrollHeight;
+          const widthRatio=page.clientWidth/content.scrollWidth;
+          let nextScale=Math.min(1,Math.max(.52,Math.min(heightRatio,widthRatio)));
+          page.style.setProperty('--fit-scale',String(nextScale));
+
+          let pass=0;
+          while(pass<6){
+            const scaledRect=scaler.getBoundingClientRect();
+            const heightOk=scaledRect.height<=pageHeight+.5;
+            const widthOk=scaledRect.width<=pageWidth+.5;
+            if(heightOk&&widthOk)break;
+
+            const ratio=Math.min(pageHeight/scaledRect.height,pageWidth/scaledRect.width);
+            const adjusted=Math.min(1,Math.max(.48,nextScale*ratio));
+            if(Math.abs(adjusted-nextScale)<.002)break;
+            nextScale=adjusted;
+            page.style.setProperty('--fit-scale',String(nextScale));
+            pass+=1;
+          }
+        }
+      };
+      let fitQueued=false;
+      const runFitNow=()=>{cleanEmptyLines();cleanEmptySections();fit();};
+      const scheduleFit=()=>{if(fitQueued)return;fitQueued=true;window.requestAnimationFrame(()=>window.requestAnimationFrame(()=>{fitQueued=false;runFitNow();}));};
+      window.addEventListener('load',scheduleFit);
+      window.addEventListener('resize',scheduleFit);
+      window.addEventListener('beforeprint',runFitNow);
+      if(document.fonts?.ready){document.fonts.ready.then(scheduleFit).catch(()=>{});}
+      Array.from(document.images||[]).forEach((image)=>{if(image.complete)return;image.addEventListener('load',scheduleFit,{once:true});image.addEventListener('error',scheduleFit,{once:true});});
+      if('MutationObserver' in window){new MutationObserver(()=>scheduleFit()).observe(content,{childList:true,subtree:true,characterData:true});}
+      if('ResizeObserver' in window){const resizeObserver=new ResizeObserver(()=>scheduleFit());resizeObserver.observe(content);resizeObserver.observe(page);}
+      runFitNow();
+      scheduleFit();
+      setTimeout(runFitNow,0);
+      setTimeout(runFitNow,40);
+      setTimeout(runFitNow,120);
+      setTimeout(runFitNow,260);
+    }());
+  </script>
+</body>
+</html>

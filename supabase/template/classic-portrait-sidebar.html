@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Classic Portrait Sidebar - {{#full_name}}{{full_name}}{{/full_name}}{{^full_name}}Full Name{{/full_name}}</title>
+  <title>Classic Portrait Sidebar{{#full_name}} - {{full_name}}{{/full_name}}{{^full_name}}{{#name}} - {{name}}{{/name}}{{/full_name}}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1112,6 +1112,37 @@ video {
       }
     }
 
+    body[data-hirevo-live-preview="true"] {
+      padding: 24px !important;
+    }
+
+    body[data-hirevo-live-preview="true"] .resume-sheet {
+      width: 210mm !important;
+      height: 297mm !important;
+      min-width: 0 !important;
+      min-height: 0 !important;
+    }
+
+    body[data-hirevo-live-preview="true"] .resume-page {
+      width: 210mm !important;
+      height: 297mm !important;
+    }
+
+    body[data-hirevo-live-preview="true"] .resume-scaler {
+      width: calc(100% / var(--fit-scale)) !important;
+      transform: scale(var(--fit-scale)) !important;
+    }
+
+    body[data-hirevo-live-preview="true"] .resume-content {
+      min-height: 297mm !important;
+      padding: var(--page-pad-top) var(--page-pad-x) var(--page-pad-bottom) !important;
+    }
+
+    body[data-hirevo-live-preview="true"] .resume-body {
+      grid-template-columns: var(--sidebar-width) minmax(0, 1fr) !important;
+      gap: var(--columns-gap) !important;
+    }
+
     @media print {
       html,
       body {
@@ -1156,12 +1187,10 @@ video {
             </div>
             <div class="top-divider"></div>
           </div>
-          <h1 class="header-name mt-[12px]">
-            {{#full_name}}{{full_name}}{{/full_name}}{{^full_name}}Full Name{{/full_name}}
-          </h1>
-          <p class="header-role mt-[2px]">
-            {{#title}}{{title}}{{/title}}{{^title}}Profession Name{{/title}}
-          </p>
+          {{#full_name}}<h1 class="header-name mt-[12px]">{{full_name}}</h1>{{/full_name}}
+          {{^full_name}}{{#name}}<h1 class="header-name mt-[12px]">{{name}}</h1>{{/name}}{{/full_name}}
+          {{#title}}<p class="header-role mt-[2px]">{{title}}</p>{{/title}}
+          {{^title}}{{#role}}<p class="header-role mt-[2px]">{{role}}</p>{{/role}}{{/title}}
         </header>
 
         <div class="resume-body">
@@ -1236,6 +1265,12 @@ video {
                 {{{summary}}}
               </div>
             </section>{{/summary}}
+            {{^summary}}{{#objective}}<section class="section-block">
+              <h2 class="section-title">About Myself</h2>
+              <div class="content-richtext summary-copy wrap-safe">
+                {{{objective}}}
+              </div>
+            </section>{{/objective}}{{/summary}}
 
             {{#has_experience_items}}<section class="section-block">
               <h2 class="section-title">Work Experience</h2>
@@ -1317,8 +1352,8 @@ video {
 
   <!-- hirevo-standard-schema-v3 -->
   <div data-hirevo-standard-schema="v3" style="display:none !important; visibility:hidden; height:0; overflow:hidden;" aria-hidden="true">
-    {{full_name}}{{name}}{{title}}{{role}}{{phone}}{{email}}{{location}}{{address}}{{city}}{{country}}{{portfolio}}{{website}}{{linkedin}}
-    {{{summary}}}{{{objective}}}{{education}}{{skills}}{{experience}}{{projects}}{{{projects_text}}}
+    {{full_name}}{{name}}{{first_name}}{{last_name}}{{title}}{{role}}{{phone}}{{email}}{{location}}{{address}}{{city}}{{country}}{{portfolio}}{{website}}{{linkedin}}
+    {{{summary}}}{{{objective}}}{{education}}{{skills}}{{skills_text}}{{experience}}{{projects}}{{{projects_text}}}
     {{{certifications}}}{{{certifications_text}}}{{{languages}}}{{{languages_text}}}
     {{{awards}}}{{{awards_text}}}{{{achievements}}}{{{achievements_text}}}
     {{{references}}}{{date_of_birth}}{{nationality}}{{marital_status}}
@@ -1384,6 +1419,14 @@ video {
       }));
       window.addEventListener('load', scheduleFit);
       window.addEventListener('resize', scheduleFit);
+      if (document.fonts?.ready) {
+        document.fonts.ready.then(scheduleFit).catch(() => {});
+      }
+      Array.from(document.images || []).forEach((image) => {
+        if (image.complete) return;
+        image.addEventListener('load', scheduleFit, { once: true });
+        image.addEventListener('error', scheduleFit, { once: true });
+      });
       scheduleFit();
     }());
   </script>

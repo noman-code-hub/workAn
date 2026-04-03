@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 
 type ImageCropModalProps = {
@@ -17,7 +17,7 @@ type Point = {
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-const INITIAL_SCALE_PADDING = 0.08;
+const INITIAL_SCALE_PADDING = 0.16;
 
 export const ImageCropModal = ({
   isOpen,
@@ -30,11 +30,12 @@ export const ImageCropModal = ({
 }: ImageCropModalProps) => {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
-  const dragStartRef = useRef<{ pointerX: number; pointerY: number; offset: Point } | null>(null);
+  const dragStartRef = useRef<{ pointerId: number; pointerX: number; pointerY: number; offset: Point } | null>(null);
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
   const [position, setPosition] = useState<Point>({ x: 0, y: 0 });
   const [minScale, setMinScale] = useState(1);
   const [scale, setScale] = useState(1);
+  const [isDragging, setIsDragging] = useState(false);
 
   const maxScale = useMemo(() => Math.max(minScale * 4, minScale + 1.5), [minScale]);
 
@@ -69,46 +70,31 @@ export const ImageCropModal = ({
     setPosition({ x: 0, y: 0 });
   }, [getViewportSize]);
 
-  const startDragging = useCallback((pointerX: number, pointerY: number) => {
-    dragStartRef.current = {
-      pointerX,
-      pointerY,
-      offset: position,
-    };
-  }, [position]);
+  useEffect(() => {
+    if (isOpen) return;
+    dragStartRef.current = null;
+    setIsDragging(false);
+  }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen) {
-      dragStartRef.current = null;
-      return;
-    }
+    if (!isOpen) return;
 
-    const handlePointerMove = (event: PointerEvent) => {
-      const dragState = dragStartRef.current;
-      if (!dragState) return;
-
-      const deltaX = event.clientX - dragState.pointerX;
-      const deltaY = event.clientY - dragState.pointerY;
-      setPosition(clampPosition({
-        x: dragState.offset.x + deltaX,
-        y: dragState.offset.y + deltaY,
-      }, scale));
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCancel();
+      }
     };
 
-    const stopDragging = () => {
-      dragStartRef.current = null;
-    };
-
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', stopDragging);
-    window.addEventListener('pointercancel', stopDragging);
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', stopDragging);
-      window.removeEventListener('pointercancel', stopDragging);
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [clampPosition, isOpen, scale]);
+  }, [isOpen, onCancel]);
 
   useEffect(() => {
     if (!isOpen || !naturalSize.width || !naturalSize.height) return;
@@ -154,24 +140,83 @@ export const ImageCropModal = ({
     setPosition((previousPosition) => clampPosition(previousPosition, safeScale));
   }, [clampPosition, maxScale, minScale]);
 
+  const stopDragging = useCallback((target?: Element | null) => {
+    const dragState = dragStartRef.current;
+    if (dragState && target instanceof Element && 'releasePointerCapture' in target) {
+      try {
+        (target as HTMLElement).releasePointerCapture(dragState.pointerId);
+      } catch {
+        // Ignore release errors if capture is already gone.
+      }
+    }
+    dragStartRef.current = null;
+    setIsDragging(false);
+  }, []);
+
+  const handlePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!event.isPrimary || event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    dragStartRef.current = {
+      pointerId: event.pointerId,
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      offset: position,
+    };
+    setIsDragging(true);
+  }, [position]);
+
+  const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const dragState = dragStartRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    const deltaX = event.clientX - dragState.pointerX;
+    const deltaY = event.clientY - dragState.pointerY;
+    setPosition(clampPosition({
+      x: dragState.offset.x + deltaX,
+      y: dragState.offset.y + deltaY,
+    }, scale));
+  }, [clampPosition, scale]);
+
+  const handlePointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const dragState = dragStartRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+    stopDragging(event.currentTarget);
+  }, [stopDragging]);
+
+  const handleLostPointerCapture = useCallback(() => {
+    dragStartRef.current = null;
+    setIsDragging(false);
+  }, []);
+
   const handleConfirm = useCallback(() => {
     const image = imageRef.current;
     const viewport = viewportRef.current;
     if (!image || !viewport || !naturalSize.width || !naturalSize.height) return;
 
-    const viewportSize = Math.min(viewport.clientWidth, viewport.clientHeight);
-    if (!viewportSize || scale <= 0) return;
+    const viewportRect = viewport.getBoundingClientRect();
+    const imageRect = image.getBoundingClientRect();
+    if (!viewportRect.width || !viewportRect.height || !imageRect.width || !imageRect.height) return;
 
-    const sourceCropSize = viewportSize / scale;
     const sourceX = clamp(
-      naturalSize.width / 2 - sourceCropSize / 2 - position.x / scale,
+      ((viewportRect.left - imageRect.left) / imageRect.width) * naturalSize.width,
       0,
-      Math.max(0, naturalSize.width - sourceCropSize),
+      naturalSize.width,
     );
     const sourceY = clamp(
-      naturalSize.height / 2 - sourceCropSize / 2 - position.y / scale,
+      ((viewportRect.top - imageRect.top) / imageRect.height) * naturalSize.height,
       0,
-      Math.max(0, naturalSize.height - sourceCropSize),
+      naturalSize.height,
+    );
+    const sourceWidth = clamp(
+      (viewportRect.width / imageRect.width) * naturalSize.width,
+      1,
+      naturalSize.width - sourceX,
+    );
+    const sourceHeight = clamp(
+      (viewportRect.height / imageRect.height) * naturalSize.height,
+      1,
+      naturalSize.height - sourceY,
     );
 
     const canvas = document.createElement('canvas');
@@ -186,8 +231,8 @@ export const ImageCropModal = ({
       image,
       sourceX,
       sourceY,
-      sourceCropSize,
-      sourceCropSize,
+      sourceWidth,
+      sourceHeight,
       0,
       0,
       outputSize,
@@ -195,7 +240,7 @@ export const ImageCropModal = ({
     );
 
     onConfirm(canvas.toDataURL('image/png'));
-  }, [naturalSize.height, naturalSize.width, onConfirm, outputSize, position.x, position.y, scale]);
+  }, [naturalSize.height, naturalSize.width, onConfirm, outputSize]);
 
   if (!isOpen || !imageSrc) return null;
 
@@ -215,26 +260,33 @@ export const ImageCropModal = ({
 
         <div className="hirevo-crop-body">
           <div className="hirevo-crop-stage-shell">
-            <div className="hirevo-crop-stage" ref={viewportRef}>
+            <div
+              className="hirevo-crop-stage"
+              ref={viewportRef}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+              onLostPointerCapture={handleLostPointerCapture}
+            >
               <div
-                className="hirevo-crop-drag-surface"
-                onPointerDown={(event) => {
-                  event.preventDefault();
-                  event.currentTarget.setPointerCapture?.(event.pointerId);
-                  startDragging(event.clientX, event.clientY);
-                }}
-              />
-              <img
-                ref={imageRef}
-                src={imageSrc}
-                alt="Crop preview"
-                className="hirevo-crop-image"
-                draggable={false}
-                onLoad={handleImageLoad}
+                className="hirevo-crop-image-shell"
                 style={{
-                  transform: `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px)) scale(${scale})`,
+                  transform: `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`,
                 }}
-              />
+              >
+                <img
+                  ref={imageRef}
+                  src={imageSrc}
+                  alt="Crop preview"
+                  className="hirevo-crop-image"
+                  draggable={false}
+                  onLoad={handleImageLoad}
+                  style={{
+                    transform: `scale(${scale})`,
+                  }}
+                />
+              </div>
               <div className="hirevo-crop-grid" aria-hidden="true" />
             </div>
           </div>
@@ -360,19 +412,20 @@ export const ImageCropModal = ({
           box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.24);
           touch-action: none;
           user-select: none;
-          cursor: grab;
+          cursor: ${isDragging ? 'grabbing' : 'grab'};
         }
 
-        .hirevo-crop-drag-surface {
-          position: absolute;
-          inset: 0;
-          z-index: 2;
-        }
-
-        .hirevo-crop-image {
+        .hirevo-crop-image-shell {
           position: absolute;
           top: 50%;
           left: 50%;
+          will-change: transform;
+          pointer-events: none;
+          z-index: 1;
+        }
+
+        .hirevo-crop-image {
+          display: block;
           transform-origin: center center;
           max-width: none;
           will-change: transform;
@@ -385,6 +438,7 @@ export const ImageCropModal = ({
           pointer-events: none;
           border: 2px solid rgba(255, 255, 255, 0.82);
           box-shadow: inset 0 0 0 999px rgba(15, 23, 42, 0.18);
+          z-index: 2;
         }
 
         .hirevo-crop-grid::before,

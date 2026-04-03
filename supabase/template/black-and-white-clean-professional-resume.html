@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Black And White Clean Professional Resume{{#full_name}} - {{full_name}}{{/full_name}}{{^full_name}}{{#name}} - {{name}}{{/name}}{{/full_name}}</title>
+  <style>
+    *, ::before, ::after { box-sizing: border-box; border: 0 solid #e5e7eb; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    html { line-height: 1.5; -webkit-text-size-adjust: 100%; tab-size: 4; font-family: "Aptos", "Segoe UI", Arial, sans-serif; }
+    body { margin: 0; padding: 24px; width: 100%; background: #eef2f7; color: #171717; font-family: "Aptos", "Segoe UI", Arial, sans-serif; display: flex; justify-content: center; }
+    img, svg { display: block; max-width: 100%; height: auto; }
+    a { color: inherit; text-decoration: none; }
+    h1, h2, h3, h4, h5, h6, p, ul, ol { margin: 0; padding: 0; }
+    .mx-auto { margin-left: auto; margin-right: auto; }
+    .h-\[297mm\] { height: 297mm; }
+    .w-\[210mm\] { width: 210mm; }
+    .bg-\[\#eef2f7\] { background-color: #eef2f7; }
+    .bg-white { background-color: #ffffff; }
+    .text-\[\#171717\] { color: #171717; }
+    .shadow-\[0_18px_40px_rgba\(15\2c 23\2c 42\2c 0\.10\)\] { box-shadow: 0 18px 40px rgba(15, 23, 42, 0.10); }
+
+    :root {
+      --fit-scale: 1;
+      --resume-font: "Aptos", "Segoe UI", Arial, sans-serif;
+      --page-pad-x: 12.2mm;
+      --page-pad-top: 9.8mm;
+      --page-pad-bottom: 9mm;
+      --header-gap: 8mm;
+      --photo-width: 33mm;
+      --photo-height: 41mm;
+      --section-gap: 6.8mm;
+      --entry-gap: 5.3mm;
+      --bullet-gap: 2px;
+      --body-size: 12.9px;
+      --heading-size: 12.8px;
+      --subheading-size: 12.7px;
+      --meta-size: 11.6px;
+      --name-size: 29px;
+      --line-height: 1.36;
+      --section-pill-width: 54mm;
+      --section-pill-radius: 8px;
+      --section-pill-pad-y: 4px;
+      --section-pill-pad-x: 12px;
+      --section-title-spacing: 0.04em;
+      --contact-label-width: 24mm;
+      --contact-row-gap: 5px;
+      --contact-pad-y: 6px;
+      --contact-pad-x: 9px;
+      --contact-block-gap: 2px;
+      --group-gap: 5px;
+      --paragraph-gap: 4px;
+    }
+
+    .resume-page[data-fit-step="1"] {
+      --section-gap: 5.6mm;
+      --entry-gap: 4.6mm;
+      --group-gap: 4px;
+      --paragraph-gap: 3px;
+    }
+
+    .resume-page[data-fit-step="2"] {
+      --page-pad-top: 9.1mm;
+      --page-pad-bottom: 8.2mm;
+      --line-height: 1.32;
+      --entry-gap: 4.1mm;
+      --section-gap: 5.1mm;
+    }
+
+    .resume-page[data-fit-step="3"] {
+      --page-pad-x: 11.2mm;
+      --body-size: 12.1px;
+      --subheading-size: 12.2px;
+      --meta-size: 11px;
+      --paragraph-gap: 2px;
+      --group-gap: 3px;
+    }
+
+    .resume-page[data-fit-step="4"] {
+      --body-size: 11.4px;
+      --heading-size: 12.2px;
+      --subheading-size: 11.8px;
+      --meta-size: 10.7px;
+      --name-size: 26px;
+      --section-gap: 4.4mm;
+      --entry-gap: 3.7mm;
+      --header-gap: 6.8mm;
+    }
+
+    .resume-page[data-fit-step="5"] {
+      --page-pad-x: 10.5mm;
+      --page-pad-top: 8.3mm;
+      --page-pad-bottom: 7.6mm;
+      --body-size: 10.9px;
+      --heading-size: 12px;
+      --subheading-size: 11.3px;
+      --meta-size: 10.4px;
+      --name-size: 22px;
+      --line-height: 1.27;
+      --section-gap: 3.8mm;
+      --entry-gap: 3.2mm;
+      --section-pill-pad-y: 3px;
+      --section-pill-pad-x: 10px;
+    }
+
+    .resume-page[data-fit-step="6"] {
+      --page-pad-x: 9.8mm;
+      --page-pad-top: 7.9mm;
+      --page-pad-bottom: 7.1mm;
+      --body-size: 10.4px;
+      --heading-size: 12px;
+      --subheading-size: 10.8px;
+      --meta-size: 10px;
+      --name-size: 19px;
+      --line-height: 1.22;
+      --section-gap: 3.3mm;
+      --entry-gap: 2.8mm;
+      --header-gap: 5.8mm;
+      --contact-row-gap: 4px;
+    }
+
+    .resume-sheet { overflow: hidden; margin-left: auto; margin-right: auto; }
+    .resume-scaler { width: calc(100% / var(--fit-scale)); transform: scale(var(--fit-scale)); transform-origin: top left; }
+    .resume-content {
+      min-height: 297mm;
+      padding: var(--page-pad-top) var(--page-pad-x) var(--page-pad-bottom);
+      color: #171717;
+      font-size: var(--body-size);
+      line-height: var(--line-height);
+      font-family: var(--resume-font);
+      overflow-wrap: break-word;
+      word-wrap: break-word;
+      word-break: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+
+    .resume-content, .resume-content * { font-family: var(--resume-font); }
+    .wrap-safe { white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+    .resume-stack { display: flex; flex-direction: column; gap: var(--section-gap); }
+    .header-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) var(--photo-width);
+      gap: var(--header-gap);
+      align-items: start;
+    }
+
+    .name-block { min-width: 0; }
+    .header-name {
+      font-size: var(--name-size);
+      line-height: 1;
+      letter-spacing: 0.01em;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #111111;
+    }
+
+    .contact-grid {
+      margin-top: 10px;
+      display: grid;
+      gap: var(--contact-block-gap);
+      max-width: 118mm;
+    }
+
+    .contact-row {
+      display: grid;
+      grid-template-columns: var(--contact-label-width) minmax(0, 1fr);
+      align-items: stretch;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .contact-label {
+      background: #262626;
+      color: #ffffff;
+      font-size: var(--subheading-size);
+      font-weight: 800;
+      line-height: 1.08;
+      padding: var(--contact-pad-y) var(--contact-pad-x);
+    }
+
+    .contact-row:first-child .contact-label { border-top-left-radius: 8px; border-top-right-radius: 8px; }
+    .contact-row:last-child .contact-label { border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }
+    .contact-value {
+      display: flex;
+      align-items: center;
+      font-size: calc(var(--body-size) + 0.2px);
+      line-height: 1.16;
+      color: #222222;
+      padding: 3px 0;
+    }
+
+    .photo-shell {
+      width: var(--photo-width);
+      height: var(--photo-height);
+      overflow: hidden;
+      border-radius: 1px;
+      background: #e6e8ed;
+      justify-self: end;
+      margin-top: 2px;
+    }
+
+    .photo-shell img, .photo-shell svg { width: 100%; height: 100%; object-fit: cover; }
+    .section-block { break-inside: avoid; page-break-inside: avoid; min-width: 0; }
+    .section-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 0;
+      width: var(--section-pill-width);
+      max-width: 100%;
+      background: #262626;
+      color: #ffffff;
+      border-radius: var(--section-pill-radius);
+      padding: var(--section-pill-pad-y) var(--section-pill-pad-x);
+      font-size: var(--heading-size);
+      line-height: 1.08;
+      letter-spacing: var(--section-title-spacing);
+      font-weight: 800;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .section-body { min-width: 0; }
+    .summary-copy,
+    .experience-copy,
+    .education-copy,
+    .info-copy,
+    .reference-copy,
+    .content-richtext {
+      color: #222222;
+      font-size: var(--body-size);
+      line-height: var(--line-height);
+    }
+
+    .content-richtext p { margin: 0; }
+    .content-richtext p + p,
+    .content-richtext p + ul,
+    .content-richtext ul + p,
+    .content-richtext ul + ul,
+    .content-richtext ol + p,
+    .content-richtext p + ol { margin-top: var(--paragraph-gap); }
+    .content-richtext ul,
+    .content-richtext ol { margin: 0; padding-left: 1.1rem; list-style-position: outside; }
+    .content-richtext ul { list-style: disc; }
+    .content-richtext ol { list-style: decimal; }
+    .content-richtext li + li { margin-top: var(--bullet-gap); }
+    .content-richtext h1,
+    .content-richtext h2,
+    .content-richtext h3,
+    .content-richtext h4,
+    .content-richtext h5,
+    .content-richtext h6 {
+      margin: 0;
+      line-height: 1.15;
+      color: #141414;
+      font-weight: 800;
+    }
+
+    .experience-stack,
+    .education-stack,
+    .info-stack { display: grid; gap: var(--entry-gap); }
+    .entry-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 38mm;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .entry-main { min-width: 0; }
+    .entry-date {
+      text-align: right;
+      color: #626262;
+      font-size: calc(var(--meta-size) + 0.2px);
+      line-height: 1.16;
+      font-weight: 700;
+      white-space: nowrap;
+      padding-top: 1px;
+    }
+
+    .entry-title {
+      font-size: calc(var(--subheading-size) + 2.3px);
+      line-height: 1.15;
+      font-weight: 800;
+      color: #141414;
+    }
+
+    .entry-subtitle {
+      margin-top: 1px;
+      font-size: calc(var(--subheading-size) + 0.3px);
+      line-height: 1.18;
+      font-weight: 500;
+      color: #232323;
+    }
+
+    .entry-detail { margin-top: 4px; }
+    .entry-detail ul,
+    .entry-detail ol,
+    .simple-bullets {
+      margin: 0;
+      padding-left: 1rem;
+      list-style-position: outside;
+    }
+
+    .simple-bullets li,
+    .entry-detail li { color: #222222; font-size: var(--body-size); line-height: var(--line-height); }
+    .simple-bullets li + li,
+    .entry-detail li + li { margin-top: var(--bullet-gap); }
+
+    .info-group {
+      display: grid;
+      gap: var(--group-gap);
+      min-width: 0;
+    }
+
+    .info-group-title {
+      font-size: calc(var(--subheading-size) + 1.6px);
+      line-height: 1.12;
+      font-weight: 800;
+      color: #141414;
+    }
+
+    .info-group-body { min-width: 0; }
+    .info-label {
+      font-weight: 700;
+      color: #171717;
+    }
+
+    .inline-lines { display: grid; gap: 3px; }
+    .info-list { display: grid; gap: 3px; padding-left: 1rem; }
+    .info-list li { color: #222222; font-size: var(--body-size); line-height: var(--line-height); }
+    .info-list li + li { margin-top: var(--bullet-gap); }
+
+    .reference-lines { display: grid; gap: 3px; }
+    .muted-copy { color: #5f5f5f; }
+
+    @media screen and (max-width: 900px) {
+      body { padding: 12px; }
+      .resume-sheet { width: 100%; height: auto; min-width: 320px; }
+      .resume-page { width: 100%; height: auto; }
+      .resume-scaler { width: 100%; transform: none; }
+      .resume-content { min-height: auto; padding: 20px; }
+      .header-grid,
+      .entry-grid,
+      .contact-row { grid-template-columns: 1fr; }
+      .photo-shell { justify-self: start; }
+      .entry-date { text-align: left; white-space: normal; }
+      .contact-grid { max-width: none; }
+      .contact-row { gap: 6px; }
+      .contact-label { border-radius: 8px !important; }
+    }
+
+    body[data-hirevo-live-preview="true"] { padding: 24px !important; }
+    body[data-hirevo-live-preview="true"] .resume-sheet { width: 210mm !important; height: 297mm !important; min-width: 0 !important; }
+    body[data-hirevo-live-preview="true"] .resume-page { width: 210mm !important; height: 297mm !important; }
+    body[data-hirevo-live-preview="true"] .resume-scaler { width: calc(100% / var(--fit-scale)) !important; transform: scale(var(--fit-scale)) !important; }
+    body[data-hirevo-live-preview="true"] .resume-content { min-height: 297mm !important; padding: var(--page-pad-top) var(--page-pad-x) var(--page-pad-bottom) !important; }
+    body[data-hirevo-live-preview="true"] .header-grid { grid-template-columns: minmax(0, 1fr) var(--photo-width) !important; }
+    body[data-hirevo-live-preview="true"] .contact-row { grid-template-columns: var(--contact-label-width) minmax(0, 1fr) !important; }
+    body[data-hirevo-live-preview="true"] .entry-grid { grid-template-columns: minmax(0, 1fr) 38mm !important; }
+    body[data-hirevo-live-preview="true"] .entry-date { text-align: right !important; }
+
+    @media print {
+      html, body { background: #ffffff; }
+      body { padding: 0; }
+      .resume-sheet { box-shadow: none !important; margin: 0 !important; }
+    }
+  </style>
+</head>
+<body class="bg-[#eef2f7] text-[#171717]">
+  <div class="resume-sheet resume-page mx-auto h-[297mm] w-[210mm] bg-white shadow-[0_18px_40px_rgba(15,23,42,0.10)]" data-template-slug="black-and-white-clean-professional-resume" data-preview-fit-managed="true" id="resume-page">
+    <div class="resume-scaler" id="resume-scaler">
+      <div class="resume-content" id="resume-content">
+        <div class="resume-stack">
+          <header class="header-grid">
+            <div class="name-block min-w-0">
+              {{#full_name}}<h1 class="header-name wrap-safe">{{full_name}}</h1>{{/full_name}}
+              {{^full_name}}{{#name}}<h1 class="header-name wrap-safe">{{name}}</h1>{{/name}}{{/full_name}}
+
+              <div class="contact-grid" data-empty-section>
+                <div class="contact-row" data-empty-line>
+                  <div class="contact-label">Address:</div>
+                  <div class="contact-value wrap-safe" data-empty-value>{{#location}}{{location}}{{/location}}{{^location}}{{#address}}{{address}}{{/address}}{{^address}}{{#city}}{{city}}{{/city}}{{#country}}{{#city}}, {{/city}}{{country}}{{/country}}{{/address}}{{/location}}</div>
+                </div>
+                <div class="contact-row" data-empty-line>
+                  <div class="contact-label">Phone:</div>
+                  <div class="contact-value wrap-safe" data-empty-value>{{phone}}</div>
+                </div>
+                <div class="contact-row" data-empty-line>
+                  <div class="contact-label">Email:</div>
+                  <div class="contact-value wrap-safe" data-empty-value>{{email}}</div>
+                </div>
+                <div class="contact-row" data-empty-line>
+                  <div class="contact-label">LinkedIn:</div>
+                  <div class="contact-value wrap-safe" data-empty-value>{{linkedin}}</div>
+                </div>
+                <div class="contact-row" data-empty-line>
+                  <div class="contact-label">Website:</div>
+                  <div class="contact-value wrap-safe" data-empty-value>{{#portfolio}}{{portfolio}}{{/portfolio}}{{^portfolio}}{{website}}{{/portfolio}}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="photo-shell">
+              {{#photo_url}}<img src="{{photo_url}}" alt="" />{{/photo_url}}
+              {{^photo_url}}
+              <svg viewBox="0 0 360 440" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <defs>
+                  <linearGradient id="bwCleanResumeGradient" x1="0" x2="1" y1="0" y2="1">
+                    <stop offset="0%" stop-color="#dce5ef" />
+                    <stop offset="100%" stop-color="#c5ced8" />
+                  </linearGradient>
+                </defs>
+                <rect width="360" height="440" fill="url(#bwCleanResumeGradient)" />
+                <circle cx="180" cy="142" r="72" fill="#eef2f6" />
+                <path d="M72 376c20-74 66-112 108-112s88 38 108 112" fill="#eef2f6" />
+              </svg>
+              {{/photo_url}}
+            </div>
+          </header>
+
+          {{#summary}}
+          <section class="section-block">
+            <div class="section-pill">About Me</div>
+            <div class="section-body">
+              <div class="content-richtext summary-copy wrap-safe">{{{summary}}}</div>
+            </div>
+          </section>
+          {{/summary}}
+          {{^summary}}{{#objective}}
+          <section class="section-block">
+            <div class="section-pill">About Me</div>
+            <div class="section-body">
+              <div class="content-richtext summary-copy wrap-safe">{{{objective}}}</div>
+            </div>
+          </section>
+          {{/objective}}{{/summary}}
+
+          {{#has_experience_items}}
+          <section class="section-block">
+            <div class="section-pill">Work Experience</div>
+            <div class="section-body experience-stack">
+              {{#experience_items}}
+              <article class="entry-grid">
+                <div class="entry-main min-w-0">
+                  {{#role_html}}<div class="content-richtext entry-title wrap-safe">{{{role_html}}}</div>{{/role_html}}
+                  {{^role_html}}{{#role}}<p class="entry-title wrap-safe">{{role}}</p>{{/role}}{{/role_html}}
+                  {{#company_html}}<div class="content-richtext entry-subtitle wrap-safe">{{{company_html}}}</div>{{/company_html}}
+                  {{^company_html}}{{#company}}<p class="entry-subtitle wrap-safe">{{company}}</p>{{/company}}{{/company_html}}
+
+                  {{#highlights}}
+                  <div class="content-richtext entry-detail experience-copy wrap-safe">{{{highlights}}}</div>
+                  {{/highlights}}
+                  {{^highlights}}
+                    {{#has_bullet_lines}}
+                    <ul class="simple-bullets">
+                      {{#bullet_lines}}<li class="wrap-safe">{{value}}</li>{{/bullet_lines}}
+                    </ul>
+                    {{/has_bullet_lines}}
+                  {{/highlights}}
+                </div>
+                <div class="entry-date wrap-safe">
+                  {{#date_range_html}}<div class="content-richtext">{{{date_range_html}}}</div>{{/date_range_html}}
+                  {{^date_range_html}}{{date_range}}{{/date_range_html}}
+                </div>
+              </article>
+              {{/experience_items}}
+            </div>
+          </section>
+          {{/has_experience_items}}
+          {{^has_experience_items}}{{#experience}}
+          <section class="section-block">
+            <div class="section-pill">Work Experience</div>
+            <div class="section-body">
+              <div class="content-richtext experience-copy wrap-safe">{{{experience}}}</div>
+            </div>
+          </section>
+          {{/experience}}{{/has_experience_items}}
+
+          {{#has_education_items}}
+          <section class="section-block">
+            <div class="section-pill">Education</div>
+            <div class="section-body education-stack">
+              {{#education_items}}
+              <article class="entry-grid">
+                <div class="entry-main min-w-0">
+                  {{#degree_html}}<div class="content-richtext entry-title wrap-safe">{{{degree_html}}}</div>{{/degree_html}}
+                  {{^degree_html}}{{#degree}}<p class="entry-title wrap-safe">{{degree}}</p>{{/degree}}{{/degree_html}}
+                  {{#school_html}}<div class="content-richtext entry-subtitle wrap-safe">{{{school_html}}}</div>{{/school_html}}
+                  {{^school_html}}{{#school}}<p class="entry-subtitle wrap-safe">{{school}}</p>{{/school}}{{/school_html}}
+                  {{#highlights}}<div class="content-richtext entry-detail education-copy wrap-safe">{{{highlights}}}</div>{{/highlights}}
+                </div>
+                <div class="entry-date wrap-safe">
+                  {{#date_range_html}}<div class="content-richtext">{{{date_range_html}}}</div>{{/date_range_html}}
+                  {{^date_range_html}}{{date_range}}{{/date_range_html}}
+                </div>
+              </article>
+              {{/education_items}}
+            </div>
+          </section>
+          {{/has_education_items}}
+          {{^has_education_items}}{{#education}}
+          <section class="section-block">
+            <div class="section-pill">Education</div>
+            <div class="section-body">
+              <div class="content-richtext education-copy wrap-safe">{{{education}}}</div>
+            </div>
+          </section>
+          {{/education}}{{/has_education_items}}
+
+          <section class="section-block" data-empty-section>
+            <div class="section-pill">Additional Information</div>
+            <div class="section-body info-stack">
+              {{#has_skills_items}}
+              <div class="info-group" data-empty-section>
+                <div class="info-group-title">Skills</div>
+                <div class="info-group-body">
+                  <ul class="info-list">
+                    {{#skills_items}}<li class="wrap-safe" data-empty-line><span data-empty-value>{{#name}}{{name}}{{/name}}{{^name}}{{label}}{{/name}}{{#value}} - {{value}}{{/value}}</span></li>{{/skills_items}}
+                  </ul>
+                </div>
+              </div>
+              {{/has_skills_items}}
+              {{^has_skills_items}}{{#skills_text}}
+              <div class="info-group" data-empty-section>
+                <div class="info-group-title">Skills</div>
+                <div class="info-group-body">
+                  <div class="content-richtext info-copy wrap-safe" data-empty-line><span data-empty-value>{{{skills_text}}}</span></div>
+                </div>
+              </div>
+              {{/skills_text}}{{/has_skills_items}}
+
+              {{#has_project_items}}
+              <div class="info-group" data-empty-section>
+                <div class="info-group-title">Projects</div>
+                <div class="info-group-body">
+                  <ul class="info-list">
+                    {{#project_items}}
+                    <li class="wrap-safe" data-empty-line>
+                      <span data-empty-value>{{#name}}<span class="info-label">{{name}}</span>{{/name}}{{^name}}{{#title}}<span class="info-label">{{title}}</span>{{/title}}{{/name}}{{#description}} - {{description}}{{/description}}{{^description}}{{#value}} - {{value}}{{/value}}{{/description}}</span>
+                    </li>
+                    {{/project_items}}
+                  </ul>
+                </div>
+              </div>
+              {{/has_project_items}}
+              {{^has_project_items}}{{#projects_text}}
+              <div class="info-group" data-empty-section>
+                <div class="info-group-title">Projects</div>
+                <div class="info-group-body">
+                  <div class="content-richtext info-copy wrap-safe" data-empty-line><span data-empty-value>{{{projects_text}}}</span></div>
+                </div>
+              </div>
+              {{/projects_text}}{{/has_project_items}}
+
+              {{#certifications}}
+              <div class="info-group" data-empty-section>
+                <div class="info-group-title">Certifications</div>
+                <div class="info-group-body">
+                  <div class="content-richtext info-copy wrap-safe" data-empty-line><span data-empty-value>{{{certifications}}}</span></div>
+                </div>
+              </div>
+              {{/certifications}}
+              {{^certifications}}{{#certifications_text}}
+              <div class="info-group" data-empty-section>
+                <div class="info-group-title">Certifications</div>
+                <div class="info-group-body">
+                  <div class="content-richtext info-copy wrap-safe" data-empty-line><span data-empty-value>{{{certifications_text}}}</span></div>
+                </div>
+              </div>
+              {{/certifications_text}}{{/certifications}}
+
+              {{#has_languages_items}}
+              <div class="info-group" data-empty-section>
+                <div class="info-group-title">Languages</div>
+                <div class="info-group-body">
+                  <ul class="info-list">
+                    {{#languages_items}}<li class="wrap-safe" data-empty-line><span data-empty-value>{{#name}}{{name}}{{/name}}{{^name}}{{label}}{{/name}}{{#value}} - {{value}}{{/value}}</span></li>{{/languages_items}}
+                  </ul>
+                </div>
+              </div>
+              {{/has_languages_items}}
+              {{^has_languages_items}}{{#languages_text}}
+              <div class="info-group" data-empty-section>
+                <div class="info-group-title">Languages</div>
+                <div class="info-group-body">
+                  <div class="content-richtext info-copy wrap-safe" data-empty-line><span data-empty-value>{{{languages_text}}}</span></div>
+                </div>
+              </div>
+              {{/languages_text}}{{/has_languages_items}}
+
+              <div class="info-group" data-empty-section>
+                <div class="info-group-title">Personal Information</div>
+                <div class="info-group-body reference-lines">
+                  <p class="info-copy wrap-safe" data-empty-line><span class="info-label">Date of Birth:</span> <span data-empty-value>{{date_of_birth}}</span></p>
+                  <p class="info-copy wrap-safe" data-empty-line><span class="info-label">Nationality:</span> <span data-empty-value>{{nationality}}</span></p>
+                  <p class="info-copy wrap-safe" data-empty-line><span class="info-label">Marital Status:</span> <span data-empty-value>{{marital_status}}</span></p>
+                </div>
+              </div>
+
+              <div class="info-group" data-empty-section>
+                <div class="info-group-title">References</div>
+                <div class="info-group-body reference-lines">
+                  <p class="reference-copy wrap-safe" data-empty-line><span data-empty-value>{{reference_primary_name}}</span>{{#reference_primary_title}}<span class="muted-copy"> - {{reference_primary_title}}</span>{{/reference_primary_title}}{{#reference_primary_phone}}<span class="muted-copy"> - {{reference_primary_phone}}</span>{{/reference_primary_phone}}{{#reference_primary_email}}<span class="muted-copy"> - {{reference_primary_email}}</span>{{/reference_primary_email}}</p>
+                  <p class="reference-copy wrap-safe" data-empty-line><span data-empty-value>{{reference_secondary_name}}</span>{{#reference_secondary_title}}<span class="muted-copy"> - {{reference_secondary_title}}</span>{{/reference_secondary_title}}{{#reference_secondary_phone}}<span class="muted-copy"> - {{reference_secondary_phone}}</span>{{/reference_secondary_phone}}{{#reference_secondary_email}}<span class="muted-copy"> - {{reference_secondary_email}}</span>{{/reference_secondary_email}}</p>
+                  {{#references}}<div class="content-richtext reference-copy wrap-safe" data-empty-line><span data-empty-value>{{{references}}}</span></div>{{/references}}
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- hirevo-standard-schema-v3 -->
+  <div data-hirevo-standard-schema="v3" style="display:none !important; visibility:hidden; height:0; overflow:hidden;" aria-hidden="true">
+    {{photo_url}}{{full_name}}{{name}}{{first_name}}{{last_name}}{{title}}{{role}}{{phone}}{{email}}{{location}}{{address}}{{city}}{{country}}{{portfolio}}{{website}}{{linkedin}}
+    {{{summary}}}{{{objective}}}{{education}}{{skills}}{{skills_text}}{{experience}}{{projects}}{{{projects_text}}}
+    {{{certifications}}}{{{certifications_text}}}{{{languages}}}{{{languages_text}}}
+    {{{awards}}}{{{awards_text}}}{{{achievements}}}{{{achievements_text}}}
+    {{{references}}}{{date_of_birth}}{{nationality}}{{marital_status}}
+    {{reference_primary_name}}{{reference_primary_title}}{{reference_primary_phone}}{{reference_primary_email}}
+    {{reference_secondary_name}}{{reference_secondary_title}}{{reference_secondary_phone}}{{reference_secondary_email}}
+  </div>
+
+  <script>
+    (function () {
+      const page = document.getElementById('resume-page');
+      const scaler = document.getElementById('resume-scaler');
+      const content = document.getElementById('resume-content');
+      if (!page || !content || !scaler) return;
+
+      const normalizeText = (value) => (value || '').replace(/\s+/g, ' ').trim();
+
+      const cleanEmptySections = () => {
+        document.querySelectorAll('[data-empty-line]').forEach((line) => {
+          const values = line.querySelectorAll('[data-empty-value]');
+          if (!values.length) return;
+          const hasValue = Array.from(values).some((node) => normalizeText(node.textContent).length > 0);
+          if (!hasValue) line.remove();
+        });
+
+        document.querySelectorAll('[data-empty-section]').forEach((section) => {
+          const contentNodes = Array.from(section.children).filter((node) => {
+            const element = node;
+            return !(element.classList && (element.classList.contains('section-pill') || element.classList.contains('info-group-title')));
+          });
+          const hasVisibleContent = contentNodes.some((node) => normalizeText(node.textContent).length > 0);
+          if (!hasVisibleContent) section.remove();
+        });
+      };
+
+      const maxSteps = 6;
+      const fit = () => {
+        page.dataset.fitStep = '0';
+        page.style.setProperty('--fit-scale', '1');
+
+        let step = 0;
+        while (
+          step < maxSteps &&
+          (content.scrollHeight > page.clientHeight + 1 || content.scrollWidth > page.clientWidth + 1)
+        ) {
+          step += 1;
+          page.dataset.fitStep = String(step);
+        }
+
+        if (content.scrollHeight > page.clientHeight + 1) {
+          const pageHeight = page.getBoundingClientRect().height || page.clientHeight;
+          let ratio = page.clientHeight / content.scrollHeight;
+          let nextScale = Math.min(1, Math.max(0.72, ratio));
+          page.style.setProperty('--fit-scale', String(nextScale));
+
+          let pass = 0;
+          while (pass < 6) {
+            const scaledHeight = scaler.getBoundingClientRect().height;
+            if (scaledHeight <= pageHeight + 0.5) break;
+            ratio = pageHeight / scaledHeight;
+            const adjustedScale = Math.min(1, Math.max(0.68, nextScale * ratio));
+            if (Math.abs(adjustedScale - nextScale) < 0.002) break;
+            nextScale = adjustedScale;
+            page.style.setProperty('--fit-scale', String(nextScale));
+            pass += 1;
+          }
+        }
+      };
+
+      let fitQueued = false;
+      const scheduleFit = () => {
+        if (fitQueued) return;
+        fitQueued = true;
+        window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+          fitQueued = false;
+          cleanEmptySections();
+          fit();
+        }));
+      };
+
+      window.addEventListener('load', scheduleFit);
+      window.addEventListener('resize', scheduleFit);
+      if (document.fonts?.ready) {
+        document.fonts.ready.then(scheduleFit).catch(() => {});
+      }
+      Array.from(document.images || []).forEach((image) => {
+        if (image.complete) return;
+        image.addEventListener('load', scheduleFit, { once: true });
+        image.addEventListener('error', scheduleFit, { once: true });
+      });
+      if ('MutationObserver' in window) {
+        new MutationObserver(() => scheduleFit()).observe(content, {
+          childList: true,
+          subtree: true,
+          characterData: true,
+        });
+      }
+      if ('ResizeObserver' in window) {
+        const resizeObserver = new ResizeObserver(() => scheduleFit());
+        resizeObserver.observe(content);
+        resizeObserver.observe(page);
+      }
+      scheduleFit();
+    }());
+  </script>
+</body>
+</html>

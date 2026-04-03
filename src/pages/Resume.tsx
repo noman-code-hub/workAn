@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { AlertCircle, ArrowLeft, Pencil, Settings, Trash2, Zap } from 'lucide-react';
 import axios, { type AxiosResponse } from 'axios';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -25,6 +25,28 @@ const ENABLE_PREVIEW_PAGINATION = false;
 const PAGE_GAP_PX = 24;
 const PREVIEW_FONT_SCALES = [1, 0.93, 0.86, 0.79, 0.75];
 const getPreviewDocumentSize = (doc: Document, fallback: { width: number; height: number }) => {
+  const fitManagedRoot = doc.querySelector<HTMLElement>('[data-preview-fit-managed="true"]');
+  if (fitManagedRoot) {
+    const rect = fitManagedRoot.getBoundingClientRect();
+    const width = Math.max(
+      fitManagedRoot.scrollWidth || 0,
+      fitManagedRoot.offsetWidth || 0,
+      rect.width || 0
+    );
+    const height = Math.max(
+      fitManagedRoot.scrollHeight || 0,
+      fitManagedRoot.offsetHeight || 0,
+      rect.height || 0
+    );
+
+    if (width > 0 && height > 0) {
+      return {
+        width: Math.ceil(width),
+        height: Math.ceil(height),
+      };
+    }
+  }
+
   const root = doc.documentElement;
   const body = doc.body;
 
@@ -695,93 +717,23 @@ const formatTemplateFieldLabel = (field: string) => {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
-const DEFAULT_RESUME_PROFILE = {
-  contactName: 'Muhammad Usman Ahmed',
-  contactRole: 'Software Engineer | Full Stack Developer',
-  contactEmail: 'muhammad.usman.ahmed@email.com',
-  contactPhone: '+31 6 4827 1934',
-  contactLocation: 'Delft, Zuid-Holland, Netherlands',
-  summaryText:
-    'Results-oriented Software Engineer with over 4 years of experience in designing, developing, and maintaining scalable web and mobile applications. Proficient in modern frontend and backend technologies including React.js, Node.js, TypeScript, and cloud databases. Strong expertise in building AI-powered applications, resume generation systems, and responsive user interfaces with a focus on performance and user experience.',
-  skillsText: [
-    'Programming Languages: JavaScript, TypeScript, Python, Java, SQL',
-    'Frontend: React.js, Next.js, HTML5, CSS3, Tailwind CSS',
-    'Backend: Node.js, Express.js, REST APIs',
-    'Database: PostgreSQL, MySQL, Supabase, Firebase',
-    'Tools & Platforms: Git, GitHub, Docker, Vercel, Netlify',
-  ].join('\n'),
-  projectsText: [
-    'AI Resume Builder Platform - Built an AI-powered resume generation system with smart suggestions, multi-template support, and PDF export.',
-    'Hiring Dashboard Suite - Developed a role-based hiring dashboard with analytics, secure authentication, and scalable API integrations.',
-  ].join('\n'),
+const LEGACY_DEMO_SEED_MARKERS = [
+  'Muhammad Usman Ahmed',
+  'Software Engineer | Full Stack Developer',
+  'muhammad.usman.ahmed@email.com',
+  '+31 6 4827 1934',
+  'Delft, Zuid-Holland, Netherlands',
+  'www.usmanahmed.dev',
+  'linkedin.com/in/muhammadusmanahmed',
+];
+
+const hasLegacyDemoSeedData = (raw: string) => {
+  const normalized = raw.toLowerCase();
+  const matches = LEGACY_DEMO_SEED_MARKERS.filter((marker) =>
+    normalized.includes(marker.toLowerCase())
+  ).length;
+  return matches >= 3;
 };
-
-const DEFAULT_EXPERIENCE_ITEMS = [
-  {
-    id: 'exp-default-1',
-    company: 'TechVision Solutions - Amsterdam, Netherlands',
-    role: 'Senior Software Engineer',
-    dates: 'March 2023 - Present',
-    details:
-      'Led development of enterprise-level web applications using React.js and Node.js. Architected scalable backend services and RESTful APIs. Improved application performance by 45% through code optimization. Designed secure authentication and role-based access systems. Managed cloud database solutions using Supabase and PostgreSQL. Collaborated with cross-functional teams using Agile methodology. Integrated AI-based content generation modules for job-search platforms.',
-  },
-  {
-    id: 'exp-default-2',
-    company: 'InnovateX Digital - Lahore, Pakistan',
-    role: 'Software Developer',
-    dates: 'July 2021 - February 2023',
-    details:
-      'Developed dynamic web dashboards and admin portals. Built reusable UI components for multiple product teams. Integrated third-party APIs and payment gateways. Maintained high code quality using Git and version control workflows. Reduced page load time by 30%.',
-  },
-];
-
-const DEFAULT_EDUCATION_ITEMS = [
-  {
-    id: 'edu-default-1',
-    school: 'National University of Computer and Emerging Sciences',
-    degree: 'Bachelor of Science in Computer Science (BSCS)',
-    dates: '2020 - 2024',
-    details:
-      'CGPA: 3.78 / 4.00. Relevant coursework: Data Structures & Algorithms, Database Management Systems, Operating Systems, Software Engineering, Artificial Intelligence, Computer Networks, Cloud Computing, Web Engineering.',
-  },
-  {
-    id: 'edu-default-2',
-    school: 'Government College University, Lahore',
-    degree: 'Higher Secondary School Certificate (FSC - Pre-Engineering)',
-    dates: '2018 - 2020',
-    details:
-      'Grade: A+. Marks: 1012 / 1100. Core subjects: Mathematics, Physics, Computer Science, English, Urdu, Pakistan Studies, Islamiat.',
-  },
-  {
-    id: 'edu-default-3',
-    school: 'The Educators School, Lahore',
-    degree: 'Secondary School Certificate (Matric - Science)',
-    dates: '2016 - 2018',
-    details:
-      'Grade: A+. Marks: 1048 / 1100. Core subjects: Mathematics, Physics, Chemistry, Biology, Computer Science, English, Urdu.',
-  },
-];
-
-const DEFAULT_TEMPLATE_FIELD_VALUES = {
-  website: 'www.usmanahmed.dev',
-  portfolio: 'www.usmanahmed.dev',
-  linkedin: 'linkedin.com/in/muhammadusmanahmed',
-  address: 'Delft, Zuid-Holland, Netherlands',
-  city: 'Delft',
-  country: 'Netherlands',
-  languages: 'English - Fluent\nDutch - Intermediate\nUrdu - Native',
-  certifications: 'AWS Cloud Practitioner\nMeta Front-End Developer Certificate\nGoogle IT Support Certificate',
-};
-
-const DEFAULT_CUSTOM_DETAILS = [
-  { id: 'custom-default-1', label: 'LinkedIn', value: 'linkedin.com/in/muhammadusmanahmed' },
-  { id: 'custom-default-2', label: 'Portfolio', value: 'www.usmanahmed.dev' },
-  {
-    id: 'custom-default-3',
-    label: 'Certifications',
-    value: 'AWS Cloud Practitioner, Meta Front-End Developer Certificate, Google IT Support Certificate',
-  },
-];
 
 export const Resume = () => {
   const { user } = useAuth();
@@ -797,30 +749,28 @@ export const Resume = () => {
   const backTarget = isBuilderEditorRoute ? '/resume-builder/templates' : '/resume/templates';
 
   // Resume Builder state
-  const [contactName, setContactName] = useState(DEFAULT_RESUME_PROFILE.contactName);
-  const [contactRole, setContactRole] = useState(DEFAULT_RESUME_PROFILE.contactRole);
-  const [contactEmail, setContactEmail] = useState(DEFAULT_RESUME_PROFILE.contactEmail);
-  const [contactPhone, setContactPhone] = useState(DEFAULT_RESUME_PROFILE.contactPhone);
-  const [contactLocation, setContactLocation] = useState(DEFAULT_RESUME_PROFILE.contactLocation);
+  const [contactName, setContactName] = useState('');
+  const [contactRole, setContactRole] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactLocation, setContactLocation] = useState('');
   const [contactPhotoUrl, setContactPhotoUrl] = useState("");
   const [contactPhotoName, setContactPhotoName] = useState("");
   const [pendingPhotoCropSrc, setPendingPhotoCropSrc] = useState<string | null>(null);
   const [pendingPhotoCropName, setPendingPhotoCropName] = useState("");
-  const [summaryText, setSummaryText] = useState(DEFAULT_RESUME_PROFILE.summaryText);
-  const [skillsText, setSkillsText] = useState(DEFAULT_RESUME_PROFILE.skillsText);
+  const [summaryText, setSummaryText] = useState('');
+  const [skillsText, setSkillsText] = useState('');
   const [skillsInput, setSkillsInput] = useState("");
   const [languagesInput, setLanguagesInput] = useState("");
   const [activeEditorTab, setActiveEditorTab] = useState<'edit' | 'customize' | 'review' | 'tailor'>('edit');
   const [hasUnlockedCustomize, setHasUnlockedCustomize] = useState(false);
   const [tailorRole, setTailorRole] = useState('');
   const [tailorKeywords, setTailorKeywords] = useState('');
-  const [projectsText, setProjectsText] = useState(DEFAULT_RESUME_PROFILE.projectsText);
+  const [projectsText, setProjectsText] = useState('');
   const [additionalText] = useState("");
-  const [customDetails, setCustomDetails] = useState<{ id: string; label: string; value: string }[]>(
-    () => DEFAULT_CUSTOM_DETAILS.map((item) => ({ ...item }))
-  );
-  const [educationItems, setEducationItems] = useState(() => DEFAULT_EDUCATION_ITEMS.map((item) => ({ ...item })));
-  const [experienceItems, setExperienceItems] = useState(() => DEFAULT_EXPERIENCE_ITEMS.map((item) => ({ ...item })));
+  const [customDetails, setCustomDetails] = useState<{ id: string; label: string; value: string }[]>([]);
+  const [educationItems, setEducationItems] = useState(() => []);
+  const [experienceItems, setExperienceItems] = useState(() => []);
   const [sectionOrder, setSectionOrder] = useState<string[]>([
     'contact',
     'summary',
@@ -859,7 +809,6 @@ export const Resume = () => {
   );
   const [uploadingResume, setUploadingResume] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
-  const [isFillingDemo, setIsFillingDemo] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [, setSaveStatus] = useState<'saved' | 'saving'>('saved');
   const undoStackRef = useRef<string[]>([]);
@@ -869,6 +818,7 @@ export const Resume = () => {
   const isApplyingHistoryRef = useRef(false);
   const restoreKeyRef = useRef<string | null>(null);
   const defaultTemplateSeedRef = useRef<string | null>(null);
+  const getEditorSnapshotRef = useRef<() => string>(() => '');
 
   const [activeTemplateFilter, setActiveTemplateFilter] = useState('All templates');
   const resumeViewRestoreRef = useRef(false);
@@ -903,28 +853,10 @@ export const Resume = () => {
 
   useEffect(() => {
     if (!selectedTemplate) return;
-
-    const storageKey = `hirevo:resume-editor:${effectiveTemplateId || 'default'}:${user?.id || 'anon'}`;
-    const hasSavedDraft = isEditorRoute && Boolean(window.localStorage.getItem(storageKey));
-    if (hasSavedDraft) return;
-
-    const applyKey = `${isEditorRoute ? storageKey : 'resume-default'}:${selectedTemplate}`;
-    if (defaultTemplateSeedRef.current === applyKey) return;
-
-    Object.entries(DEFAULT_TEMPLATE_FIELD_VALUES).forEach(([key, value]) => {
-      if (!getTemplateFieldValue(key)) {
-        setTemplateFieldValue(key, value);
-      }
-    });
-
-    defaultTemplateSeedRef.current = applyKey;
+    defaultTemplateSeedRef.current = `${effectiveTemplateId || 'default'}:${selectedTemplate}`;
   }, [
     effectiveTemplateId,
-    getTemplateFieldValue,
-    isEditorRoute,
     selectedTemplate,
-    setTemplateFieldValue,
-    user?.id,
   ]);
 
   const defaultTemplateFields = useMemo(
@@ -1117,6 +1049,14 @@ export const Resume = () => {
     ? (previewPageSizeMode === 'auto' ? autoDetectedPageSize : previewPageSizeMode)
     : 'a4';
   const activePageSize = PAGE_SIZES[resolvedPageSize];
+  const previewShellBaseStyle = useMemo(() => ({
+    ['--preview-shell-width' as any]: `${activePageSize.width}px`,
+    ['--preview-shell-height' as any]: `${activePageSize.height}px`,
+  }) as CSSProperties, [activePageSize.height, activePageSize.width]);
+  const previewIframeBaseStyle = useMemo(() => ({
+    width: `${activePageSize.width}px`,
+    height: `${activePageSize.height}px`,
+  }) as CSSProperties, [activePageSize.height, activePageSize.width]);
   const pageSizeOptions: Array<'auto' | PreviewPageSize> = ENABLE_PREVIEW_PAGINATION
     ? ['auto', 'a4', 'letter']
     : ['a4'];
@@ -1149,46 +1089,22 @@ export const Resume = () => {
     [templates]
   );
 
-  const fillWithFakeData = useCallback(() => {
-    setIsFillingDemo(true);
-    setActiveEditorTab('edit');
-    setContactName(DEFAULT_RESUME_PROFILE.contactName);
-    setContactRole(DEFAULT_RESUME_PROFILE.contactRole);
-    setContactEmail(DEFAULT_RESUME_PROFILE.contactEmail);
-    setContactPhone(DEFAULT_RESUME_PROFILE.contactPhone);
-    setContactLocation(DEFAULT_RESUME_PROFILE.contactLocation);
-    setSummaryText(DEFAULT_RESUME_PROFILE.summaryText);
-    setSkillsText(DEFAULT_RESUME_PROFILE.skillsText);
-    setProjectsText(DEFAULT_RESUME_PROFILE.projectsText);
-    setContactPhotoUrl('');
-    setContactPhotoName('');
-    setExperienceItems(
-      DEFAULT_EXPERIENCE_ITEMS.map((item, index) => ({
-        ...item,
-        id: `exp-fake-${index + 1}`,
-      }))
-    );
-    setEducationItems(
-      DEFAULT_EDUCATION_ITEMS.map((item, index) => ({
-        ...item,
-        id: `edu-fake-${index + 1}`,
-      }))
-    );
-    setCustomDetails(
-      DEFAULT_CUSTOM_DETAILS.map((item, index) => ({
-        ...item,
-        id: `custom-fake-${index + 1}`,
-      }))
-    );
-    Object.entries(DEFAULT_TEMPLATE_FIELD_VALUES).forEach(([key, value]) => {
-      setTemplateFieldValue(key, value);
-    });
-    setGenerateError(null);
-    setIsFillingDemo(false);
-  }, [setTemplateFieldValue]);
-
   const isTemplateSelection =
     !isEditorRoute && (templateStep === 'choose' || !selectedTemplate);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const keysToRemove: string[] = [];
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (!key || !key.startsWith('hirevo:resume-editor:')) continue;
+      const value = window.localStorage.getItem(key);
+      if (value && hasLegacyDemoSeedData(value)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((key) => window.localStorage.removeItem(key));
+  }, []);
 
   useEffect(() => {
     if (resumeViewRestoreRef.current) return;
@@ -1370,13 +1286,17 @@ export const Resume = () => {
     const target = event.target as HTMLElement | null;
     if (!target) return;
 
-    const tag = target.tagName.toLowerCase();
-    if (tag === 'textarea' || tag === 'button' || tag === 'a') return;
-
-    if (tag === 'input') {
-      const inputType = ((target as HTMLInputElement).type || '').toLowerCase();
-      if (['button', 'checkbox', 'file', 'radio', 'reset', 'submit'].includes(inputType)) return;
+    if (
+      target.isContentEditable
+      || target.closest('[contenteditable="true"]')
+      || target.closest('.hirevo-rich-text-shell')
+      || target.getAttribute('role') === 'textbox'
+    ) {
+      return;
     }
+
+    const tag = target.tagName.toLowerCase();
+    if (tag === 'textarea' || tag === 'input' || tag === 'select' || tag === 'button' || tag === 'a') return;
 
     event.preventDefault();
     moveToNextSection();
@@ -2358,20 +2278,39 @@ export const Resume = () => {
     }
   };
 
-  const handleTemplateSelect = (template: TemplateListItem) => {
+  const handleTemplateSelect = useCallback((template: TemplateListItem) => {
+    const templateSlug = slugifyTemplate(template.name.split('/').pop() || template.name);
+    if (isEditorRoute) {
+      const nextStorageKey = `hirevo:resume-editor:${templateSlug || 'default'}:${user?.id || 'anon'}`;
+      window.localStorage.setItem(nextStorageKey, getEditorSnapshotRef.current());
+      restoreKeyRef.current = nextStorageKey;
+    }
     selectTemplate(template.name);
     setTemplateStep('edit');
-  };
 
-  const handleTemplatePickerSelect = (template: TemplateListItem) => {
+    if (isBuilderEditorRoute) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set('template', templateSlug);
+      nextParams.delete('upload');
+      const nextSearch = nextParams.toString();
+      navigate(`/resume-builder/editor${nextSearch ? `?${nextSearch}` : ''}`, { replace: false });
+      return;
+    }
+
+    if (templateId) {
+      navigate(`/resume-editor/${encodeURIComponent(templateSlug)}`, { replace: false });
+    }
+  }, [isBuilderEditorRoute, isEditorRoute, navigate, searchParams, selectTemplate, templateId, user?.id]);
+
+  const handleTemplatePickerSelect = useCallback((template: TemplateListItem) => {
     handleTemplateSelect(template);
     setShowTemplatePicker(false);
-  };
+  }, [handleTemplateSelect]);
 
-  const handleCustomizeTemplateSelect = (template: TemplateListItem) => {
+  const handleCustomizeTemplateSelect = useCallback((template: TemplateListItem) => {
     handleTemplateSelect(template);
     setActiveEditorTab('edit');
-  };
+  }, [handleTemplateSelect]);
 
   const ensureEditModeReady = useCallback(() => {
     if (selectedTemplate) {
@@ -2498,7 +2437,7 @@ export const Resume = () => {
     const body = doc.body;
     if (!body) return;
 
-    if (!ENABLE_PREVIEW_PAGINATION) {
+    if (!ENABLE_PREVIEW_PAGINATION || previewUsesInternalFit(doc)) {
       const originalHtml = body.dataset.originalHtml ?? body.innerHTML;
       body.dataset.originalHtml = originalHtml;
       body.dataset.paginated = 'disabled';
@@ -2749,23 +2688,24 @@ export const Resume = () => {
       createPage();
     }
     pagesWrapper.style.transform = 'translateX(0px)';
-  }, [activePageSize.height, activePageSize.width, fitPreviewToPage, resolvedPageSize]);
+  }, [activePageSize.height, activePageSize.width, fitPreviewToPage, previewUsesInternalFit, resolvedPageSize]);
 
   const updatePreviewPaging = useCallback(() => {
-    if (!ENABLE_PREVIEW_PAGINATION) {
+    const frame = previewFrameRef.current;
+    const doc = frame?.contentDocument;
+    if (!ENABLE_PREVIEW_PAGINATION || (doc && previewUsesInternalFit(doc))) {
       setPreviewPageCount(1);
       setPreviewPage(1);
       return;
     }
     const pageHeight = activePageSize.height;
-    const frame = previewFrameRef.current;
     const pages = frame?.contentDocument?.querySelector('.resume-preview-pages');
     const count = pages
       ? Math.max(1, pages.children.length)
       : Math.max(1, Math.ceil((previewContentHeightRef.current || pageHeight) / pageHeight));
     setPreviewPageCount(count);
     setPreviewPage((prev) => Math.min(Math.max(prev, 1), count));
-  }, [activePageSize.height]);
+  }, [activePageSize.height, previewUsesInternalFit]);
 
   const updatePreviewShellScale = useCallback((pageWidth: number, pageHeight: number) => {
     const shell = previewShellRef.current;
@@ -2794,7 +2734,7 @@ export const Resume = () => {
     if (!doc) return;
     const body = doc.body;
     if (!body) return;
-    if (!ENABLE_PREVIEW_PAGINATION) {
+    if (!ENABLE_PREVIEW_PAGINATION || previewUsesInternalFit(doc)) {
       const { width, height } = getPreviewDocumentSize(doc, activePageSize);
       body.dataset.measureWidth = String(width);
       body.dataset.measureHeight = String(height);
@@ -2838,6 +2778,7 @@ export const Resume = () => {
     activePageSize.height,
     activePageSize.width,
     autoDetectedPageSize,
+    previewUsesInternalFit,
     previewPageSizeMode,
     updatePreviewShellScale,
     updatePreviewPaging,
@@ -2872,6 +2813,9 @@ export const Resume = () => {
     applyPreviewPagination();
     const frame = previewFrameRef.current;
     const doc = frame?.contentDocument;
+    if (doc?.body) {
+      doc.body.dataset.hirevoLivePreview = 'true';
+    }
     requestAnimationFrame(() => {
       updatePreviewFrameSize();
       fitPreviewToPage();
@@ -3450,6 +3394,16 @@ export const Resume = () => {
   }, [previewHtml, updatePreviewPaging]);
 
   useEffect(() => {
+    if (!previewHtml) return;
+    const body = previewBodyRef.current;
+    if (body) {
+      body.scrollTop = 0;
+      body.scrollLeft = 0;
+    }
+    setPreviewPage(1);
+  }, [previewHtml]);
+
+  useEffect(() => {
     if (!selectedTemplate) return;
     const body = previewBodyRef.current;
     if (body) {
@@ -3572,8 +3526,6 @@ export const Resume = () => {
     templateFieldValues,
     unlockedSections,
   ]);
-
-  const getEditorSnapshotRef = useRef(getEditorSnapshot);
 
   useEffect(() => {
     getEditorSnapshotRef.current = getEditorSnapshot;
@@ -3721,6 +3673,13 @@ export const Resume = () => {
     restoreKeyRef.current = storageKey;
     const saved = window.localStorage.getItem(storageKey);
     if (saved) {
+      if (hasLegacyDemoSeedData(saved)) {
+        window.localStorage.removeItem(storageKey);
+        const initial = getEditorSnapshotRef.current();
+        undoStackRef.current = [initial];
+        redoStackRef.current = [];
+        return;
+      }
       applyEditorSnapshot(saved);
       undoStackRef.current = [saved];
       redoStackRef.current = [];
@@ -4008,11 +3967,14 @@ export const Resume = () => {
         <div className="preview-card-body">
           <div className="preview-scroll" ref={previewBodyRef} onScroll={updatePreviewPaging}>
             {previewHtml ? (
-              <div className="preview-iframe-shell" ref={previewShellRef}>
+              <div className="preview-iframe-shell" ref={previewShellRef} style={previewShellBaseStyle}>
                 <iframe
                   title="Resume preview"
                   srcDoc={previewHtml}
                   className="preview-iframe"
+                  style={previewIframeBaseStyle}
+                  width={activePageSize.width}
+                  height={activePageSize.height}
                   scrolling="no"
                   ref={previewFrameRef}
                   onLoad={handlePreviewLoad}
@@ -4024,7 +3986,7 @@ export const Resume = () => {
               </div>
             )}
           </div>
-          {(previewPageCount > 1 || ENABLE_PREVIEW_PAGINATION) && (
+          {previewPageCount > 1 && (
             <div className="preview-overlay">
               <button
                 type="button"
@@ -4586,14 +4548,8 @@ export const Resume = () => {
               </div>
               <div className="resume-topbar-right">
                 {isEditorRoute && (
-                  <button
-                    type="button"
-                    className="resume-topbar-outline"
-                    onClick={fillWithFakeData}
-                    disabled={isFillingDemo || downloadingPdf}
-                  >
-                    {isFillingDemo ? 'Filling...' : 'Fake Data'}
-                  </button>
+                  // Fake data buttons intentionally removed.
+                  null
                 )}
                 <button
                   type="button"
@@ -4639,14 +4595,7 @@ export const Resume = () => {
                     Selected Template: <span className="font-semibold text-gray-800">{selectedTemplateLabel}</span>
                   </div>
                   <div className="resume-toolbar-actions">
-                    <button
-                      type="button"
-                      className="resume-action-btn ghost"
-                      onClick={fillWithFakeData}
-                      disabled={isFillingDemo}
-                    >
-                      {isFillingDemo ? 'Filling...' : 'Fill Fake Data'}
-                    </button>
+                    {/* Fake data buttons intentionally removed. */}
                     <button
                       type="button"
                       onClick={() => navigate('/resume/templates')}
