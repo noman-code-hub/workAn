@@ -37,6 +37,29 @@ const Community = lazy(() => import('./pages/Community').then((m) => ({ default:
 const CommunityBlogDetail = lazy(() => import('./pages/CommunityBlogDetail').then((m) => ({ default: m.CommunityBlogDetail })));
 const BlogDetail = lazy(() => import('./pages/BlogDetail').then((m) => ({ default: m.BlogDetail })));
 const JobApplicants = lazy(() => import('./pages/JobApplicants').then((m) => ({ default: m.JobApplicants })));
+const GA_MEASUREMENT_ID = 'G-0PEXF8E43Y';
+let lastTrackedPagePath = '';
+
+const GoogleAnalyticsPageTracker = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (typeof window.gtag !== 'function') return;
+    const pagePath = `${location.pathname}${location.search}${location.hash}`;
+
+    if (pagePath === lastTrackedPagePath) return;
+    lastTrackedPagePath = pagePath;
+
+    window.gtag('event', 'page_view', {
+      page_title: document.title,
+      page_location: window.location.href,
+      page_path: pagePath,
+      send_to: GA_MEASUREMENT_ID,
+    });
+  }, [location.pathname, location.search, location.hash]);
+
+  return null;
+};
 
 const LegacyResumeEditorRedirect = () => {
   const { templateId } = useParams();
@@ -152,6 +175,7 @@ function App() {
   return (
     <>
       <SeoManager />
+      <GoogleAnalyticsPageTracker />
       <Suspense fallback={<AppLoader variant="full" />}>
         <Routes>
           <Route path="/" element={<Navigate to={homeRoute} replace />} />
