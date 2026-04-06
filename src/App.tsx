@@ -42,7 +42,10 @@ let lastTrackedPagePath = '';
 const isBrowserRuntime = typeof window !== 'undefined';
 const isLocalBrowser =
   isBrowserRuntime && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-const shouldEnableProductionAnalytics = import.meta.env.PROD && !isLocalBrowser;
+const shouldEnableProductionAnalytics =
+  import.meta.env.PROD &&
+  import.meta.env.VITE_ENABLE_ANALYTICS === 'true' &&
+  !isLocalBrowser;
 
 const isInjectedScriptError = (filename = '', message = '', stack = '') => {
   const source = `${filename} ${stack}`.toLowerCase();
