@@ -23,7 +23,7 @@ export const JobSearchDetails = () => {
   const [job, setJob] = useState<AggregatedJob | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const applyHref = job ? resolveApplyLink(job as AggregatedJob & { applyUrl?: string; redirect_url?: string }) : null;
+  const applyHref = job ? resolveApplyLink(job) : null;
 
   useEffect(() => {
     if (!id) return;
@@ -32,7 +32,7 @@ export const JobSearchDetails = () => {
     const cachedRaw = localStorage.getItem('aggregated_jobs_recent');
     if (cachedRaw) {
       try {
-        const parsed = JSON.parse(cachedRaw) as Array<AggregatedJob & { applyUrl?: string; redirect_url?: string }>;
+        const parsed = JSON.parse(cachedRaw) as AggregatedJob[];
         const localHit = parsed.find((entry) => entry.id === decodedId);
         if (localHit) {
           setJob({
@@ -63,7 +63,7 @@ export const JobSearchDetails = () => {
         if (!active) return;
         setJob({
           ...payload,
-          url: resolveApplyLink(payload as AggregatedJob & { applyUrl?: string; redirect_url?: string }) || payload.url || '',
+          url: resolveApplyLink(payload) || payload.url || '',
         });
         applySeoMeta(
           `${payload.title} at ${payload.company} | Job Details`,

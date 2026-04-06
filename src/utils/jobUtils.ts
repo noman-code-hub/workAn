@@ -2,8 +2,15 @@ import type { Job } from '../types';
 
 const isHttpUrl = (value: string) => /^https?:\/\//i.test(value.trim());
 
+type ApplyLinkCandidate = {
+    applyUrl?: string;
+    url?: string;
+    apply_url?: string;
+    redirect_url?: string;
+};
+
 export const resolveApplyLink = (
-    job: Partial<Job> & { url?: string; apply_url?: string; redirect_url?: string; applyUrl?: string }
+    job: ApplyLinkCandidate
 ): string | null => {
     const candidates = [
         job.applyUrl,

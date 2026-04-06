@@ -136,6 +136,20 @@ type RichTextLineStyle = {
   text: string;
   fontSize: string;
 };
+type ExperienceItem = {
+  id: string;
+  company: string;
+  role: string;
+  dates: string;
+  details: string;
+};
+type EducationItem = {
+  id: string;
+  school: string;
+  degree: string;
+  dates: string;
+  details: string;
+};
 const CLASSIC_TEMPLATE_HEADING_KEYS = CLASSIC_TEMPLATE_HEADING_FIELDS.map((field) => field.key) as ClassicTemplateHeadingKey[];
 const DEFAULT_CLASSIC_TEMPLATE_STYLE_SETTINGS: ClassicTemplateStyleSettings = {
   bodyFontFamily: '"Cormorant Garamond", Georgia, "Times New Roman", serif',
@@ -769,8 +783,8 @@ export const Resume = () => {
   const [projectsText, setProjectsText] = useState('');
   const [additionalText] = useState("");
   const [customDetails, setCustomDetails] = useState<{ id: string; label: string; value: string }[]>([]);
-  const [educationItems, setEducationItems] = useState(() => []);
-  const [experienceItems, setExperienceItems] = useState(() => []);
+  const [educationItems, setEducationItems] = useState<EducationItem[]>([]);
+  const [experienceItems, setExperienceItems] = useState<ExperienceItem[]>([]);
   const [sectionOrder, setSectionOrder] = useState<string[]>([
     'contact',
     'summary',
