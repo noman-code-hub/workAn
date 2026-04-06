@@ -1,0 +1,254 @@
+.job-search-tool-page {
+  width: 100%;
+  padding: 24px 16px 56px;
+}
+
+.job-search-tool-shell {
+  max-width: 1060px;
+  margin: 0 auto;
+}
+
+.job-search-tool-header {
+  margin-bottom: 20px;
+}
+
+.job-search-tool-kicker {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 8px;
+  color: #108a00;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.job-search-tool-header h1 {
+  margin: 0 0 8px;
+  color: #181818;
+  font-size: clamp(1.9rem, 3.8vw, 2.8rem);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+.job-search-tool-header p {
+  margin: 0;
+  color: #5e6d55;
+  font-size: 1rem;
+}
+
+.job-search-tool-filters {
+  margin-bottom: 16px;
+  padding: 6px;
+  border: 1px solid #d5e0d5;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(18, 18, 18, 0.08);
+}
+
+.job-search-tool-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.15fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0;
+}
+
+.job-search-tool-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px 18px;
+}
+
+.job-search-tool-field:not(:first-child) {
+  border-left: 1px solid #e4ebe4;
+}
+
+.job-search-tool-field-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #65735b;
+}
+
+.job-search-tool-field input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #181818;
+  font-size: 1rem;
+  font-weight: 500;
+  padding: 0;
+}
+
+.job-search-tool-field input::placeholder {
+  color: #89937f;
+  font-weight: 500;
+}
+
+.job-search-tool-field input[type='number']::-webkit-outer-spin-button,
+.job-search-tool-field input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.job-search-tool-field input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.job-search-tool-remote {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  justify-self: end;
+  margin-right: 10px;
+  padding: 12px 16px;
+  border: 1px solid #d5e0d5;
+  border-radius: 999px;
+  color: #181818;
+  font-weight: 600;
+  white-space: nowrap;
+  background: #f9fbf7;
+}
+
+.job-search-tool-remote input {
+  width: 18px;
+  height: 18px;
+  accent-color: #108a00;
+}
+
+.job-search-tool-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.job-search-tool-toolbar-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.job-search-tool-toolbar-copy strong {
+  color: #181818;
+  font-size: 1rem;
+}
+
+.job-search-tool-toolbar-copy span {
+  color: #66785f;
+  font-size: 0.95rem;
+}
+
+.job-search-tool-toolbar-pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.job-search-tool-toolbar-pills span {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: #f2f7ef;
+  color: #4f6147;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.job-search-tool-sources {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border: 1px solid #d9e3d8;
+  border-radius: 16px;
+  background: #ffffff;
+  color: #62705c;
+}
+
+.job-search-tool-sources strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #181818;
+}
+
+.job-search-tool-sources ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.job-search-tool-sources li + li {
+  margin-top: 6px;
+}
+
+@media (max-width: 900px) {
+  .job-search-tool-page {
+    padding: 20px 12px 40px;
+  }
+
+  .job-search-tool-filter-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+
+  .job-search-tool-field {
+    padding: 15px 14px;
+  }
+
+  .job-search-tool-field:nth-child(3) {
+    border-left: 0;
+  }
+
+  .job-search-tool-field:nth-child(2n) {
+    border-left: 1px solid #e4ebe4;
+  }
+
+  .job-search-tool-remote {
+    grid-column: 1 / -1;
+    justify-self: start;
+    margin-top: 6px;
+    margin-right: 0;
+  }
+
+  .job-search-tool-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .job-search-tool-toolbar-pills {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .job-search-tool-filters {
+    padding: 0;
+    border-radius: 16px;
+  }
+
+  .job-search-tool-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .job-search-tool-field,
+  .job-search-tool-field:not(:first-child) {
+    padding: 14px 16px;
+    border-left: 0;
+  }
+
+  .job-search-tool-field + .job-search-tool-field {
+    border-top: 1px solid #e4ebe4;
+  }
+
+  .job-search-tool-remote {
+    margin-top: 0;
+    margin: 0 16px 14px;
+    padding: 12px 14px;
+  }
+}

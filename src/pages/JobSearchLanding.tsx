@@ -1830,21 +1830,26 @@ export const JobSearchLanding = () => {
         /* RESUME BANNER CTA */
         .resume-banner-cta {
           background: #f0fdfa; /* A very subtle teal tint */
+          border: 1px solid var(--border);
           border-radius: 20px;
           padding: 60px 80px;
-          display: flex;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
           align-items: center;
           justify-content: space-between;
+          gap: clamp(28px, 5vw, 72px);
           position: relative;
+          overflow: hidden;
         }
         .rb-content {
-          max-width: 450px;
+          max-width: 480px;
         }
         .rb-content h2 {
           font-size: 3.2rem;
-          font-weight: 500;
+          font-weight: 700;
           color: #1f2937;
-          line-height: 1.2;
+          line-height: 1.08;
+          letter-spacing: -0.04em;
           margin-bottom: 12px;
           font-family: system-ui, -apple-system, sans-serif;
         }
@@ -1854,6 +1859,8 @@ export const JobSearchLanding = () => {
         .rb-content p {
           font-size: 1.15rem;
           color: #374151;
+          line-height: 1.65;
+          max-width: 28ch;
           margin-bottom: 40px;
         }
         .rb-btn {
@@ -1865,68 +1872,87 @@ export const JobSearchLanding = () => {
           border: none;
           border-radius: 6px;
           cursor: pointer;
-          transition: background 0.2s;
+          box-shadow: 0 12px 22px -16px rgba(23, 201, 176, 0.48);
+          transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
         }
         .rb-btn:hover {
           background: var(--primary-dark);
+          transform: translateY(-1px);
+          box-shadow: 0 14px 24px -16px rgba(23, 201, 176, 0.56);
         }
 
         .rb-visual {
           display: flex;
           align-items: center;
+          justify-content: flex-end;
+          gap: 16px;
           position: relative;
-          margin-right: 20px;
         }
         .rb-person-container {
           position: relative;
+          flex-shrink: 0;
         }
         .rb-image-card {
-          width: 250px;
-          height: 250px;
-          border-radius: 20px;
+          width: 280px;
+          height: 320px;
+          border-radius: 28px;
           overflow: hidden;
           background: rgba(23, 201, 176, 0.15); /* matching the primary color faintly */
+          border: 1px solid rgba(23, 201, 176, 0.18);
           z-index: 2;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+          box-shadow: 0 10px 22px rgba(15, 23, 42, 0.1);
         }
         .rb-image-card img {
           width: 100%;
           height: 100%;
           object-fit: cover;
+          object-position: center top;
         }
         .rb-smile {
           position: absolute;
-          top: -15px;
-          right: -15px;
+          top: -18px;
+          right: -18px;
           z-index: 3;
           background: #f0fdfa;
           border-radius: 50%;
-          padding: 4px;
+          padding: 8px;
+          border: 4px solid rgba(255, 255, 255, 0.9);
+          box-shadow: 0 8px 18px -16px rgba(15, 23, 42, 0.3);
         }
         .rb-checks {
           position: absolute;
-          bottom: 10px;
-          right: -35px;
+          bottom: 14px;
+          right: -22px;
           z-index: 3;
+          width: 52px;
+          height: 52px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          background: rgba(240, 253, 250, 0.95);
+          box-shadow: 0 8px 18px -16px rgba(15, 23, 42, 0.3);
         }
         .rb-connectors {
-          margin: 0 16px;
+          margin: 0 4px;
           z-index: 1;
+          flex-shrink: 0;
         }
         .rb-logos {
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 18px;
         }
         .rb-logo-box {
-          width: 64px;
-          height: 64px;
+          width: 72px;
+          height: 72px;
           background: #ffffff;
+          border: 1px solid rgba(203, 213, 225, 0.9);
           border-radius: 16px;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+          box-shadow: 0 8px 18px -18px rgba(15, 23, 42, 0.18);
         }
         .rb-logo-box img {
           width: 36px;
@@ -1936,14 +1962,48 @@ export const JobSearchLanding = () => {
 
         @media (max-width: 900px) {
           .resume-banner-cta {
-            flex-direction: column;
+            grid-template-columns: 1fr;
             padding: 40px 24px;
             text-align: center;
             gap: 48px;
           }
+          .rb-content {
+            max-width: none;
+          }
+          .rb-content p {
+            max-width: none;
+            margin-left: auto;
+            margin-right: auto;
+          }
           .rb-visual {
-            margin-right: 0;
-            transform: scale(0.9);
+            justify-content: center;
+            transform: scale(0.92);
+          }
+        }
+        @media (max-width: 640px) {
+          .rb-content h2 {
+            font-size: 2.45rem;
+          }
+          .rb-content p {
+            font-size: 1rem;
+            margin-bottom: 28px;
+          }
+          .rb-visual {
+            flex-direction: column;
+            gap: 20px;
+            transform: none;
+          }
+          .rb-image-card {
+            width: min(100%, 280px);
+            height: 320px;
+          }
+          .rb-connectors {
+            display: none;
+          }
+          .rb-logos {
+            flex-direction: row;
+            justify-content: center;
+            flex-wrap: wrap;
           }
         }
 
@@ -2175,6 +2235,166 @@ export const JobSearchLanding = () => {
         /* HORIZONTAL SCROLL POLISH */
         .jsl-job-scroll { scrollbar-width: none; -ms-overflow-style: none; }
         .jsl-job-scroll::-webkit-scrollbar { display: none; }
+
+        [data-theme="dark"] .jsl {
+          --bg: #0b1220;
+          --text: #e5eef8;
+          --muted: #94a3b8;
+          --border: #243244;
+          --card: #111827;
+          background: linear-gradient(180deg, #0b1220 0%, #0f172a 100%);
+        }
+
+        [data-theme="dark"] .jsl-hero::before {
+          background:
+            radial-gradient(circle at top left, rgba(45, 212, 191, 0.08), transparent 30%),
+            linear-gradient(180deg, #0b1220 0%, #0f172a 100%);
+        }
+
+        [data-theme="dark"] .jsl-hero h1,
+        [data-theme="dark"] .stat-text strong,
+        [data-theme="dark"] .job-info h3,
+        [data-theme="dark"] .section-header h2,
+        [data-theme="dark"] .jsl-faq-item h3,
+        [data-theme="dark"] .blog-content h3,
+        [data-theme="dark"] .rb-content h2 {
+          color: #e5eef8;
+        }
+
+        [data-theme="dark"] .hero-badge,
+        [data-theme="dark"] .section-eyebrow {
+          background: rgba(15, 23, 42, 0.72);
+          border-color: rgba(45, 212, 191, 0.28);
+          color: #5eead4;
+        }
+
+        [data-theme="dark"] .jsl-search-box,
+        [data-theme="dark"] .jobs-shell,
+        [data-theme="dark"] .jsl-job-card-h,
+        [data-theme="dark"] .jsl-cat-card,
+        [data-theme="dark"] .jsl-blog-card,
+        [data-theme="dark"] .jsl-faq-item,
+        [data-theme="dark"] .resume-banner-cta,
+        [data-theme="dark"] .blog-scroll-btn {
+          background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+          border-color: #243244;
+          box-shadow: 0 10px 24px rgba(2, 6, 23, 0.22);
+        }
+
+        [data-theme="dark"] .jobs-shell-spotlight {
+          background:
+            radial-gradient(circle at top left, rgba(23, 201, 176, 0.12), transparent 32%),
+            linear-gradient(180deg, #111827 0%, #0f172a 100%);
+        }
+
+        [data-theme="dark"] .jobs-shell-board {
+          background:
+            radial-gradient(circle at top right, rgba(14, 165, 233, 0.11), transparent 28%),
+            linear-gradient(180deg, #111827 0%, #0f172a 100%);
+        }
+
+        [data-theme="dark"] .search-divider,
+        [data-theme="dark"] .hero-search-location,
+        [data-theme="dark"] .card-h-footer,
+        [data-theme="dark"] .jsl-footer-bottom {
+          border-color: #243244;
+          background: transparent;
+        }
+
+        [data-theme="dark"] .search-field input {
+          background: transparent !important;
+          color: #e5eef8 !important;
+        }
+
+        [data-theme="dark"] .search-field input::placeholder {
+          color: #7c8ea5 !important;
+        }
+
+        [data-theme="dark"] .field-icon,
+        [data-theme="dark"] .jsl-hero-popular span,
+        [data-theme="dark"] .stat-text,
+        [data-theme="dark"] .section-copy p,
+        [data-theme="dark"] .job-info .meta,
+        [data-theme="dark"] .salary-label,
+        [data-theme="dark"] .blog-content p,
+        [data-theme="dark"] .blog-content .date,
+        [data-theme="dark"] .read-time,
+        [data-theme="dark"] .blog-author,
+        [data-theme="dark"] .jsl-faq-item p,
+        [data-theme="dark"] .footer-brand p,
+        [data-theme="dark"] .link-col a,
+        [data-theme="dark"] .jsl-footer-bottom,
+        [data-theme="dark"] .rb-content p,
+        [data-theme="dark"] .rs-text-content p,
+        [data-theme="dark"] .rs-trustpilot p {
+          color: #94a3b8 !important;
+        }
+
+        [data-theme="dark"] .chips button,
+        [data-theme="dark"] .job-logo-box.has-image,
+        [data-theme="dark"] .rb-logo-box {
+          background: #0f172a;
+          border-color: #243244;
+          color: #e5eef8;
+        }
+
+        [data-theme="dark"] .resume-banner-cta {
+          background: linear-gradient(180deg, #101827 0%, #0b1220 100%);
+        }
+
+        [data-theme="dark"] .rb-image-card {
+          background: linear-gradient(180deg, rgba(34, 197, 164, 0.14) 0%, rgba(15, 23, 42, 0.42) 100%);
+          border-color: rgba(74, 222, 128, 0.16);
+          box-shadow: 0 12px 24px -20px rgba(2, 6, 23, 0.5);
+        }
+
+        [data-theme="dark"] .rb-smile,
+        [data-theme="dark"] .rb-checks {
+          background: rgba(15, 23, 42, 0.95);
+          border-color: rgba(45, 212, 191, 0.24);
+          box-shadow: 0 10px 18px -18px rgba(2, 6, 23, 0.55);
+        }
+
+        [data-theme="dark"] .rb-connectors {
+          opacity: 0.92;
+        }
+
+        [data-theme="dark"] .rb-btn {
+          box-shadow: 0 12px 22px -18px rgba(45, 212, 191, 0.32);
+        }
+
+        [data-theme="dark"] .job-card-h-badge,
+        [data-theme="dark"] .type-pill {
+          background: rgba(45, 212, 191, 0.12);
+          color: #67e8f9;
+          border-color: rgba(45, 212, 191, 0.22);
+        }
+
+        [data-theme="dark"] .job-card-h-cta,
+        [data-theme="dark"] .read-more,
+        [data-theme="dark"] .view-all,
+        [data-theme="dark"] .job-info .company {
+          color: #dbe7f5;
+        }
+
+        [data-theme="dark"] .resume-showcase-section {
+          background: linear-gradient(180deg, #07111f 0%, #0b1220 100%);
+        }
+
+        [data-theme="dark"] .rs-pill {
+          background: rgba(148, 163, 184, 0.08);
+          border-color: rgba(148, 163, 184, 0.12);
+        }
+
+        [data-theme="dark"] .rs-template-card {
+          background: #0f172a;
+          border: 1px solid #243244;
+        }
+
+        [data-theme="dark"] .jsl-feedback-btn {
+          background: linear-gradient(135deg, #111827, #0f172a);
+          box-shadow: 0 18px 34px rgba(2, 6, 23, 0.42);
+        }
 
         /* RESPONSIVE */
         @media (max-width: 1024px) {

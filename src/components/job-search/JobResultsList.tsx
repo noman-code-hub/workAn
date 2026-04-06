@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
-import { ExternalLink, MapPin, Building2, DollarSign, Globe2 } from 'lucide-react';
+import { ExternalLink, MapPin, Building2, DollarSign, Globe2, Clock3 } from 'lucide-react';
 import type { AggregatedJob } from '../../types/jobSearch';
+import { JobLogo } from '../JobLogo';
+import './JobResultsList.css';
 
 interface JobResultsListProps {
   jobs: AggregatedJob[];
@@ -9,6 +11,7 @@ interface JobResultsListProps {
   page: number;
   totalPages: number;
   total: number;
+  hasNextPage?: boolean;
   detailQuery?: string;
   onPageChange: (nextPage: number) => void;
 }
@@ -30,6 +33,22 @@ const shortText = (value: string, maxLen = 240) => {
   return `${text.slice(0, maxLen)}...`;
 };
 
+const postedText = (value?: string) => {
+  if (!value) return 'Recently posted';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Recently posted';
+
+  const diffMs = Date.now() - date.getTime();
+  const diffHours = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60)));
+
+  if (diffHours < 1) return 'Posted just now';
+  if (diffHours < 24) return `Posted ${diffHours}h ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 30) return `Posted ${diffDays}d ago`;
+  return `Posted ${date.toLocaleDateString()}`;
+};
+
 export const JobResultsList = ({
   jobs,
   loading,
@@ -37,71 +56,88 @@ export const JobResultsList = ({
   page,
   totalPages,
   total,
+  hasNextPage,
   detailQuery,
   onPageChange,
 }: JobResultsListProps) => {
   if (loading) {
-    return <p>Loading jobs...</p>;
+    return <p className="job-results-feedback">Loading jobs...</p>;
   }
 
   if (error) {
-    return <p style={{ color: '#b91c1c' }}>{error}</p>;
+    return <p className="job-results-feedback job-results-feedback-error">{error}</p>;
   }
 
   if (!jobs.length) {
-    return <p>No jobs found for this query.</p>;
+    return <p className="job-results-feedback">No jobs found for this query.</p>;
   }
 
   return (
-    <section>
-      <p style={{ marginBottom: 12 }}>
+    <section className="job-results-list">
+      <p className="job-results-summary">
         {total.toLocaleString()} jobs found | Page {page} of {totalPages}
       </p>
 
-      <div style={{ display: 'grid', gap: 12 }}>
+      <div className="job-results-cards">
         {jobs.map((job) => (
-          <article
-            key={job.id}
-            style={{
-              border: '1px solid #dbe2ea',
-              borderRadius: 14,
-              background: '#fff',
-              padding: 14,
-            }}
-          >
-            <h3 style={{ margin: '0 0 8px' }}>
-              <Link to={`/job-search/${encodeURIComponent(job.id)}${detailQuery || ''}`}>{job.title}</Link>
-            </h3>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, color: '#4b5563', fontSize: 14 }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <Building2 size={14} /> {job.company}
-              </span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <MapPin size={14} /> {job.location}
-              </span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <DollarSign size={14} /> {salaryText(job)}
-              </span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <Globe2 size={14} /> {job.source}
-              </span>
-            </div>
-            <p style={{ margin: '10px 0' }}>{shortText(job.description)}</p>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <Link to={`/job-search/${encodeURIComponent(job.id)}${detailQuery || ''}`}>View details</Link>
-              <a href={job.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                Apply <ExternalLink size={14} />
-              </a>
+          <article key={job.id} className="job-results-card">
+            <div className="job-results-card-main">
+              <div className="job-results-card-logo">
+                <JobLogo company={job.company} logoUrl={job.logoUrl} />
+              </div>
+              <div className="job-results-card-body">
+                <div className="job-results-card-topline">
+                  <span className="job-results-badge">{job.remote ? 'Remote friendly' : 'On-site or hybrid'}</span>
+                  <span className="job-results-posted">
+                    <Clock3 size={14} /> {postedText(job.postedDate)}
+                  </span>
+                </div>
+                <h3 className="job-results-card-title">
+                  <Link to={`/job-search/${encodeURIComponent(job.id)}${detailQuery || ''}`}>{job.title}</Link>
+                </h3>
+                <div className="job-results-meta">
+                  <span>
+                    <Building2 size={14} /> {job.company}
+                  </span>
+                  <span>
+                    <MapPin size={14} /> {job.location}
+                  </span>
+                  <span>
+                    <DollarSign size={14} /> {salaryText(job)}
+                  </span>
+                  <span>
+                    <Globe2 size={14} /> {job.source}
+                  </span>
+                </div>
+                {Array.isArray(job.tags) && job.tags.length > 0 ? (
+                  <div className="job-results-tags">
+                    {job.tags.slice(0, 4).map((tag) => (
+                      <span key={`${job.id}-${tag}`}>{tag}</span>
+                    ))}
+                  </div>
+                ) : null}
+                <p className="job-results-description">{shortText(job.description)}</p>
+                <div className="job-results-actions">
+                  <Link to={`/job-search/${encodeURIComponent(job.id)}${detailQuery || ''}`}>View details</Link>
+                  <a href={job.url} target="_blank" rel="noopener noreferrer">
+                    Apply <ExternalLink size={14} />
+                  </a>
+                </div>
+              </div>
             </div>
           </article>
         ))}
       </div>
 
-      <div style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
-        <button onClick={() => onPageChange(page - 1)} disabled={page <= 1}>
+      <div className="job-results-pagination">
+        <button className="job-results-pagination-btn" onClick={() => onPageChange(page - 1)} disabled={page <= 1}>
           Previous
         </button>
-        <button onClick={() => onPageChange(page + 1)} disabled={page >= totalPages}>
+        <button
+          className="job-results-pagination-btn"
+          onClick={() => onPageChange(page + 1)}
+          disabled={hasNextPage === undefined ? page >= totalPages : !hasNextPage}
+        >
           Next
         </button>
       </div>

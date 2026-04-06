@@ -427,6 +427,206 @@
   padding: 6px 14px; font-size: .8rem; font-weight: 700; color: var(--text);
 }
 
+[data-theme="dark"] .rb {
+  --bg: #0b1220;
+  --card: #141f2f;
+  --border: #2a3b52;
+  --text: #e5eef8;
+  --muted: #b1c0d3;
+  background:
+    radial-gradient(circle at 10% 8%, rgba(45, 212, 191, 0.12), transparent 26%),
+    radial-gradient(circle at 90% 14%, rgba(56, 189, 248, 0.1), transparent 24%),
+    linear-gradient(180deg, #0b1220 0%, #0f172a 100%);
+}
+
+[data-theme="dark"] .rb-hero {
+  background:
+    radial-gradient(circle at top left, rgba(45, 212, 191, 0.08), transparent 30%),
+    linear-gradient(160deg, #0b1220 0%, #0f172a 40%, #111827 100%);
+}
+
+[data-theme="dark"] .rb-badge,
+[data-theme="dark"] .rb-hrc-tag {
+  background: rgba(45, 212, 191, 0.12);
+  color: #67e8f9;
+}
+
+[data-theme="dark"] .rb-btn-ghost,
+[data-theme="dark"] .rb-hero-trust span,
+[data-theme="dark"] .rb-hero-resume-card,
+[data-theme="dark"] .rb-score-float,
+[data-theme="dark"] .rb-stat4,
+[data-theme="dark"] .rb-logos-inner,
+[data-theme="dark"] .rb-feat-card,
+[data-theme="dark"] .rb-tpl-card,
+[data-theme="dark"] .rb-beyond-card,
+[data-theme="dark"] .rb-beyond-body,
+[data-theme="dark"] .rb-testi-card,
+[data-theme="dark"] .rb-blog-card,
+[data-theme="dark"] .rb-faq-item,
+[data-theme="dark"] .rb-final-inner,
+[data-theme="dark"] .rb-final-logo {
+  background: linear-gradient(180deg, #162234 0%, #101827 100%);
+  border-color: #2a3b52;
+  color: var(--text);
+  box-shadow: 0 20px 40px rgba(2, 6, 23, 0.28);
+}
+
+[data-theme="dark"] .rb-btn-ghost:hover {
+  border-color: #4b647f;
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.3);
+}
+
+[data-theme="dark"] .rb-bigstat,
+[data-theme="dark"] .rb-beyond {
+  background: #0f172a;
+  border-color: #243244;
+}
+
+[data-theme="dark"] .rb-mock-mini,
+[data-theme="dark"] .rb-iv-resume-card {
+  background: #0f172a;
+  box-shadow: 0 16px 32px rgba(2, 6, 23, 0.38);
+}
+
+[data-theme="dark"] .rb-mm-h,
+[data-theme="dark"] .rb-hrc-line {
+  background: #334155;
+}
+
+[data-theme="dark"] .rb-interview-inner {
+  background: linear-gradient(180deg, #07111f 0%, #0b1220 100%);
+}
+
+[data-theme="dark"] .rb-section h2,
+[data-theme="dark"] .rb-bigstat-num,
+[data-theme="dark"] .rb-stat4-val,
+[data-theme="dark"] .rb-feat-card-body h3,
+[data-theme="dark"] .rb-beyond-body h3,
+[data-theme="dark"] .rb-blog-body h3,
+[data-theme="dark"] .rb-final-inner h2,
+[data-theme="dark"] .rb-testi-author strong,
+[data-theme="dark"] .rb-faq-q {
+  color: #e5eef8;
+}
+
+[data-theme="dark"] .rb-testi-quote,
+[data-theme="dark"] .rb-logo-pill,
+[data-theme="dark"] .rb-faq-icon,
+[data-theme="dark"] .rb-hero-sub,
+[data-theme="dark"] .rb-section-sub,
+[data-theme="dark"] .rb-stat4-lbl,
+[data-theme="dark"] .rb-feat-card-body p,
+[data-theme="dark"] .rb-beyond-body p,
+[data-theme="dark"] .rb-testi-author span,
+[data-theme="dark"] .rb-blog-body p,
+[data-theme="dark"] .rb-faq-a,
+[data-theme="dark"] .rb-final-inner p,
+[data-theme="dark"] .rb-interview-inner p {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .rb-bigstat-num span,
+[data-theme="dark"] .rb-blog-tag,
+[data-theme="dark"] .rb-beyond-link,
+[data-theme="dark"] .rb-section-tag {
+  color: #67e8f9;
+}
+
+[data-theme="dark"] .rb-score-float {
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+[data-theme="dark"] .rb-hero-trust svg,
+[data-theme="dark"] .rb-stat4-icon,
+[data-theme="dark"] .rb-logo-dot {
+  color: #67e8f9;
+}
+
+[data-theme="dark"] .rb-stat4-icon {
+  background: rgba(45, 212, 191, 0.12);
+}
+
+[data-theme="dark"] .rb-hero-trust {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .rb-hero-trust span {
+  background: rgba(15, 23, 42, 0.86);
+}
+
+[data-theme="dark"] .rb-feat-card:hover,
+[data-theme="dark"] .rb-beyond-card:hover,
+[data-theme="dark"] .rb-blog-card:hover,
+[data-theme="dark"] .rb-tpl-card:hover,
+[data-theme="dark"] .rb-testi-card:hover {
+  border-color: #4b647f;
+  box-shadow: 0 24px 44px rgba(2, 6, 23, 0.36);
+}
+
+[data-theme="dark"] .rb-feat-card-img {
+  background: linear-gradient(180deg, #1d2738 0%, #162030 100%);
+}
+
+[data-theme="dark"] .rb-feat-card-img.green {
+  background: linear-gradient(180deg, #182b2c 0%, #132223 100%);
+}
+
+[data-theme="dark"] .rb-feat-card-img.violet {
+  background: linear-gradient(180deg, #241f34 0%, #1a1627 100%);
+}
+
+[data-theme="dark"] .rb-beyond-img.b1 { background: linear-gradient(180deg, #1a2537 0%, #121b28 100%); }
+[data-theme="dark"] .rb-beyond-img.b2 { background: linear-gradient(180deg, #162b25 0%, #102019 100%); }
+[data-theme="dark"] .rb-beyond-img.b3 { background: linear-gradient(180deg, #261f34 0%, #191423 100%); }
+[data-theme="dark"] .rb-beyond-img.b4 { background: linear-gradient(180deg, #342a1b 0%, #221a10 100%); }
+[data-theme="dark"] .rb-beyond-img.b5 { background: linear-gradient(180deg, #321f22 0%, #211416 100%); }
+[data-theme="dark"] .rb-beyond-img.b6 { background: linear-gradient(180deg, #162a2c 0%, #101f21 100%); }
+
+[data-theme="dark"] .rb-blog-body,
+[data-theme="dark"] .rb-feat-card-body,
+[data-theme="dark"] .rb-beyond-body {
+  background: transparent;
+}
+
+[data-theme="dark"] .rb-logos-inner {
+  justify-content: center;
+}
+
+[data-theme="dark"] .rb-logo-pill {
+  opacity: 1;
+}
+
+[data-theme="dark"] .rb-tpl-thumb {
+  background: #0b1220;
+}
+
+[data-theme="dark"] .rb-tpl-thumb-ph {
+  background: linear-gradient(145deg, #0f172a, #1e293b);
+}
+
+[data-theme="dark"] .rb-tpl-sk {
+  background: linear-gradient(90deg, #172132 25%, #223048 50%, #172132 75%);
+  background-size: 200%;
+}
+
+[data-theme="dark"] .rb-ai-float {
+  box-shadow: 0 10px 24px rgba(91, 33, 182, 0.4);
+}
+
+[data-theme="dark"] .rb-interview-tag {
+  color: #7dd3fc;
+}
+
+[data-theme="dark"] .rb-stars {
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .rb-faq-item.open {
+  border-color: #4fd1c5;
+}
+
 
 
 /* ── RESPONSIVE ──────────────────────────────────────── */

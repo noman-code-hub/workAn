@@ -34,6 +34,7 @@ export interface AggregatedJobsResponse {
   total: number;
   totalPages: number;
   results: AggregatedJob[];
+  nextPageToken?: string | null;
   cached?: boolean;
   sources?: Array<{
     source: string;

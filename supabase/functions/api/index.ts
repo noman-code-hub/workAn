@@ -840,7 +840,12 @@ Deno.serve(async (req: Request) => {
       }
 
       const url = new URL(req.url);
-      const query = (url.searchParams.get("query") || "dev").trim();
+      const query = (
+        url.searchParams.get("keyword") ||
+        url.searchParams.get("query") ||
+        url.searchParams.get("q") ||
+        "dev"
+      ).trim();
       const location = url.searchParams.get("location");
       const pageToken = url.searchParams.get("page_token");
       const country = normalizeCountry(url.searchParams.get("country"));

@@ -146,9 +146,9 @@ export const Login = () => {
                     position: relative;
                     overflow: hidden;
                     background:
-                        radial-gradient(circle at 18% 18%, rgba(23, 201, 176, 0.35), transparent 50%),
-                        radial-gradient(circle at 85% 12%, rgba(59, 130, 246, 0.35), transparent 45%),
-                        linear-gradient(135deg, #0f2342 0%, #0d5f73 48%, #0b756f 100%);
+                        radial-gradient(circle at 18% 18%, rgba(23, 201, 176, 0.18), transparent 42%),
+                        radial-gradient(circle at 85% 12%, rgba(59, 130, 246, 0.16), transparent 38%),
+                        linear-gradient(180deg, #f7fcff 0%, #eef7fb 50%, #e7f5f2 100%);
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -166,13 +166,13 @@ export const Login = () => {
                 }
 
                 .login-atmo-1 {
-                    background: radial-gradient(circle, rgba(20, 184, 166, 0.75), transparent 60%);
+                    background: radial-gradient(circle, rgba(20, 184, 166, 0.4), transparent 60%);
                     top: -120px;
                     left: -120px;
                 }
 
                 .login-atmo-2 {
-                    background: radial-gradient(circle, rgba(14, 116, 144, 0.7), transparent 60%);
+                    background: radial-gradient(circle, rgba(14, 116, 144, 0.28), transparent 60%);
                     bottom: -140px;
                     right: -140px;
                 }
@@ -185,17 +185,17 @@ export const Login = () => {
                     background: var(--color-surface);
                     border-radius: 28px;
                     overflow: hidden;
-                    border: 1px solid rgba(255, 255, 255, 0.25);
-                    box-shadow: 0 30px 80px rgba(9, 24, 48, 0.35);
+                    border: 1px solid rgba(208, 219, 234, 0.9);
+                    box-shadow: 0 28px 70px rgba(15, 23, 42, 0.14);
                     position: relative;
                     z-index: 1;
                 }
 
                 .login-left {
                     background:
-                        radial-gradient(circle at 20% 15%, rgba(255, 255, 255, 0.16), transparent 35%),
-                        radial-gradient(circle at 80% 0%, rgba(12, 148, 136, 0.55), transparent 40%),
-                        linear-gradient(155deg, #0b6f7d 0%, #00bfa6 55%, #0b4c63 100%);
+                        radial-gradient(circle at 20% 15%, rgba(255, 255, 255, 0.42), transparent 35%),
+                        radial-gradient(circle at 80% 0%, rgba(45, 212, 191, 0.28), transparent 40%),
+                        linear-gradient(155deg, #0e7490 0%, #2dd4bf 55%, #0f766e 100%);
                     color: white;
                     padding: 56px 48px;
                     display: flex;
@@ -307,7 +307,7 @@ export const Login = () => {
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+                    background: linear-gradient(180deg, #ffffff 0%, #f8fcff 100%);
                 }
 
                 .login-form-wrapper {
@@ -389,9 +389,9 @@ export const Login = () => {
                     width: 100%;
                     padding: 14px;
                     margin-top: 12px;
-                    background: #0f172a;
+                    background: linear-gradient(135deg, #0f766e, #0ea5a3);
                     color: #ffffff;
-                    border: 1px solid #0f172a;
+                    border: 1px solid #0f766e;
                     border-radius: 12px;
                     font-size: 16px;
                     font-weight: 600;
@@ -404,14 +404,53 @@ export const Login = () => {
                 }
 
                 .btn-github:hover:not(:disabled) {
-                    background: #111827;
-                    border-color: #111827;
-                    box-shadow: 0 10px 18px rgba(15, 23, 42, 0.18);
+                    border-color: #0f766e;
+                    box-shadow: 0 10px 18px rgba(15, 118, 110, 0.22);
                 }
 
                 .btn-github:disabled {
                     opacity: 0.6;
                     cursor: not-allowed;
+                }
+
+                [data-theme="dark"] .login-page {
+                    background:
+                        radial-gradient(circle at 18% 18%, rgba(23, 201, 176, 0.16), transparent 42%),
+                        radial-gradient(circle at 85% 12%, rgba(59, 130, 246, 0.16), transparent 38%),
+                        linear-gradient(180deg, #07111f 0%, #0b1220 48%, #0f172a 100%);
+                }
+
+                [data-theme="dark"] .login-container,
+                [data-theme="dark"] .login-form-wrapper {
+                    background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+                    border-color: #243244;
+                    box-shadow: 0 24px 60px rgba(2, 6, 23, 0.45);
+                }
+
+                [data-theme="dark"] .login-right {
+                    background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
+                }
+
+                [data-theme="dark"] .form-header h2,
+                [data-theme="dark"] .branding h1,
+                [data-theme="dark"] .feature-item h3 {
+                    color: #e5eef8;
+                }
+
+                [data-theme="dark"] .form-header p,
+                [data-theme="dark"] .oauth-intro {
+                    color: #94a3b8;
+                }
+
+                [data-theme="dark"] .btn-google {
+                    background: #0f172a;
+                    color: #e5eef8;
+                    border-color: #243244;
+                }
+
+                [data-theme="dark"] .btn-google:hover:not(:disabled) {
+                    background: #111827;
+                    border-color: #334155;
                 }
 
                 @media (max-width: 1200px) {

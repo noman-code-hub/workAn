@@ -242,7 +242,10 @@ export const Register = () => {
                 .login-page {
                     min-height: 100vh;
                     min-height: 100svh;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    background:
+                        radial-gradient(circle at 16% 18%, rgba(23, 201, 176, 0.16), transparent 38%),
+                        radial-gradient(circle at 84% 14%, rgba(59, 130, 246, 0.14), transparent 36%),
+                        linear-gradient(180deg, #f7fcff 0%, #eef7fb 50%, #e7f5f2 100%);
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -258,11 +261,15 @@ export const Register = () => {
                     background: white;
                     border-radius: 24px;
                     overflow: hidden;
-                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                    border: 1px solid rgba(208, 219, 234, 0.9);
+                    box-shadow: 0 28px 70px rgba(15, 23, 42, 0.14);
                 }
 
                 .login-left {
-                    background: linear-gradient(135deg, #00d4aa 0%, #004182 100%);
+                    background:
+                        radial-gradient(circle at 20% 15%, rgba(255, 255, 255, 0.4), transparent 35%),
+                        radial-gradient(circle at 80% 0%, rgba(45, 212, 191, 0.28), transparent 40%),
+                        linear-gradient(155deg, #0e7490 0%, #2dd4bf 55%, #0f766e 100%);
                     color: white;
                     padding: 60px 40px;
                     display: flex;
@@ -277,7 +284,7 @@ export const Register = () => {
                 .brand-icon {
                     width: 80px;
                     height: 80px;
-                    background: linear-gradient(135deg, #1dbf73 0%, #00d4aa 100%);
+                    background: radial-gradient(circle at 30% 30%, #35e0c2 0%, #16c3a9 45%, #0c7c76 100%);
                     border-radius: 50%;
                     display: flex;
                     align-items: center;
@@ -346,6 +353,7 @@ export const Register = () => {
                     display: flex;
                     align-items: center;
                     justify-content: center;
+                    background: linear-gradient(180deg, #ffffff 0%, #f8fcff 100%);
                 }
 
                 .login-form-wrapper {
@@ -446,7 +454,7 @@ export const Register = () => {
                 .btn-primary {
                     width: 100%;
                     padding: 14px;
-                    background: #00d4aa;
+                    background: linear-gradient(135deg, #17c9b0, #0ea5a3);
                     color: white;
                     border: none;
                     border-radius: 8px;
@@ -457,9 +465,8 @@ export const Register = () => {
                 }
 
                 .btn-primary:hover:not(:disabled) {
-                    background: #00b894;
                     transform: translateY(-2px);
-                    box-shadow: 0 4px 12px rgba(0, 212, 170, 0.3);
+                    box-shadow: 0 4px 12px rgba(23, 201, 176, 0.25);
                 }
 
                 .btn-primary:disabled {
@@ -523,9 +530,9 @@ export const Register = () => {
                     width: 100%;
                     padding: 14px;
                     margin-top: 12px;
-                    background: #0f172a;
+                    background: linear-gradient(135deg, #0f766e, #0ea5a3);
                     color: #ffffff;
-                    border: 2px solid #0f172a;
+                    border: 2px solid #0f766e;
                     border-radius: 8px;
                     font-size: 16px;
                     font-weight: 600;
@@ -538,8 +545,7 @@ export const Register = () => {
                 }
 
                 .btn-github:hover:not(:disabled) {
-                    background: #111827;
-                    border-color: #111827;
+                    border-color: #0f766e;
                 }
 
                 .btn-github:disabled {
@@ -555,13 +561,70 @@ export const Register = () => {
                 }
 
                 .signup-link a {
-                    color: #00d4aa;
+                    color: var(--color-primary);
                     text-decoration: none;
                     font-weight: 700;
                 }
 
                 .signup-link a:hover {
                     text-decoration: underline;
+                }
+
+                [data-theme="dark"] .login-page {
+                    background:
+                        radial-gradient(circle at 16% 18%, rgba(23, 201, 176, 0.16), transparent 38%),
+                        radial-gradient(circle at 84% 14%, rgba(59, 130, 246, 0.14), transparent 36%),
+                        linear-gradient(180deg, #07111f 0%, #0b1220 48%, #0f172a 100%);
+                }
+
+                [data-theme="dark"] .login-container {
+                    background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+                    border-color: #243244;
+                    box-shadow: 0 24px 60px rgba(2, 6, 23, 0.45);
+                }
+
+                [data-theme="dark"] .login-right,
+                [data-theme="dark"] .login-form-wrapper {
+                    background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+                }
+
+                [data-theme="dark"] .form-header h2,
+                [data-theme="dark"] .branding h1,
+                [data-theme="dark"] .feature-item h3,
+                [data-theme="dark"] .form-group label {
+                    color: #e5eef8;
+                }
+
+                [data-theme="dark"] .form-header p,
+                [data-theme="dark"] .signup-link,
+                [data-theme="dark"] .feature-item p {
+                    color: #94a3b8;
+                }
+
+                [data-theme="dark"] .input-wrapper input,
+                [data-theme="dark"] .btn-google,
+                [data-theme="dark"] .role-btn {
+                    background: #0f172a;
+                    border-color: #243244;
+                    color: #e5eef8;
+                }
+
+                [data-theme="dark"] .input-wrapper input:disabled {
+                    background: #0b1220;
+                }
+
+                [data-theme="dark"] .toggle-password,
+                [data-theme="dark"] .input-wrapper svg {
+                    color: #7c8ea5;
+                }
+
+                [data-theme="dark"] .divider::before {
+                    background: #243244;
+                }
+
+                [data-theme="dark"] .divider span {
+                    background: #111827;
+                    color: #7c8ea5;
                 }
 
                 @media (max-width: 1200px) {
@@ -789,8 +852,8 @@ export const Register = () => {
 
                 .role-btn.active {
                     background: #f0fdf9;
-                    border-color: #00d4aa;
-                    color: #00d4aa;
+                    border-color: var(--color-primary);
+                    color: var(--color-primary-dark);
                 }
             `}</style>
         </div>

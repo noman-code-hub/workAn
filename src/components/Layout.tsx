@@ -41,11 +41,12 @@ export const Layout = () => {
 
       <style>{`
         .layout {
-          --header-height: 72px;
           display: flex;
           flex-direction: column;
           min-height: 100vh;
+          min-height: 100svh;
           background: var(--color-bg-primary);
+          width: 100%;
         }
 
         .main-content {
@@ -53,14 +54,16 @@ export const Layout = () => {
           display: flex;
           flex-direction: column;
           margin-top: var(--header-height);
+          min-width: 0;
         }
 
         .page-content {
           flex: 1;
-          padding: 32px;
-          max-width: 1400px;
+          padding: var(--page-section-space) var(--page-gutter);
+          max-width: var(--page-max-width);
           margin: 0 auto;
           width: 100%;
+          min-width: 0;
         }
 
         .page-content-full {
@@ -84,14 +87,20 @@ export const Layout = () => {
         }
 
         .adsense-wrap {
-          margin-top: 24px;
-          border-top: 1px solid #e5e7eb;
+          margin-top: clamp(16px, 2vw, 24px);
+          border-top: 1px solid var(--color-border);
           padding-top: 16px;
+        }
+
+        @media (max-width: 1024px) {
+          .page-content {
+            padding: 24px var(--page-gutter);
+          }
         }
 
         @media (max-width: 768px) {
           .page-content {
-            padding: 16px;
+            padding: 16px var(--page-gutter) 20px;
           }
 
           .page-content-full {

@@ -6,6 +6,10 @@ import App from './App';
 import '@/index.css';
 import { BRAND } from './config/brand';
 
+window.localStorage.removeItem('careerpilot:theme');
+document.documentElement.setAttribute('data-theme', 'light');
+document.documentElement.style.colorScheme = 'light';
+
 const appLogo = BRAND.logo.favicon;
 
 const faviconLink = document.querySelector<HTMLLinkElement>('link[rel="icon"]');

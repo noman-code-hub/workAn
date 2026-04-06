@@ -1,10 +1,36 @@
 import type { Job } from '../types';
 
+const isHttpUrl = (value: string) => /^https?:\/\//i.test(value.trim());
+
+export const resolveApplyLink = (
+    job: Partial<Job> & { url?: string; apply_url?: string; redirect_url?: string; applyUrl?: string }
+): string | null => {
+    const candidates = [
+        job.applyUrl,
+        job.url,
+        job.apply_url,
+        job.redirect_url,
+    ];
+
+    for (const candidate of candidates) {
+        if (typeof candidate === 'string' && candidate.trim() && isHttpUrl(candidate)) {
+            return candidate.trim();
+        }
+    }
+
+    return null;
+};
+
 /**
  * Decides the URL for the Apply button.
  * Uses async checks to find a valid careers page.
  */
 export const getApplyLink = async (job: Job): Promise<string> => {
+    const directLink = resolveApplyLink(job);
+    if (directLink) {
+        return directLink;
+    }
+
     // 1. Try Company Careers Pages
     // Guess domain
     const cleanName = job.company.toLowerCase()
@@ -40,9 +66,9 @@ export const getApplyLink = async (job: Job): Promise<string> => {
             if (res.ok) {
                 return url;
             }
-        } catch (e: any) {
+        } catch (e: unknown) {
             // Silently ignore AbortError from timeout
-            if (e.name === 'AbortError') {
+            if (e instanceof Error && e.name === 'AbortError') {
                 continue;
             }
             // Continue for other errors as well
@@ -51,5 +77,5 @@ export const getApplyLink = async (job: Job): Promise<string> => {
     }
 
     // 2. Fallback to Job Redirect URL
-    return job.applyUrl || '#';
+    return '#';
 };

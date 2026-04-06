@@ -51,13 +51,13 @@ export const Footer = () => {
         .global-footer {
           background: var(--color-surface, #ffffff);
           border-top: 1px solid var(--color-border, #e5e7eb);
-          padding: 64px 24px 32px;
+          padding: 56px var(--page-gutter) 28px;
           margin-top: auto;
           width: 100%;
         }
 
         .footer-container {
-          max-width: 1200px;
+          max-width: var(--page-max-width);
           margin: 0 auto;
           display: flex;
           flex-wrap: wrap;
@@ -124,7 +124,7 @@ export const Footer = () => {
         }
 
         .footer-bottom {
-          max-width: 1200px;
+          max-width: var(--page-max-width);
           margin: 48px auto 0;
           padding-top: 32px;
           border-top: 1px solid var(--color-border, #e5e7eb);
@@ -159,9 +159,15 @@ export const Footer = () => {
           color: var(--color-primary, #17c9b0);
         }
 
+        @media (max-width: 1024px) {
+          .footer-nav {
+            justify-content: flex-start;
+          }
+        }
+
         @media (max-width: 768px) {
           .global-footer {
-            padding: 48px 20px 32px;
+            padding: 44px var(--page-gutter) 28px;
           }
 
           .footer-container {
@@ -177,6 +183,13 @@ export const Footer = () => {
           .footer-bottom-inner {
             flex-direction: column;
             align-items: flex-start;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .footer-legal {
+            flex-direction: column;
+            gap: 12px;
           }
         }
       `}</style>

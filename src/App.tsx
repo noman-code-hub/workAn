@@ -39,11 +39,71 @@ const BlogDetail = lazy(() => import('./pages/BlogDetail').then((m) => ({ defaul
 const JobApplicants = lazy(() => import('./pages/JobApplicants').then((m) => ({ default: m.JobApplicants })));
 const GA_MEASUREMENT_ID = 'G-0PEXF8E43Y';
 let lastTrackedPagePath = '';
+const isBrowserRuntime = typeof window !== 'undefined';
+const isLocalBrowser =
+  isBrowserRuntime && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const shouldEnableProductionAnalytics = import.meta.env.PROD && !isLocalBrowser;
+
+const isInjectedScriptError = (filename = '', message = '', stack = '') => {
+  const source = `${filename} ${stack}`.toLowerCase();
+
+  if (source.includes('/src/') || source.includes('localhost:5173/src/')) {
+    return false;
+  }
+
+  return (
+    source.includes('chrome-extension://') ||
+    source.includes('moz-extension://') ||
+    source.includes('safari-extension://') ||
+    source.includes('webextension.js') ||
+    source.includes('share-modal.js') ||
+    message.toLowerCase().includes('webextension.js') ||
+    message.toLowerCase().includes('share-modal.js')
+  );
+};
+
+const isAnalyticsNoise = (filename = '', message = '', stack = '') => {
+  const source = `${filename} ${message} ${stack}`.toLowerCase();
+
+  return (
+    source.includes('google-analytics.com') ||
+    source.includes('googletagmanager.com') ||
+    source.includes('analytics') ||
+    source.includes('gtag') ||
+    source.includes('frame_ant.js') ||
+    source.includes('datalayer') ||
+    source.includes('js?l=datalayer')
+  );
+};
 
 const GoogleAnalyticsPageTracker = () => {
   const location = useLocation();
 
   useEffect(() => {
+    if (!shouldEnableProductionAnalytics) return;
+
+    window.dataLayer = window.dataLayer || [];
+
+    if (typeof window.gtag !== 'function') {
+      window.gtag = (...args: unknown[]) => {
+        window.dataLayer.push(args);
+      };
+    }
+
+    if (!document.querySelector(`script[data-ga-id="${GA_MEASUREMENT_ID}"]`)) {
+      const script = document.createElement('script');
+      script.async = true;
+      script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
+      script.dataset.gaId = GA_MEASUREMENT_ID;
+      document.head.appendChild(script);
+    }
+
+    window.gtag('js', new Date());
+    window.gtag('config', GA_MEASUREMENT_ID, { send_page_view: false });
+  }, []);
+
+  useEffect(() => {
+    if (!shouldEnableProductionAnalytics) return;
     if (typeof window.gtag !== 'function') return;
     const pagePath = `${location.pathname}${location.search}${location.hash}`;
 
@@ -76,36 +136,30 @@ function App() {
 
   // Suppress harmless AbortError and analytics-blocker noise.
   useEffect(() => {
+    const handleWindowError = (event: ErrorEvent) => {
+      const filename = event.filename || '';
+      const message = typeof event.message === 'string' ? event.message : '';
+      const stack = event.error?.stack || '';
+
+      if (isInjectedScriptError(filename, message, stack) || isAnalyticsNoise(filename, message, stack)) {
+        event.preventDefault();
+      }
+    };
+
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       const reason = event.reason;
+      const currentStack = reason?.stack || '';
+      const currentMessage = reason?.message || '';
 
       // Handle AbortError from canceled fetch requests
       if (reason?.name === 'AbortError') {
         event.preventDefault();
-        console.log('AbortError silently handled (component unmounted or request canceled)');
         return;
       }
 
-      // Handle Google Analytics errors from ad blockers
-      // Check multiple indicators that this is an analytics error
       if (reason?.message?.includes('Failed to fetch') || reason instanceof TypeError) {
-        const currentStack = reason?.stack || '';
-        const currentMessage = reason?.message || '';
-
-        // Check if error originates from analytics code
-        const isAnalyticsError =
-          currentStack.includes('google-analytics.com') ||
-          currentStack.includes('googletagmanager.com') ||
-          currentStack.includes('analytics') ||
-          currentStack.includes('gtag') ||
-          currentStack.includes('frame_ant.js') || // GA iframe script
-          currentStack.includes('dataLayer') ||
-          currentStack.includes('js?l=dataLayer') || // GA tag manager script
-          currentMessage.toLowerCase().includes('analytics');
-
-        if (isAnalyticsError) {
+        if (isInjectedScriptError('', currentMessage, currentStack) || isAnalyticsNoise('', currentMessage, currentStack)) {
           event.preventDefault();
-          console.log('Google Analytics blocked by ad blocker - continuing without analytics');
           return;
         }
 
@@ -116,16 +170,17 @@ function App() {
 
           if (!isFromOurCode) {
             event.preventDefault();
-            console.log('External resource blocked (likely tracking/analytics) - continuing normally');
             return;
           }
         }
       }
     };
 
+    window.addEventListener('error', handleWindowError);
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
     return () => {
+      window.removeEventListener('error', handleWindowError);
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
   }, []);
@@ -282,7 +337,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Suspense>
-      <Analytics />
+      {shouldEnableProductionAnalytics ? <Analytics /> : null}
     </>
   );
 }

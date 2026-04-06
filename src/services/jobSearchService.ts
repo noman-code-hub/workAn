@@ -8,6 +8,7 @@ export interface JobSearchFilters {
   remote: boolean;
   salaryMin: number;
   page: number;
+  pageToken?: string;
   limit?: number;
 }
 
@@ -23,6 +24,8 @@ export interface MarketJobsApiResponse {
   total?: number;
   totalPages?: number;
   count?: number;
+  nextPageToken?: string | null;
+  next_page_token?: string | null;
   updated_at?: string | null;
   sync_error?: string | null;
   cached?: boolean;
@@ -34,6 +37,66 @@ export interface MarketJobsApiResponse {
   }>;
   results: AggregatedJob[];
 }
+
+type RawAggregatedJob = Partial<AggregatedJob> & Record<string, unknown>;
+
+const normalizeText = (value: unknown) => (value == null ? '' : String(value).trim());
+
+const normalizeNumber = (value: unknown) => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+};
+
+const normalizeStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => normalizeText(item)).filter(Boolean);
+};
+
+const normalizeAggregatedJob = (job: RawAggregatedJob, index: number): AggregatedJob => {
+  const salaryRecord = (job.salary && typeof job.salary === 'object' ? job.salary : {}) as Record<string, unknown>;
+  const type = normalizeText(job.type ?? job.job_type) || 'full-time';
+  const url =
+    normalizeText(job.url) ||
+    normalizeText(job.applyUrl) ||
+    normalizeText(job.apply_url) ||
+    normalizeText(job.redirect_url) ||
+    '#';
+
+  return {
+    id: normalizeText(job.id) || `job-${index + 1}`,
+    source: normalizeText(job.source) || 'unknown',
+    sourceJobId: normalizeText(job.sourceJobId ?? job.source_job_id) || undefined,
+    title: normalizeText(job.title) || 'Untitled role',
+    company: normalizeText(job.company) || 'Unknown company',
+    logoUrl:
+      normalizeText(job.logoUrl) ||
+      normalizeText(job.logo_url) ||
+      normalizeText(job.thumbnail) ||
+      null,
+    location: normalizeText(job.location) || 'Unknown location',
+    description: normalizeText(job.description) || 'No description available',
+    salary: {
+      min: normalizeNumber(salaryRecord.min ?? job.salary_min),
+      max: normalizeNumber(salaryRecord.max ?? job.salary_max ?? salaryRecord.min ?? job.salary_min),
+      currency: normalizeText(salaryRecord.currency ?? job.salary_currency) || 'USD',
+    },
+    salaryText: normalizeText(job.salaryText ?? job.salary_text) || undefined,
+    url,
+    type,
+    remote: Boolean(job.remote) || type.toLowerCase().includes('remote'),
+    tags: normalizeStringArray(job.tags),
+    postedDate:
+      normalizeText(job.postedDate ?? job.posted_at ?? job.updated_at) || new Date().toISOString(),
+  };
+};
+
+const normalizeJobsResponse = (payload: MarketJobsApiResponse & { results?: unknown[] }): MarketJobsApiResponse => ({
+  ...payload,
+  nextPageToken: normalizeText(payload.nextPageToken ?? payload.next_page_token) || null,
+  results: Array.isArray(payload.results)
+    ? payload.results.map((item, index) => normalizeAggregatedJob((item || {}) as RawAggregatedJob, index))
+    : [],
+});
 
 const buildCompatibleSearchParams = (params: URLSearchParams) => {
   const next = new URLSearchParams(params.toString());
@@ -49,18 +112,21 @@ const buildCompatibleSearchParams = (params: URLSearchParams) => {
 };
 
 const MARKET_JOB_ENDPOINTS = ['/jobs/market', '/jobs/search', '/jobs'] as const;
+const LIVE_JOB_SEARCH_ENDPOINTS = ['/jobs/search', '/jobs', '/jobs/market'] as const;
 
-export const fetchMarketJobsResponse = async (
+const fetchJobsFromEndpoints = async (
   params: URLSearchParams,
+  endpoints: readonly string[],
   options: { signal?: AbortSignal } = {}
 ): Promise<MarketJobsApiResponse> => {
   const compatibleParams = buildCompatibleSearchParams(params);
   let lastError: unknown;
 
-  for (const endpoint of MARKET_JOB_ENDPOINTS) {
+  for (const endpoint of endpoints) {
     try {
       const response = await fetch(apiUrl(`${endpoint}?${compatibleParams.toString()}`), { signal: options.signal });
-      return await parseApiJson<MarketJobsApiResponse>(response);
+      const payload = await parseApiJson<MarketJobsApiResponse & { results?: unknown[] }>(response);
+      return normalizeJobsResponse(payload);
     } catch (error) {
       lastError = error;
     }
@@ -68,6 +134,16 @@ export const fetchMarketJobsResponse = async (
 
   throw lastError instanceof Error ? lastError : new Error('Failed to fetch market jobs.');
 };
+
+export const fetchMarketJobsResponse = async (
+  params: URLSearchParams,
+  options: { signal?: AbortSignal } = {}
+): Promise<MarketJobsApiResponse> => fetchJobsFromEndpoints(params, MARKET_JOB_ENDPOINTS, options);
+
+export const fetchLiveJobSearchResponse = async (
+  params: URLSearchParams,
+  options: { signal?: AbortSignal } = {}
+): Promise<MarketJobsApiResponse> => fetchJobsFromEndpoints(params, LIVE_JOB_SEARCH_ENDPOINTS, options);
 
 export const aggregatedJobToJob = (job: AggregatedJob): Job => ({
   id: job.id,
@@ -97,8 +173,15 @@ export const fetchAggregatedJobs = async (filters: JobSearchFilters): Promise<Ag
   if (filters.salaryMin > 0) params.set('salary_min', String(filters.salaryMin));
   params.set('page', String(filters.page || 1));
   params.set('limit', String(filters.limit || 20));
+  if (filters.pageToken?.trim()) params.set('page_token', filters.pageToken.trim());
 
-  const payload = await fetchMarketJobsResponse(params);
+  const payload = await fetchLiveJobSearchResponse(params);
+  const page = Number(payload.page ?? filters.page ?? 1);
+  const limit = Number(payload.limit ?? filters.limit ?? 20);
+  const nextPageToken = normalizeText(payload.nextPageToken ?? payload.next_page_token) || null;
+  const total = Number(payload.total ?? payload.count ?? payload.results.length);
+  const totalPages = Number(payload.totalPages ?? (nextPageToken ? page + 1 : page));
+
   return {
     success: Boolean(payload.success),
     endpoint: payload.endpoint,
@@ -106,11 +189,12 @@ export const fetchAggregatedJobs = async (filters: JobSearchFilters): Promise<Ag
     location: payload.location || filters.location,
     remote: Boolean(payload.remote ?? filters.remote),
     salaryMin: Number(payload.salaryMin ?? filters.salaryMin),
-    page: Number(payload.page ?? filters.page ?? 1),
-    limit: Number(payload.limit ?? filters.limit ?? 20),
-    total: Number(payload.total ?? payload.count ?? payload.results.length),
-    totalPages: Number(payload.totalPages ?? 1),
+    page,
+    limit,
+    total,
+    totalPages,
     results: Array.isArray(payload.results) ? payload.results : [],
+    nextPageToken,
     cached: payload.cached,
     sources: payload.sources,
   };

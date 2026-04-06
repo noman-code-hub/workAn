@@ -98,6 +98,7 @@ export interface Job {
     postedBy?: string; // UID of the recruiter who posted it
     applicantsCount?: number;
     applyUrl?: string; // Optional URL to apply
+    url?: string; // Raw external job URL from aggregated search results
     isBookmarked?: boolean;
     matchScore?: number;
 }

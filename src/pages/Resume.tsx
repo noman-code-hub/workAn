@@ -8654,6 +8654,204 @@ export const Resume = () => {
           color: #e2e8f0 !important;
         }
 
+        [data-theme="dark"] .resume-page .resume-tab-panel,
+        [data-theme="dark"] .resume-page .template-drawer-panel,
+        [data-theme="dark"] .resume-page .resume-topbar,
+        [data-theme="dark"] .resume-page .resume-workspace,
+        [data-theme="dark"] .resume-page .preview-progress-shell,
+        [data-theme="dark"] .resume-page .preview-card,
+        [data-theme="dark"] .resume-page .preview-card-body,
+        [data-theme="dark"] .resume-page .step-header,
+        [data-theme="dark"] .resume-page .step-footer,
+        [data-theme="dark"] .resume-page .review-item,
+        [data-theme="dark"] .resume-page .rte-shell {
+          border-color: #334155;
+          background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+          box-shadow: 0 18px 34px -24px rgba(2, 6, 23, 0.88);
+          color: #e2e8f0;
+        }
+
+        [data-theme="dark"] .resume-page .resume-page.is-editor-route,
+        [data-theme="dark"] .resume-page.is-editor-route,
+        [data-theme="dark"] .resume-page.is-editor-route .resume-workspace {
+          background: #0b1220;
+          color-scheme: dark;
+        }
+
+        [data-theme="dark"] .resume-page .resume-workspace.is-editor {
+          background: #0b1220;
+          box-shadow: none;
+        }
+
+        [data-theme="dark"] .resume-page .template-drawer-header h2,
+        [data-theme="dark"] .resume-page .resume-topbar-title,
+        [data-theme="dark"] .resume-page .step-header-title h3,
+        [data-theme="dark"] .resume-page .preview-step.is-active .preview-step-label,
+        [data-theme="dark"] .resume-page .preview-step.is-complete .preview-step-label,
+        [data-theme="dark"] .resume-page .builder-section-header,
+        [data-theme="dark"] .resume-page .preview-pager,
+        [data-theme="dark"] .resume-page .rte-toolbar button,
+        [data-theme="dark"] .resume-page .rte-content,
+        [data-theme="dark"] .resume-page .customize-download-copy strong,
+        [data-theme="dark"] .resume-page .review-item,
+        [data-theme="dark"] .resume-page .review-item strong {
+          color: #e5eef8;
+        }
+
+        [data-theme="dark"] .resume-page .template-drawer-header p,
+        [data-theme="dark"] .resume-page .topbar-language,
+        [data-theme="dark"] .resume-page .preview-step,
+        [data-theme="dark"] .resume-page .preview-step-status,
+        [data-theme="dark"] .resume-page .preview-empty,
+        [data-theme="dark"] .resume-page .step-count,
+        [data-theme="dark"] .resume-page .review-item span,
+        [data-theme="dark"] .resume-page .step-footer-note,
+        [data-theme="dark"] .resume-page .resume-topbar-pill,
+        [data-theme="dark"] .resume-page .resume-topbar-outline,
+        [data-theme="dark"] .resume-page .resume-topbar-icon,
+        [data-theme="dark"] .resume-page .template-drawer-close {
+          color: #94a3b8;
+        }
+
+        [data-theme="dark"] .resume-page .template-drawer-close,
+        [data-theme="dark"] .resume-page .topbar-app-btn,
+        [data-theme="dark"] .resume-page .topbar-back-btn,
+        [data-theme="dark"] .resume-page .resume-topbar-pill.is-active,
+        [data-theme="dark"] .resume-page .resume-topbar-colorbar,
+        [data-theme="dark"] .resume-page .resume-topbar-outline,
+        [data-theme="dark"] .resume-page .resume-topbar-icon,
+        [data-theme="dark"] .resume-page .preview-pager,
+        [data-theme="dark"] .resume-page .preview-pager-btn,
+        [data-theme="dark"] .resume-page .builder-section-header,
+        [data-theme="dark"] .resume-page .rte-toolbar,
+        [data-theme="dark"] .resume-page .rte-toolbar button {
+          border-color: #334155;
+          background: #0f172a;
+        }
+
+        [data-theme="dark"] .resume-page .resume-topbar-center {
+          border-color: #334155;
+          background: #0b1220;
+        }
+
+        [data-theme="dark"] .resume-page .resume-topbar-pill.is-active {
+          box-shadow: 0 8px 16px -12px rgba(2, 6, 23, 0.8);
+        }
+
+        [data-theme="dark"] .resume-page .template-drawer-close:hover,
+        [data-theme="dark"] .resume-page .topbar-back-btn:hover,
+        [data-theme="dark"] .resume-page .resume-topbar-outline:hover,
+        [data-theme="dark"] .resume-page .resume-topbar-icon:hover,
+        [data-theme="dark"] .resume-page .preview-pager-btn:hover,
+        [data-theme="dark"] .resume-page .rte-toolbar button:hover {
+          border-color: #2dd4bf;
+          color: #5eead4;
+        }
+
+        [data-theme="dark"] .resume-page .flag {
+          border-color: #334155;
+          background: #0f172a;
+          color: #e2e8f0;
+        }
+
+        [data-theme="dark"] .resume-page .dot-grid span {
+          background: #94a3b8;
+        }
+
+        [data-theme="dark"] .resume-page .topbar-color-swatch,
+        [data-theme="dark"] .resume-page .topbar-color-custom {
+          box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.08);
+        }
+
+        [data-theme="dark"] .resume-page .topbar-color-swatch.is-selected,
+        [data-theme="dark"] .resume-page .topbar-color-custom.is-selected {
+          border-color: #5eead4;
+          box-shadow: inset 0 0 0 2px rgba(15, 23, 42, 0.95);
+        }
+
+        [data-theme="dark"] .resume-page .topbar-color-custom {
+          background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        }
+
+        [data-theme="dark"] .resume-page .resume-topbar-download {
+          box-shadow: 0 10px 20px -14px rgba(37, 99, 235, 0.7);
+        }
+
+        [data-theme="dark"] .resume-page .resume-topbar-download:disabled {
+          background: #334155;
+          color: #cbd5e1;
+        }
+
+        [data-theme="dark"] .resume-page .resume-topbar-download:disabled .caret {
+          border-top-color: #cbd5e1;
+        }
+
+        [data-theme="dark"] .resume-page .preview-step-line {
+          background: #334155;
+        }
+
+        [data-theme="dark"] .resume-page .preview-step-marker {
+          border-color: #475569;
+          background: #0f172a;
+          color: #94a3b8;
+          box-shadow: 0 10px 20px -18px rgba(2, 6, 23, 0.6);
+        }
+
+        [data-theme="dark"] .resume-page .preview-step-marker-logo,
+        [data-theme="dark"] .resume-page .preview-step.is-active .preview-step-marker.is-logo,
+        [data-theme="dark"] .resume-page .preview-step:hover .preview-step-marker.is-logo,
+        [data-theme="dark"] .resume-page .preview-step:focus-visible .preview-step-marker.is-logo {
+          color: #5eead4;
+        }
+
+        [data-theme="dark"] .resume-page .preview-step-label {
+          color: #cbd5e1;
+        }
+
+        [data-theme="dark"] .resume-page .preview-step.is-active .preview-step-marker {
+          background: #0f172a;
+          box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+        }
+
+        [data-theme="dark"] .resume-page .preview-overlay {
+          background: rgba(15, 23, 42, 0.9);
+          box-shadow: 0 18px 30px -22px rgba(2, 6, 23, 0.75);
+        }
+
+        [data-theme="dark"] .resume-page .preview-overlay-btn,
+        [data-theme="dark"] .resume-page .preview-overlay-size {
+          background: rgba(255, 255, 255, 0.08);
+        }
+
+        [data-theme="dark"] .resume-page .step-footer-note {
+          background: rgba(154, 52, 18, 0.16);
+          border: 1px solid rgba(251, 146, 60, 0.3);
+          color: #fdba74;
+        }
+
+        [data-theme="dark"] .resume-page .step-dot {
+          background: #334155;
+        }
+
+        [data-theme="dark"] .resume-page .section-optional-badge {
+          background: rgba(37, 99, 235, 0.18);
+          color: #93c5fd;
+        }
+
+        [data-theme="dark"] .resume-page .builder-section-body,
+        [data-theme="dark"] .resume-page .rte-toolbar,
+        [data-theme="dark"] .resume-page .resume-topbar,
+        [data-theme="dark"] .resume-page .template-drawer-panel,
+        [data-theme="dark"] .resume-page .template-drawer-close,
+        [data-theme="dark"] .resume-page .step-header,
+        [data-theme="dark"] .resume-page .step-footer {
+          border-color: #334155;
+        }
+
+        [data-theme="dark"] .resume-page .rte-content:empty:before {
+          color: rgba(148, 163, 184, 0.52);
+        }
+
         @keyframes resume-rise {
           from { opacity: 0; transform: translateY(12px) scale(0.99); }
           to { opacity: 1; transform: translateY(0) scale(1); }

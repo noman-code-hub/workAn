@@ -485,6 +485,89 @@ export const LandingPage = () => {
           to { opacity: 0.8; }
         }
 
+        [data-theme="dark"] .landing-pro {
+          background:
+            radial-gradient(circle at 10% 8%, rgba(45, 212, 191, 0.12), transparent 26%),
+            radial-gradient(circle at 90% 14%, rgba(56, 189, 248, 0.1), transparent 24%),
+            linear-gradient(180deg, #0b1220 0%, #0f172a 100%);
+        }
+
+        [data-theme="dark"] .landing-grid {
+          background-image:
+            linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+        }
+
+        [data-theme="dark"] .hero-network-line,
+        [data-theme="dark"] .hero-network-node {
+          background: rgba(94, 234, 212, 0.28);
+        }
+
+        [data-theme="dark"] .hero-network-node {
+          box-shadow: 0 0 0 6px rgba(45, 212, 191, 0.12);
+        }
+
+        [data-theme="dark"] .hero-kicker {
+          color: #67e8f9;
+          border-color: rgba(94, 234, 212, 0.24);
+          background: rgba(15, 23, 42, 0.72);
+        }
+
+        [data-theme="dark"] .hero-title,
+        [data-theme="dark"] .insight-value {
+          color: #e5eef8;
+        }
+
+        [data-theme="dark"] .hero-subtitle,
+        [data-theme="dark"] .hero-popular-label,
+        [data-theme="dark"] .insight-label {
+          color: #94a3b8;
+        }
+
+        [data-theme="dark"] .hero-search,
+        [data-theme="dark"] .hero-popular-chip,
+        [data-theme="dark"] .insight-card {
+          background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+          border-color: #243244;
+          box-shadow: 0 20px 40px rgba(2, 6, 23, 0.35);
+        }
+
+        [data-theme="dark"] .hero-search-location {
+          border-left-color: #243244;
+        }
+
+        [data-theme="dark"] .hero-search-field {
+          color: #7c8ea5;
+        }
+
+        [data-theme="dark"] .hero-search-field input {
+          background: transparent !important;
+          color: #e5eef8 !important;
+        }
+
+        [data-theme="dark"] .hero-search-field input::placeholder {
+          color: #7c8ea5 !important;
+        }
+
+        [data-theme="dark"] .hero-popular-chip {
+          color: #dbe7f5;
+        }
+
+        [data-theme="dark"] .hero-popular-chip:hover {
+          border-color: #2dd4bf;
+          background: #0f172a;
+        }
+
+        [data-theme="dark"] .insight-icon {
+          background: rgba(45, 212, 191, 0.14);
+          color: #5eead4;
+        }
+
+        [data-theme="dark"] .ai-chat-icon-wrap {
+          background: #0f172a;
+          color: #5eead4;
+        }
+
         @media (max-width: 1024px) {
           .hero-search { grid-template-columns: 1fr; border-radius: 24px; }
           .hero-search-location { border-left: none; border-top: 1px solid #edf2f7; }

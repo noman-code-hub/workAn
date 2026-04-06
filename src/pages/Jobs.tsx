@@ -18,7 +18,7 @@ import {
 import type { Job } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { JobLogo } from '../components/JobLogo';
-import { getApplyLink } from '../utils/jobUtils';
+import { getApplyLink, resolveApplyLink } from '../utils/jobUtils';
 import { apiUrl, parseApiJson } from '../config/api';
 
 const getCompanyUrl = (company: string) => {
@@ -172,6 +172,11 @@ const matchesExperienceLevels = (job: Job, selectedLevels: ExperienceLevel[]) =>
   const detectedLevels = getDetectedExperienceLevels(job);
   return selectedLevels.some((level) => detectedLevels.has(level));
 };
+
+const normalizeJobResult = (job: any): Job => ({
+  ...job,
+  applyUrl: resolveApplyLink(job) || undefined,
+});
 
 export const Jobs = () => {
   const { user } = useAuth();
@@ -349,8 +354,12 @@ export const Jobs = () => {
       const data = await parseApiJson<any>(response);
 
       if (data.success) {
+        const normalizedResults = Array.isArray(data.results)
+          ? data.results.map((job: any) => normalizeJobResult(job))
+          : [];
+
         if (shouldReplace) {
-          const uniqueResults = data.results.filter((job: any, index: number, self: any[]) =>
+          const uniqueResults = normalizedResults.filter((job: Job, index: number, self: Job[]) =>
             index === self.findIndex((t) => (
               t.company?.toLowerCase().trim() === job.company?.toLowerCase().trim() &&
               t.title?.toLowerCase().trim() === job.title?.toLowerCase().trim()
@@ -361,7 +370,7 @@ export const Jobs = () => {
         } else {
           setFilteredJobs(prev => {
             const seen = new Set(prev.map(j => `${j.company?.toLowerCase().trim()}-${j.title?.toLowerCase().trim()}`));
-            const uniqueNew = data.results.filter((job: any) => {
+            const uniqueNew = normalizedResults.filter((job: Job) => {
               const key = `${job.company?.toLowerCase().trim()}-${job.title?.toLowerCase().trim()}`;
               if (seen.has(key)) return false;
               seen.add(key);
@@ -385,12 +394,12 @@ export const Jobs = () => {
           setTotalJobs(cleanCount);
         }
 
-        if (shouldReplace && data.results && data.results.length > 0) {
-          localStorage.setItem('recentJobs', JSON.stringify(data.results));
-        } else if (data.results && data.results.length > 0) {
+        if (shouldReplace && normalizedResults.length > 0) {
+          localStorage.setItem('recentJobs', JSON.stringify(normalizedResults));
+        } else if (normalizedResults.length > 0) {
           const existing = localStorage.getItem('recentJobs');
           const existingJobs = existing ? JSON.parse(existing) : [];
-          const allJobs = [...existingJobs, ...data.results];
+          const allJobs = [...existingJobs, ...normalizedResults];
           const uniqueJobs = allJobs.filter((job: any, index: number, self: any[]) =>
             index === self.findIndex((t) => t.id === job.id)
           );

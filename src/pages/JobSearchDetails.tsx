@@ -4,6 +4,7 @@ import { Building2, DollarSign, ExternalLink, Globe2, MapPin } from 'lucide-reac
 import { fetchAggregatedJobById } from '../services/jobSearchService';
 import type { AggregatedJob } from '../types/jobSearch';
 import { applySeoMeta } from '../utils/seo';
+import { resolveApplyLink } from '../utils/jobUtils';
 
 const salaryText = (job: AggregatedJob) => {
   const min = Number(job.salary?.min || 0);
@@ -22,6 +23,7 @@ export const JobSearchDetails = () => {
   const [job, setJob] = useState<AggregatedJob | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const applyHref = job ? resolveApplyLink(job as AggregatedJob & { applyUrl?: string; redirect_url?: string }) : null;
 
   useEffect(() => {
     if (!id) return;
@@ -30,10 +32,13 @@ export const JobSearchDetails = () => {
     const cachedRaw = localStorage.getItem('aggregated_jobs_recent');
     if (cachedRaw) {
       try {
-        const parsed = JSON.parse(cachedRaw) as AggregatedJob[];
+        const parsed = JSON.parse(cachedRaw) as Array<AggregatedJob & { applyUrl?: string; redirect_url?: string }>;
         const localHit = parsed.find((entry) => entry.id === decodedId);
         if (localHit) {
-          setJob(localHit);
+          setJob({
+            ...localHit,
+            url: resolveApplyLink(localHit) || localHit.url || '',
+          });
           setLoading(false);
           applySeoMeta(
             `${localHit.title} at ${localHit.company} | Job Details`,
@@ -56,7 +61,10 @@ export const JobSearchDetails = () => {
       try {
         const payload = await fetchAggregatedJobById(decodedId);
         if (!active) return;
-        setJob(payload);
+        setJob({
+          ...payload,
+          url: resolveApplyLink(payload as AggregatedJob & { applyUrl?: string; redirect_url?: string }) || payload.url || '',
+        });
         applySeoMeta(
           `${payload.title} at ${payload.company} | Job Details`,
           payload.description.slice(0, 150),
@@ -113,14 +121,20 @@ export const JobSearchDetails = () => {
         </div>
 
         <p style={{ marginTop: 16, lineHeight: 1.6 }}>{job.description}</p>
-        <a
-          href={job.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-        >
-          Open application link <ExternalLink size={15} />
-        </a>
+        {applyHref ? (
+          <a
+            href={applyHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            Open application link <ExternalLink size={15} />
+          </a>
+        ) : (
+          <p style={{ marginTop: 12, color: '#b45309' }}>
+            This source did not provide a working application URL for this job.
+          </p>
+        )}
       </section>
     </main>
   );

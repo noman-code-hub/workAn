@@ -2,9 +2,10 @@ import { useState } from 'react';
 
 interface JobLogoProps {
     company: string;
+    logoUrl?: string | null;
 }
 
-export const JobLogo = ({ company }: JobLogoProps) => {
+export const JobLogo = ({ company, logoUrl }: JobLogoProps) => {
     const [error, setError] = useState(false);
 
     // Heuristic to clean company name for logo matching
@@ -15,7 +16,8 @@ export const JobLogo = ({ company }: JobLogoProps) => {
         .trim()
         .replace(/\s+/g, '');
 
-    const logoUrl = `https://img.logo.dev/${cleanName}.com?token=pk_SBlNJcPoTuuglyZ5Senvzw`;
+    const fallbackLogoUrl = `https://img.logo.dev/${cleanName}.com?token=pk_SBlNJcPoTuuglyZ5Senvzw`;
+    const resolvedLogoUrl = logoUrl || fallbackLogoUrl;
 
     if (error) {
         return (
@@ -28,7 +30,7 @@ export const JobLogo = ({ company }: JobLogoProps) => {
     return (
         <div className="job-company-logo">
             <img
-                src={logoUrl}
+                src={resolvedLogoUrl}
                 alt={`${company} logo`}
                 className="job-company-logo-img"
                 loading="lazy"
