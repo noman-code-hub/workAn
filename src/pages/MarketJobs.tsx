@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Briefcase, Clock3, MapPin, Search, TriangleAlert } from 'lucide-react';
 import type { Job } from '../types';
 import { JobLogo } from '../components/JobLogo';
@@ -134,6 +135,7 @@ const formatSalary = (job: Job) => {
 };
 
 export const MarketJobs = () => {
+  const navigate = useNavigate();
   const envSyncMs = Number(import.meta.env.VITE_MARKET_SYNC_MS || 5 * 60 * 1000);
   const marketSyncIntervalMs = Number.isFinite(envSyncMs) && envSyncMs >= 30_000
     ? envSyncMs
@@ -173,6 +175,7 @@ export const MarketJobs = () => {
         throw new Error('Failed to load market jobs.');
       }
 
+      window.localStorage.setItem('aggregated_jobs_recent', JSON.stringify((data.results || []).slice(0, 200)));
       setJobs(Array.isArray(data.results) ? data.results.map(aggregatedJobToJob) : []);
       setLastUpdatedAt(data.updated_at || null);
       setSyncWarning(data.sync_error || '');
@@ -299,9 +302,23 @@ export const MarketJobs = () => {
                 ))}
               </div>
 
-              <a href={job.applyUrl || '#'} target="_blank" rel="noreferrer" className="apply-link">
-                Apply Now
-              </a>
+              <div className="card-actions">
+                <button
+                  type="button"
+                  className="details-link"
+                  onClick={() => navigate(`/job-search/${encodeURIComponent(job.id)}`, {
+                    state: {
+                      returnTo: '/market-jobs',
+                      returnLabel: 'Back to Market Jobs',
+                    },
+                  })}
+                >
+                  Details
+                </button>
+                <a href={job.applyUrl || '#'} target="_blank" rel="noreferrer" className="apply-link">
+                  Apply Now
+                </a>
+              </div>
             </article>
           ))}
         </div>
@@ -520,7 +537,6 @@ export const MarketJobs = () => {
         }
 
         .apply-link {
-          margin-top: auto;
           display: inline-flex;
           justify-content: center;
           align-items: center;
@@ -530,6 +546,35 @@ export const MarketJobs = () => {
           text-decoration: none;
           padding: 10px 14px;
           font-weight: 600;
+          flex: 1;
+        }
+
+        .card-actions {
+          margin-top: auto;
+          display: flex;
+          gap: 10px;
+        }
+
+        .details-link {
+          display: inline-flex;
+          justify-content: center;
+          align-items: center;
+          border-radius: 12px;
+          border: 1px solid #cbd5e1;
+          background: #f8fafc;
+          color: #0f172a;
+          text-decoration: none;
+          padding: 10px 14px;
+          font-weight: 600;
+          cursor: pointer;
+          flex: 1;
+          transition: background 220ms ease, border-color 220ms ease, color 220ms ease;
+        }
+
+        .details-link:hover {
+          background: #ecfeff;
+          border-color: #0f766e;
+          color: #0f766e;
         }
 
         .apply-link:hover {
@@ -637,6 +682,18 @@ export const MarketJobs = () => {
           background: rgba(20, 184, 166, 0.08);
         }
 
+        [data-theme="dark"] .market-jobs-page .details-link {
+          border-color: #334155;
+          background: #0b1220;
+          color: #e2e8f0;
+        }
+
+        [data-theme="dark"] .market-jobs-page .details-link:hover {
+          border-color: #14b8a6;
+          background: rgba(20, 184, 166, 0.08);
+          color: #5eead4;
+        }
+
         [data-theme="dark"] .market-jobs-page .apply-link:hover {
           background: #0f766e;
           color: #ecfeff;
@@ -711,6 +768,14 @@ export const MarketJobs = () => {
           }
 
           .apply-link {
+            width: 100%;
+          }
+
+          .card-actions {
+            flex-direction: column;
+          }
+
+          .details-link {
             width: 100%;
           }
 

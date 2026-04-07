@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Building2, DollarSign, ExternalLink, Globe2, MapPin } from 'lucide-react';
 import { fetchAggregatedJobById } from '../services/jobSearchService';
 import type { AggregatedJob } from '../types/jobSearch';
@@ -20,14 +20,35 @@ const salaryText = (job: AggregatedJob) => {
 export const JobSearchDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [job, setJob] = useState<AggregatedJob | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const applyHref = job ? resolveApplyLink(job) : null;
+  const navState = (location.state as { returnTo?: string; returnLabel?: string; job?: AggregatedJob } | null) || null;
+  const backTarget = navState?.returnTo || '/job-search';
+  const backLabel = navState?.returnLabel || 'Back to search';
 
   useEffect(() => {
     if (!id) return;
     const decodedId = decodeURIComponent(id);
+
+    if (navState?.job && navState.job.id === decodedId) {
+      setJob({
+        ...navState.job,
+        url: resolveApplyLink(navState.job) || navState.job.url || '',
+      });
+      setLoading(false);
+      applySeoMeta(
+        `${navState.job.title} at ${navState.job.company} | Job Details`,
+        navState.job.description.slice(0, 150),
+        `/job-search/${encodeURIComponent(navState.job.id)}`,
+        {
+          keywords: `${navState.job.title}, ${navState.job.company}, job details, workshour`,
+        }
+      );
+      return;
+    }
 
     const cachedRaw = localStorage.getItem('aggregated_jobs_recent');
     if (cachedRaw) {
@@ -85,7 +106,7 @@ export const JobSearchDetails = () => {
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, navState]);
 
   if (loading) return <main style={{ maxWidth: 900, margin: '0 auto', padding: 20 }}>Loading job details...</main>;
 
@@ -93,7 +114,7 @@ export const JobSearchDetails = () => {
     return (
       <main style={{ maxWidth: 900, margin: '0 auto', padding: 20 }}>
         <p style={{ color: '#b91c1c' }}>{error || 'Job not found'}</p>
-        <button onClick={() => navigate(-1)}>Back</button>
+        <button onClick={() => navigate(backTarget)}>{backLabel}</button>
       </main>
     );
   }
@@ -101,7 +122,7 @@ export const JobSearchDetails = () => {
   return (
     <main style={{ maxWidth: 900, margin: '0 auto', padding: 20 }}>
       <p>
-        <Link to="/job-search">Back to search</Link>
+        <Link to={backTarget}>{backLabel}</Link>
       </p>
       <section style={{ border: '1px solid #dbe2ea', borderRadius: 14, padding: 16, background: '#fff' }}>
         <h1 style={{ marginTop: 0 }}>{job.title}</h1>
