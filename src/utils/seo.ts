@@ -30,14 +30,31 @@ const DEFAULT_KEYWORDS =
   'AI career platform, job search, resume builder, resume templates, career insights, career trends, AI copilot, job matching, workshour';
 const DEFAULT_OG_IMAGE = '/logo-wh-transparent.png';
 const DEFAULT_TWITTER_CARD = 'summary_large_image';
+const PRIMARY_SITE_URL = 'https://workshour.com';
 
 const stripTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
+const normalizeSiteUrl = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+
+  try {
+    const url = new URL(trimmed);
+    if (url.hostname === 'workshour.com' || url.hostname === 'www.workshour.com') {
+      return PRIMARY_SITE_URL;
+    }
+
+    return stripTrailingSlash(url.origin);
+  } catch {
+    return stripTrailingSlash(trimmed);
+  }
+};
+
 const getSiteUrl = () => {
-  const env = (import.meta.env.VITE_SITE_URL || '').trim();
-  if (env) return stripTrailingSlash(env);
+  const env = normalizeSiteUrl(import.meta.env.VITE_SITE_URL || '');
+  if (env) return env;
   if (typeof window !== 'undefined' && window.location?.origin) {
-    return stripTrailingSlash(window.location.origin);
+    return normalizeSiteUrl(window.location.origin);
   }
   return '';
 };
@@ -85,6 +102,7 @@ const ROUTE_SEO_CONFIGS: Record<string, SeoRouteConfig> = {
     title: 'AI Job Finder | Workshour',
     description: 'Discover jobs with AI matching, smart filters, and curated recommendations.',
     keywords: 'job search, AI job matching, job listings, workshour',
+    canonicalPath: '/',
   },
   '/jobs/results': {
     title: 'AI Job Finder | Workshour',
@@ -125,6 +143,7 @@ const ROUTE_SEO_CONFIGS: Record<string, SeoRouteConfig> = {
     title: 'Resume Builder and Templates | Workshour',
     description: 'Build an ATS-friendly resume with live preview and modern templates.',
     keywords: 'resume builder, resume templates, ATS resume, workshour',
+    canonicalPath: '/resume-builder',
   },
   '/trends': {
     title: 'Career Trends and Insights | Workshour',
