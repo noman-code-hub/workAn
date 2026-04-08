@@ -140,9 +140,15 @@ const ROUTE_SEO_CONFIGS: Record<string, SeoRouteConfig> = {
     keywords: 'government jobs, public sector jobs, workshour',
   },
   '/resume': {
-    title: 'Resume Builder and Templates | Workshour',
-    description: 'Build an ATS-friendly resume with live preview and modern templates.',
-    keywords: 'resume builder, resume templates, ATS resume, workshour',
+    title: 'Resume Builder | AI Resume Builder Free',
+    description: 'Use our resume builder to create ATS-ready resumes with ai resume builder free tools, resume builder cover letter support, and free online downloads.',
+    keywords: 'resume builder, ai resume builder free, best resume builder, resume builder ai, resume builder cover letter, resume builder download free, resume builder docs, resume builder free, resume builder free online, canva resume builder, indeed resume builder, canva resume maker, online resume builder, generate resume online, develop resume online',
+    canonicalPath: '/resume-builder',
+  },
+  '/resume-builder': {
+    title: 'Resume Builder | AI Resume Builder Free',
+    description: 'Use our resume builder to create ATS-ready resumes with ai resume builder free tools, resume builder cover letter support, and free online downloads.',
+    keywords: 'resume builder, ai resume builder free, best resume builder, resume builder ai, resume builder cover letter, resume builder download free, resume builder docs, resume builder free, resume builder free online, canva resume builder, indeed resume builder, canva resume maker, online resume builder, generate resume online, develop resume online',
     canonicalPath: '/resume-builder',
   },
   '/trends': {

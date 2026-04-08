@@ -1,0 +1,46 @@
+<svg width="1040" height="280" viewBox="0 0 1040 280" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="logoTitle logoDesc">
+  <title id="logoTitle">Workshour generated logo</title>
+  <desc id="logoDesc">A generated Workshour logo with a teal brand mark and wordmark.</desc>
+  <defs>
+    <linearGradient id="markBg" x1="40" y1="40" x2="220" y2="220" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#0F9A87"/>
+    </linearGradient>
+    <linearGradient id="markAccent" x1="72" y1="64" x2="177" y2="177" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#56DDD0"/>
+      <stop offset="1" stop-color="#17C9B0"/>
+    </linearGradient>
+    <filter id="softShadow" x="0" y="8" width="248" height="248" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="12"/>
+      <feGaussianBlur stdDeviation="12"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.0588235 0 0 0 0 0.603922 0 0 0 0 0.529412 0 0 0 0.20 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1_1"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1_1" result="shape"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#softShadow)">
+    <rect x="24" y="24" width="192" height="192" rx="48" fill="url(#markBg)"/>
+    <rect x="24.75" y="24.75" width="190.5" height="190.5" rx="47.25" stroke="#CFF8F1" stroke-opacity="0.28" stroke-width="1.5"/>
+  </g>
+
+  <path d="M63 73H83.5L102.5 140.5L121.5 96L140.5 140.5L159.5 73H180L149 166H132.5L121.5 137.5L110.5 166H94L63 73Z" fill="white"/>
+  <path d="M152 61C152 54.3726 157.373 49 164 49H176C182.627 49 188 54.3726 188 61V73C188 79.6274 182.627 85 176 85H164C157.373 85 152 79.6274 152 73V61Z" fill="url(#markAccent)"/>
+  <path d="M170 57C170.552 57 171 57.4477 171 58V67.5858L175.293 63.2929C175.683 62.9024 176.317 62.9024 176.707 63.2929C177.098 63.6834 177.098 64.3166 176.707 64.7071L170.707 70.7071C170.317 71.0976 169.683 71.0976 169.293 70.7071L163.293 64.7071C162.902 64.3166 162.902 63.6834 163.293 63.2929C163.683 62.9024 164.317 62.9024 164.707 63.2929L169 67.5858V58C169 57.4477 169.448 57 170 57Z" fill="#0F172A"/>
+
+  <g transform="translate(272 44)">
+    <text x="0" y="88" fill="#0F172A" font-family="Poppins, Manrope, Segoe UI, sans-serif" font-size="82" font-weight="800" letter-spacing="-2.8">
+      Works<tspan fill="#17C9B0">hour</tspan>
+    </text>
+    <text x="4" y="134" fill="#667085" font-family="Manrope, Segoe UI, sans-serif" font-size="28" font-weight="600" letter-spacing="0.4">
+      Your AI-powered career companion
+    </text>
+    <rect x="4" y="170" width="548" height="2" rx="1" fill="#D0DBEA"/>
+    <text x="4" y="214" fill="#0F9A87" font-family="Manrope, Segoe UI, sans-serif" font-size="24" font-weight="700" letter-spacing="1.8">
+      JOBS - RESUMES - CAREER GROWTH
+    </text>
+  </g>
+</svg>

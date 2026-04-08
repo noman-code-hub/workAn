@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight, BadgeCheck, CheckCircle2, ChevronDown,
   FileText, Sparkles, Star, Upload, Users, Zap,
@@ -141,7 +141,7 @@ export const ResumeBuilderLanding = () => {
   const goTpl = () => navigate('/resume-builder/templates');
 
   return (
-    <div className="rb">
+    <main className="rb">
 
       {/* ═══ 1. HERO ═══════════════════════════════════════ */}
       <section className="rb-hero">
@@ -150,7 +150,7 @@ export const ResumeBuilderLanding = () => {
           <div className="rb-hero-left">
             <span className="rb-badge"><Sparkles size={11} /> Resume Builder</span>
             <h1 className="rb-hero-h1">
-              This resume builder<br />
+              Resume Builder<br />
               gets you <em>hired faster</em>
             </h1>
             <p className="rb-hero-sub">
@@ -177,7 +177,7 @@ export const ResumeBuilderLanding = () => {
             {/* Floating resume mockup */}
             <img
               src="/images/hero-resume-lorna.jpg"
-              alt="Resume Mockup"
+              alt="Free resume builder online preview with ATS-friendly resume template"
               className="rb-hero-resume-card"
               style={{ width: '220px', padding: 0, border: 'none', objectFit: 'cover', transform: 'translateX(-40px)', zIndex: 5 }}
             />
@@ -198,7 +198,7 @@ export const ResumeBuilderLanding = () => {
             }}>
               <img 
                 src="/images/hero-woman.jpg" 
-                alt="Professional" 
+                alt="Job seeker using an online resume builder" 
                 style={{ width:'100%', height:'100%', objectFit:'cover', objectPosition:'top' }} 
               />
             </div>
@@ -285,7 +285,7 @@ export const ResumeBuilderLanding = () => {
               <div key={t.slug} className="rb-tpl-card" onClick={goTpl}>
                 <div className="rb-tpl-thumb">
                   {t.thumb
-                    ? <img src={t.thumb} alt={t.name} loading="lazy" decoding="async" />
+                    ? <img src={t.thumb} alt={`${t.name} template preview from our free resume builder online`} loading="lazy" decoding="async" />
                     : <div className="rb-tpl-thumb-ph" />
                   }
                 </div>
@@ -397,6 +397,57 @@ export const ResumeBuilderLanding = () => {
         </div>
       </section>
 
+      <section className="rb-section rb-seo-copy" aria-labelledby="resume-builder-guide">
+        <span className="rb-section-tag">Resume Builder Guide</span>
+        <div className="rb-seo-intro">
+          <p id="resume-builder-guide" className="rb-seo-lead">
+            A strong resume builder should do more than fill a blank page. It should help you choose a layout, write clearer bullet points, keep formatting ATS-friendly, and move from draft to download on any device. Workshour is built for job seekers who want the best resume builder experience without slowing down the application process. Whether you need to update an older CV, generate resume online for a new role, or develop resume online while changing careers, the workflow keeps each step simple, readable, and fast.
+          </p>
+        </div>
+        <div className="rb-seo-grid">
+          <article className="rb-seo-card">
+            <h2>AI Resume Builder Free Tools for Better First Drafts</h2>
+            <h3>Resume builder AI suggestions that stay ATS-friendly</h3>
+            <p>
+              Our ai resume builder free workflow turns rough notes into polished content with guided prompts, achievement-focused suggestions, and live previews. Instead of forcing generic copy, the resume builder ai assistant helps you describe impact, quantify results, and tailor language for the role you want. That means less time staring at empty fields and more time sending applications that feel complete and professional.
+            </p>
+            <p>
+              If you are comparing tools because you want the best resume builder for speed and clarity, useful AI matters most when it still sounds human. This resume builder keeps sections organized, preserves clean formatting, and helps you write content that sounds like you rather than a template packed with filler. The result is a stronger draft from the start, with less rewriting before you apply.
+            </p>
+          </article>
+          <article className="rb-seo-card">
+            <h2>Free Resume Builder With Download Free Options</h2>
+            <h3>Resume builder free online editing without paywalls</h3>
+            <p>
+              Workshour is a resume builder free experience from the first edit to the final export. You can choose a design, customize sections, and use the resume builder download free option as soon as your document is ready. For users searching for a resume builder free online, that means you can start on a laptop, review on a phone, and finish quickly without adding extra steps to your job search.
+            </p>
+            <p>
+              If you have tried Canva resume builder, Indeed resume builder, or a Canva resume maker workflow, you already know how frustrating it is when formatting breaks or downloads feel limited. Here, templates stay ATS-friendly, editing stays straightforward, and your final file is ready to share fast. The goal is simple: a free resume builder that helps you move from idea to application without friction.
+            </p>
+          </article>
+          <article className="rb-seo-card">
+            <h2>Resume Builder With Cover Letter Support</h2>
+            <h3>Resume builder docs, templates, and matching workflows</h3>
+            <p>
+              Applications often need more than one document, which is why the resume builder cover letter workflow lives in the same experience. Your core details, tone, and job targets stay aligned, so you can create a matching resume and cover letter without rewriting everything from scratch. That makes it easier to send cohesive applications and keep your story consistent across every role you pursue.
+            </p>
+            <p>
+              The platform also gives users the kind of practical guidance people often look for in resume builder docs. You can browse <Link to="/resume-builder/templates" className="rb-inline-link">resume templates</Link>, then continue into the <Link to="/resume-builder/editor" className="rb-inline-link">cover letter builder and editor</Link> to refine both documents in one place. Instead of juggling separate tools, you get one workflow for writing, reviewing, and exporting application materials.
+            </p>
+          </article>
+          <article className="rb-seo-card">
+            <h2>Online Resume Builder to Generate Resume Online</h2>
+            <h3>Develop resume online from scratch, uploads, or templates</h3>
+            <p>
+              As an online resume builder, Workshour is designed for flexible, modern job searching. You can generate resume online from scratch, upload an existing file to improve it, or build from a template that matches your industry. The editor works across screen sizes, keeps the workflow easy to follow, and makes it easier to stay productive when you are applying to several jobs at once.
+            </p>
+            <p>
+              For anyone who wants to develop resume online with cleaner structure and faster results, this page keeps the essentials close at hand: templates, AI writing support, cover letters, and free downloads. That combination is what makes a resume builder useful in practice. It is not just about creating a document; it is about building a stronger application package that is ready for hiring teams and ATS systems.
+            </p>
+          </article>
+        </div>
+      </section>
+
       {/* ═══ 11. FINAL CTA ════════════════════════════════ */}
       <section className="rb-final">
         <div className="rb-final-inner">
@@ -415,13 +466,13 @@ export const ResumeBuilderLanding = () => {
           <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'center', userSelect:'none' }}>
             <img 
               src="/images/hero-woman.jpg" 
-              alt="Professional" 
+              alt="Job seeker profile from our free resume builder online" 
               style={{ width:160, height:160, borderRadius:'50%', objectFit:'cover', border:'4px solid #fff', boxShadow:'0 10px 25px rgba(0,0,0,0.1)' }} 
             />
           </div>
         </div>
       </section>
 
-    </div>
+    </main>
   );
 };
