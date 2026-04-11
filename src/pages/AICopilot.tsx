@@ -3,8 +3,10 @@ import type { CSSProperties } from 'react';
 import { Bot, FileText, Lightbulb, Send, Sparkles, TrendingUp, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import type { ChatMessage } from '../types';
+import { apiUrl, parseApiJson } from '../config/api';
 
 export const AICopilot = () => {
+  const FASTAPI_LOCAL_BASE = 'http://127.0.0.1:8000';
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -25,30 +27,67 @@ export const AICopilot = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const generateAIResponse = (query: string): string => {
-    const lowerQuery = query.toLowerCase();
+  const normalizeChatEndpoint = (base: string) => {
+    const trimmed = base.trim().replace(/\/+$/, '');
+    if (!trimmed) return '';
+    return trimmed.endsWith('/chat') ? trimmed : `${trimmed}/chat`;
+  };
 
-    if (lowerQuery.includes('job') || lowerQuery.includes('position')) {
-      return `Based on your profile as ${user?.profession || 'a professional'}, focus on:\n\nTop matches:\n- Senior full-stack roles\n- Remote-first product teams\n- Growth-stage companies using AI workflows\n\nActions:\n- Highlight measurable project impact\n- Prioritize ${user?.skills?.[0] || 'core technical'} strengths\n- Tailor each application to the role description\n\nIf you want, I can generate a targeted job search strategy next.`;
+  const getCopilotEndpoints = () => {
+    const envBase = (import.meta.env.VITE_COPILOT_API_BASE || '').trim();
+    const envEndpoint = normalizeChatEndpoint(envBase);
+    if (envEndpoint) {
+      return [envEndpoint];
     }
 
-    if (lowerQuery.includes('resume') || lowerQuery.includes('cv')) {
-      return `Resume upgrade checklist:\n\n1. Keep a clear value summary at the top\n2. Use action-focused bullet points with metrics\n3. Add relevant keywords for ATS matching\n4. Emphasize recent, role-relevant projects\n\nHigh-value keywords for your profile:\n- ${user?.skills?.slice(0, 3).join(', ') || 'Core stack, Architecture, Delivery'}\n- Collaboration and ownership\n- Performance and scalability\n\nI can also produce a section-by-section rewrite plan.`;
+    if (typeof window !== 'undefined') {
+      const isLocalRuntime = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      if (isLocalRuntime) {
+        return [`${FASTAPI_LOCAL_BASE}/chat`];
+      }
     }
 
-    if (lowerQuery.includes('trend') || lowerQuery.includes('future') || lowerQuery.includes('outlook')) {
-      return `Market outlook summary:\n\n- High demand continues for AI, cloud, and platform engineering\n- Hiring remains strongest in product-led and B2B SaaS teams\n- Compensation still favors engineers with broad execution skills\n\nRecommended focus areas:\n1. AI-assisted engineering workflows\n2. Cloud architecture fundamentals\n3. System design communication\n4. End-to-end product ownership\n\nI can map these trends to your current role and goals.`;
+    return [apiUrl('/copilot/chat')];
+  };
+
+  const requestCopilotResponse = async (conversation: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>) => {
+    const sessionId = user?.id || undefined;
+
+    let lastError: unknown = null;
+
+    for (const endpoint of getCopilotEndpoints()) {
+      try {
+        const isNodeCopilot = endpoint.includes('/copilot/chat');
+        const payload = isNodeCopilot
+          ? {
+              messages: conversation,
+              userProfile: {
+                name: user?.name,
+                profession: user?.profession,
+                country: user?.country,
+                skills: user?.skills ?? [],
+              },
+            }
+          : { message: conversation[conversation.length - 1]?.content || '' };
+
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(sessionId ? { 'X-Session-Id': sessionId } : {}),
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await parseApiJson<{ message?: string; reply?: string }>(response);
+        const content = (data?.reply || data?.message || '').trim();
+        if (content) return content;
+      } catch (error) {
+        lastError = error;
+      }
     }
 
-    if (lowerQuery.includes('interview') || lowerQuery.includes('prepare')) {
-      return `Interview preparation plan:\n\nTechnical:\n- Practice role-relevant coding and architecture questions\n- Prepare 2 deep project walkthroughs\n\nBehavioral:\n- Use STAR format for impact stories\n- Show ownership, tradeoff decisions, and outcomes\n\nExecution:\n- Research company product and team context\n- Prepare thoughtful final-round questions\n\nI can run a mock interview simulation if you want.`;
-    }
-
-    if (lowerQuery.includes('skill') || lowerQuery.includes('learn')) {
-      return `Skill development roadmap:\n\nPriority skills:\n- TypeScript and engineering quality practices\n- System design and architecture patterns\n- Cloud platform fundamentals\n- AI tooling for productivity\n\nExecution model:\n- 3 focused sessions per week\n- Build one portfolio project per skill cycle\n- Track progress with measurable outcomes\n\nTell me your target role and I will build a 30-day plan.`;
-    }
-
-    return `I can help with job strategy, resume optimization, interview prep, market trends, and skill planning.\n\nTell me your target role, current level, and goal timeline, and I will create a personalized action plan.`;
+    throw lastError instanceof Error ? lastError : new Error('Unable to reach the copilot service.');
   };
 
   const handleSend = async () => {
@@ -66,17 +105,34 @@ export const AICopilot = () => {
     setInput('');
     setLoading(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 1200));
+    try {
+      const conversation = [...messages, userMessage].map((message) => ({
+        role: message.role,
+        content: message.content,
+      }));
 
-    const assistantMessage: ChatMessage = {
-      id: (Date.now() + 1).toString(),
-      role: 'assistant',
-      content: generateAIResponse(trimmed),
-      timestamp: new Date(),
-    };
+      const content = await requestCopilotResponse(conversation);
 
-    setMessages((prev) => [...prev, assistantMessage]);
-    setLoading(false);
+      const assistantMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content,
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      const assistantMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Network problem. Please try again.',
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const quickPrompts = [
@@ -219,7 +275,11 @@ export const AICopilot = () => {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             />
-            <button className="btn btn-primary send-btn" onClick={handleSend} disabled={!input.trim() || loading}>
+            <button
+              className="btn btn-primary send-btn"
+              onClick={handleSend}
+              disabled={!input.trim() || loading}
+            >
               <Send size={18} />
             </button>
           </div>
@@ -431,6 +491,7 @@ export const AICopilot = () => {
           font-size: 0.72rem;
           font-weight: 700;
         }
+
 
         .chat-messages {
           flex: 1;

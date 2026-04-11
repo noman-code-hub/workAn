@@ -9,6 +9,7 @@ import resumeAnalysisRouter from './routes/resume-analysis.js';
 import resumeGeneratorRouter from './routes/resume-generator.js';
 import templatesRouter from './routes/templates.js';
 import seoRouter from './routes/seo.js';
+import copilotRouter from './routes/copilot.js';
 import admin from 'firebase-admin';
 import fs from 'fs';
 
@@ -83,6 +84,7 @@ app.use('/api', resumeRouter);
 app.use('/api', careerRouter);
 app.use('/api', resumeAnalysisRouter);
 app.use('/api', resumeGeneratorRouter);
+app.use('/api', copilotRouter);
 app.use('/api/templates', templatesRouter);
 app.use('/', seoRouter);
 
