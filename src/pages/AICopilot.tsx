@@ -7,6 +7,7 @@ import { apiUrl, parseApiJson } from '../config/api';
 
 export const AICopilot = () => {
   const FASTAPI_LOCAL_BASE = 'http://127.0.0.1:8000';
+  const VERCEL_COPILOT_PATH = '/api/copilot/chat';
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -47,7 +48,7 @@ export const AICopilot = () => {
       }
     }
 
-    return [apiUrl('/copilot/chat')];
+    return [VERCEL_COPILOT_PATH, apiUrl('/copilot/chat')];
   };
 
   const requestCopilotResponse = async (conversation: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>) => {
