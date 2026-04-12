@@ -9,6 +9,7 @@ import { API_BASE, apiUrl, pdfApiUrl } from '../config/api';
 import { AppLoader } from '../components/AppLoader';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { ImageCropModal } from '../components/ImageCropModal';
+import { ImproveTextAction } from '../components/resume/ImproveTextAction';
 import { buildResumePdfHtml } from '../utils/resumePdfExport';
 
 const RESUME_VIEW_STORAGE_KEY = 'careerpilot:resume-view';
@@ -1354,6 +1355,40 @@ export const Resume = () => {
 
   const parseRichTextMultilineText = (value: string) =>
     parseRichTextLines(value).join('\n').trim();
+
+  const escapeEditorHtml = (value: string) =>
+    value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const stripLeadingBullet = (value: string) =>
+    value.replace(/^[-*\u2022\u2023\u25e6]+\s*/, '').trim();
+
+  const plainTextToParagraphHtml = (value: string) =>
+    parseNewline(value)
+      .map((line) => `<p>${escapeEditorHtml(line)}</p>`)
+      .join('');
+
+  const plainTextToBulletHtml = (value: string) => {
+    const lines = parseNewline(value)
+      .map(stripLeadingBullet)
+      .filter(Boolean);
+
+    if (lines.length === 0) return '';
+
+    return `<ul>${lines.map((line) => `<li>${escapeEditorHtml(line)}</li>`).join('')}</ul>`;
+  };
+
+  const normalizeImprovedSkillsText = (value: string) =>
+    parseCommaOrNewline(
+      value
+        .split(/\r?\n/)
+        .map((line) => stripLeadingBullet(line))
+        .join('\n')
+    ).join(', ');
 
   const normalizeTemplateText = (value: string) =>
     value
@@ -4872,6 +4907,12 @@ export const Resume = () => {
                       summary: (
                         <div className="form-group">
                           <label className="block text-sm font-semibold mb-2 text-gray-700">Professional Summary / Objective</label>
+                          <ImproveTextAction
+                            text={parseRichTextMultilineText(summaryText)}
+                            type="summary"
+                            onAccept={(value) => setSummaryText(plainTextToParagraphHtml(value))}
+                            className="mb-3"
+                          />
                           <RichTextEditor
                             value={summaryText}
                             onChange={setSummaryText}
@@ -4935,6 +4976,12 @@ export const Resume = () => {
                                 </div>
                                 <div className="form-group md:col-span-2">
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Details (one bullet per line)</label>
+                                  <ImproveTextAction
+                                    text={parseRichTextMultilineText(item.details)}
+                                    type="experience"
+                                    onAccept={(value) => updateExperienceItem(item.id, { details: plainTextToBulletHtml(value) })}
+                                    className="mb-3"
+                                  />
                                   <RichTextEditor
                                     value={item.details}
                                     onChange={(value) => updateExperienceItem(item.id, { details: value })}
@@ -5030,6 +5077,12 @@ export const Resume = () => {
                       skills: (
                         <div className="form-group">
                           <label className="block text-sm font-semibold mb-2 text-gray-700">Skills</label>
+                          <ImproveTextAction
+                            text={skillsText}
+                            type="skills"
+                            onAccept={(value) => setSkillsText(normalizeImprovedSkillsText(value))}
+                            className="mb-3"
+                          />
                           <div className="skills-editor">
                             <div className="skills-input-row">
                               <input

@@ -22,6 +22,7 @@ const ensureApiBase = (value: string) => {
 
 const envBaseUrl = (import.meta.env.VITE_API_BASE || '').trim();
 const envPdfBaseUrl = (import.meta.env.VITE_PDF_API_BASE || '').trim();
+const envAiBaseUrl = (import.meta.env.VITE_AI_API_BASE || '').trim();
 const envSupabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
 const derivedSupabaseApiBase = envSupabaseUrl
   ? `${trimTrailingSlash(envSupabaseUrl)}/functions/v1/api`
@@ -33,11 +34,15 @@ const fallbackBase = isLocalRuntime
   ? LOCAL_NODE_API_BASE
   : (derivedSupabaseApiBase || DEFAULT_PROD_API_BASE);
 const localPdfBase = isLocalDevRuntime ? LOCAL_API_PREFIX : LOCAL_NODE_API_BASE;
+const localAiBase = 'http://localhost:8000';
 
 export const API_BASE = envBaseUrl ? ensureApiBase(envBaseUrl) : fallbackBase;
 export const PDF_API_BASE = envPdfBaseUrl
   ? ensureApiBase(envPdfBaseUrl)
   : (isLocalRuntime ? localPdfBase : API_BASE);
+export const AI_API_BASE = envAiBaseUrl
+  ? trimTrailingSlash(envAiBaseUrl)
+  : (isLocalRuntime ? localAiBase : '');
 
 export const apiUrl = (path: string) => {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -47,6 +52,11 @@ export const apiUrl = (path: string) => {
 export const pdfApiUrl = (path: string) => {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return PDF_API_BASE ? `${PDF_API_BASE}${normalizedPath}` : normalizedPath;
+};
+
+export const aiApiUrl = (path: string) => {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return AI_API_BASE ? `${AI_API_BASE}${normalizedPath}` : normalizedPath;
 };
 
 export const parseApiJson = async <T>(response: Response): Promise<T> => {
