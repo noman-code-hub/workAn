@@ -111,8 +111,8 @@ const buildCompatibleSearchParams = (params: URLSearchParams) => {
   return next;
 };
 
-const MARKET_JOB_ENDPOINTS = ['/jobs/market', '/jobs/search', '/jobs'] as const;
-const LIVE_JOB_SEARCH_ENDPOINTS = ['/jobs/search', '/jobs', '/jobs/market'] as const;
+const MARKET_JOB_ENDPOINTS = ['/jobs/market', '/jobs/search'] as const;
+const LIVE_JOB_SEARCH_ENDPOINTS = ['/jobs/search', '/jobs/market'] as const;
 
 const fetchJobsFromEndpoints = async (
   params: URLSearchParams,

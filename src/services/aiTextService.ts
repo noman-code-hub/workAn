@@ -29,6 +29,10 @@ export const improveText = async (payload: ImproveTextPayload): Promise<ImproveT
     throw new Error(`Keep the text under ${AI_IMPROVE_MAX_INPUT_CHARS} characters.`);
   }
 
+  if (!AI_API_BASE) {
+    throw new Error('AI improve-text backend is not configured. Set VITE_AI_API_BASE to your FastAPI deployment and redeploy.');
+  }
+
   const response = await fetch(aiApiUrl('/ai/improve-text'), {
     method: 'POST',
     headers: {
@@ -39,10 +43,6 @@ export const improveText = async (payload: ImproveTextPayload): Promise<ImproveT
       type: payload.type,
     }),
   }).catch((error: unknown) => {
-    if (!AI_API_BASE && !isLocalRuntime()) {
-      throw new Error('AI improve-text backend is not configured. Set VITE_AI_API_BASE to your FastAPI deployment.');
-    }
-
     const message = error instanceof Error ? error.message : 'Failed to reach the AI improve-text service.';
     throw new Error(message);
   });
