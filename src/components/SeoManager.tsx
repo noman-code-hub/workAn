@@ -6,7 +6,7 @@ export const SeoManager = () => {
   const location = useLocation();
 
   useEffect(() => {
-    if (location.pathname.startsWith('/community')) return;
+    if (location.pathname.startsWith('/community/')) return;
     const config = getSeoConfig(location.pathname);
     applySeoMeta(
       config.title,

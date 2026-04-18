@@ -162,6 +162,18 @@ export const CommunityBlogDetail = () => {
   const formattedDate = useMemo(() => formatDate(blog?.publishedAt), [blog?.publishedAt]);
 
   useEffect(() => {
+    if (!slug || blog) return;
+    applySeoMeta(
+      'Community Article | Workshour',
+      'Read the latest career insights and hiring guidance from the Workshour community.',
+      `/community/${slug}`,
+      {
+        ogType: 'article',
+      }
+    );
+  }, [slug, blog]);
+
+  useEffect(() => {
     if (!blog) return;
     applySeoMeta(
       seoTitle,
