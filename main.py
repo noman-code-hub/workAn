@@ -38,21 +38,32 @@ AI_IMPROVE_RATE_LIMIT_PER_MINUTE = int(
     os.getenv("AI_IMPROVE_RATE_LIMIT_PER_MINUTE", "12")
 )
 AI_IMPROVE_CACHE_TTL_SECONDS = int(os.getenv("AI_IMPROVE_CACHE_TTL_SECONDS", "900"))
+AI_IMPROVE_PROMPT_VERSION = "v2"
 AI_IMPROVE_SYSTEM_PROMPT = (
     "You are a professional resume writer and ATS optimization expert. "
     "Improve the user's text to be clear, concise, impactful, and professional. "
     "Use strong action verbs and industry-standard language. Keep it relevant to resumes. "
-    "Do not add fake information. Keep the same meaning but improve wording."
+    "Do not add fake information. Keep the same meaning but improve wording. "
+    "Return only the final rewritten text. Do not include headings, introductions, "
+    "explanations, markdown, bold formatting, or quotation marks."
 )
 AI_IMPROVE_USER_PROMPTS = {
     "experience": (
-        "Rewrite this job experience professionally with strong action verbs and "
-        "measurable impact if possible:\n\n{text}"
+        "Rewrite this job experience so it is easy to read, professional, and "
+        "resume-ready. Keep it concise and polished. Return only the improved "
+        "experience text with no heading or extra commentary.\n\n{text}"
     ),
     "summary": (
-        "Rewrite this professional summary to be concise, impactful, and ATS-friendly:\n\n{text}"
+        "Rewrite this into a short, easy-to-read, professional resume summary. "
+        "Avoid first-person phrases like 'I am' or 'my name is'. Keep it natural, "
+        "polished, and ATS-friendly. Return only the final summary paragraph with "
+        "no heading or extra commentary.\n\n{text}"
     ),
-    "skills": "Improve and organize these skills into a professional format:\n\n{text}",
+    "skills": (
+        "Rewrite these skills into a clean, professional, easy-to-read resume "
+        "format. Return only the improved skills text with no heading or extra "
+        "commentary.\n\n{text}"
+    ),
 }
 
 app = FastAPI()
@@ -148,7 +159,9 @@ def derive_client_id(request: Request) -> str:
 
 
 def build_improve_cache_key(text_type: str, text: str) -> str:
-    payload = f"{AI_MODEL}\n{text_type}\n{text}".encode("utf-8")
+    payload = (
+        f"{AI_IMPROVE_PROMPT_VERSION}\n{AI_MODEL}\n{text_type}\n{text}"
+    ).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
 
 

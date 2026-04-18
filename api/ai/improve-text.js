@@ -20,6 +20,8 @@ const AI_IMPROVE_SYSTEM_PROMPT = [
   'Use strong action verbs and industry-standard language.',
   'Keep it relevant to resumes and do not invent facts.',
   'Preserve the original meaning while improving the wording.',
+  'Return only the final rewritten text.',
+  'Do not include headings, introductions, explanations, markdown, bold formatting, or quotation marks.',
 ].join(' ');
 
 const json = (response, status, payload) => {
@@ -33,11 +35,29 @@ const normalizeText = (value) => {
 const buildUserPrompt = (type, text) => {
   switch (type) {
     case 'experience':
-      return `Rewrite this job experience professionally with strong action verbs and measurable impact if possible:\n\n${text}`;
+      return [
+        'Rewrite this job experience so it is easy to read, professional, and resume-ready.',
+        'Keep it concise and polished.',
+        'Return only the improved experience text with no heading or extra commentary.',
+        '',
+        text,
+      ].join('\n');
     case 'summary':
-      return `Rewrite this professional summary to be concise, impactful, and ATS-friendly:\n\n${text}`;
+      return [
+        'Rewrite this into a short, easy-to-read, professional resume summary.',
+        'Avoid first-person phrases like "I am" or "my name is".',
+        'Keep it natural, polished, and ATS-friendly.',
+        'Return only the final summary paragraph with no heading or extra commentary.',
+        '',
+        text,
+      ].join('\n');
     case 'skills':
-      return `Improve and organize these skills into a professional format:\n\n${text}`;
+      return [
+        'Rewrite these skills into a clean, professional, easy-to-read resume format.',
+        'Return only the improved skills text with no heading or extra commentary.',
+        '',
+        text,
+      ].join('\n');
     default:
       return '';
   }

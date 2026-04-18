@@ -38,6 +38,33 @@ const getImproveTextEndpoints = () => {
   return [VERCEL_AI_IMPROVE_PATH];
 };
 
+const sanitizeImprovedText = (value: string) => {
+  const normalized = value
+    .replace(/\r\n/g, '\n')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    .replace(/^[`"'“”]+|[`"'“”]+$/g, '')
+    .trim();
+
+  const lines = normalized
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) {
+    return '';
+  }
+
+  const firstLine = lines[0].toLowerCase();
+  const looksLikeIntro =
+    firstLine.endsWith(':') &&
+    /rewrite|rewritten|professional summary|summary|experience|skills|suggestion|improved text/.test(firstLine);
+
+  const contentLines = looksLikeIntro ? lines.slice(1) : lines;
+
+  return contentLines.join('\n\n').trim();
+};
+
 export const improveText = async (payload: ImproveTextPayload): Promise<ImproveTextResult> => {
   const normalizedText = payload.text.trim();
   if (!normalizedText) {
@@ -77,7 +104,11 @@ export const improveText = async (payload: ImproveTextPayload): Promise<ImproveT
       });
 
       try {
-        return await parseApiJson<ImproveTextResult>(response);
+        const result = await parseApiJson<ImproveTextResult>(response);
+        return {
+          ...result,
+          improved_text: sanitizeImprovedText(result.improved_text || ''),
+        };
       } catch (error) {
         if (response.status === 404) {
           throw new Error('AI improve-text endpoint was not found. Set VITE_AI_API_BASE or deploy /api/ai/improve-text.');
