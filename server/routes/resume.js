@@ -4,6 +4,7 @@ import axios from 'axios';
 import FormData from 'form-data';
 import fs from 'fs';
 import path from 'path';
+import { analyzeResumeFile } from '../services/atsResumeChecker.js';
 
 const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
@@ -127,7 +128,9 @@ router.post('/upload-resume', upload.single('resume'), async (req, res) => {
             });
 
             // Create a temp file for the downloaded content
-            const tempFileName = `temp_${Date.now()}_resume`;
+            const urlPath = new URL(url).pathname;
+            const inferredExt = path.extname(urlPath || '').toLowerCase() || '.pdf';
+            const tempFileName = `temp_${Date.now()}_resume${inferredExt}`;
             filePath = path.resolve('uploads', tempFileName);
             fs.writeFileSync(filePath, response.data);
             isTempFile = true;
@@ -142,17 +145,31 @@ router.post('/upload-resume', upload.single('resume'), async (req, res) => {
             formData.append('job_description', req.body.jobDescription);
         }
 
+        let atsReport = null;
+        try {
+            atsReport = await analyzeResumeFile({
+                filePath,
+                originalName: req.file?.originalname || path.basename(filePath),
+                jobDescription: req.body.jobDescription || '',
+            });
+        } catch (atsError) {
+            console.warn('ATS resume checker failed:', atsError?.message || atsError);
+        }
+
         const matcherReady = await isResumeMatcherReachable();
         if (!matcherReady) {
             return res.status(200).json({
-                success: false,
+                success: Boolean(atsReport),
                 parser_unavailable: true,
-                message: 'Resume parser service is not reachable. Continuing without auto-fill.',
+                message: atsReport
+                    ? 'Resume parser service is not reachable. Returning ATS analysis without auto-fill metadata.'
+                    : 'Resume parser service is not reachable. Continuing without auto-fill.',
                 details: `Start Resume-Matcher at ${RESUME_MATCHER_URL} and try again.`,
-                score: null,
-                keywords_matched: [],
-                missing_skills: [],
-                summary: '',
+                score: atsReport?.overall_score ?? null,
+                keywords_matched: atsReport?.detected_keywords || [],
+                missing_skills: atsReport?.missing_keywords || [],
+                summary: atsReport?.top_recommendations?.join(' ') || '',
+                ats_report: atsReport,
                 resume_metadata: {},
             });
         }
@@ -173,14 +190,19 @@ router.post('/upload-resume', upload.single('resume'), async (req, res) => {
 
         const { score, keywords_matched, missing_skills, summary, resume_metadata } = response.data;
         const mergedMetadata = structuredMetadata || resume_metadata || {};
+        const normalizedScore = typeof atsReport?.overall_score === 'number' ? atsReport.overall_score : score;
+        const normalizedMatchedKeywords = atsReport?.detected_keywords || keywords_matched;
+        const normalizedMissingKeywords = atsReport?.missing_keywords || missing_skills;
+        const normalizedSummary = atsReport?.top_recommendations?.join(' ') || summary;
 
         // Return full analysis data
         res.json({
             success: true,
-            score,
-            keywords_matched,
-            missing_skills,
-            summary,
+            score: normalizedScore,
+            keywords_matched: normalizedMatchedKeywords,
+            missing_skills: normalizedMissingKeywords,
+            summary: normalizedSummary,
+            ats_report: atsReport,
             resume_metadata: mergedMetadata,
         });
     } catch (error) {
