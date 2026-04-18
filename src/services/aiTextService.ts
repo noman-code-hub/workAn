@@ -39,6 +39,17 @@ export const improveText = async (payload: ImproveTextPayload): Promise<ImproveT
     }),
   }).catch((error: unknown) => {
     const message = error instanceof Error ? error.message : 'Failed to reach the AI improve-text service.';
+
+    if (
+      typeof window !== 'undefined' &&
+      AI_API_BASE.includes('localhost:8000') &&
+      /failed to fetch|networkerror|load failed|fetch failed/i.test(message)
+    ) {
+      throw new Error(
+        'AI text improvement is configured to use http://localhost:8000, but that FastAPI service is not reachable. Start the Python AI backend locally or change VITE_AI_API_BASE to a live AI backend.',
+      );
+    }
+
     throw new Error(message);
   });
 
