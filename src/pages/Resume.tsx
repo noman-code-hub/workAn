@@ -4985,7 +4985,7 @@ export const Resume = () => {
                                   <RichTextEditor
                                     value={item.details}
                                     onChange={(value) => updateExperienceItem(item.id, { details: value })}
-                                    placeholder="Built X feature...\nImproved Y by 20%..."
+                                    placeholder="Describe your responsibilities and achievements, one bullet per line."
                                     minHeight={140}
                                     toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
                                   />
