@@ -13,12 +13,6 @@ export type ImproveTextResult = {
 
 export const AI_IMPROVE_MAX_INPUT_CHARS = 1000;
 
-const isLocalRuntime = () => {
-  if (typeof window === 'undefined') return false;
-  const hostname = window.location.hostname;
-  return hostname === 'localhost' || hostname === '127.0.0.1';
-};
-
 export const improveText = async (payload: ImproveTextPayload): Promise<ImproveTextResult> => {
   const normalizedText = payload.text.trim();
   if (!normalizedText) {
@@ -33,7 +27,8 @@ export const improveText = async (payload: ImproveTextPayload): Promise<ImproveT
     throw new Error('AI improve-text backend is not configured. Set VITE_AI_API_BASE to your FastAPI deployment and redeploy.');
   }
 
-  const response = await fetch(aiApiUrl('/ai/improve-text'), {
+  const requestUrl = aiApiUrl('/ai/improve-text');
+  const response = await fetch(requestUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -46,6 +41,19 @@ export const improveText = async (payload: ImproveTextPayload): Promise<ImproveT
     const message = error instanceof Error ? error.message : 'Failed to reach the AI improve-text service.';
     throw new Error(message);
   });
+
+  if (response.status === 405 && typeof window !== 'undefined') {
+    try {
+      const url = new URL(requestUrl, window.location.origin);
+      if (url.origin === window.location.origin) {
+        throw new Error(
+          'AI improve-text is posting to this frontend app instead of the FastAPI backend. Set VITE_AI_API_BASE to your FastAPI URL, then rebuild and redeploy.',
+        );
+      }
+    } catch {
+      // Ignore URL parsing issues and fall through to generic API parsing.
+    }
+  }
 
   try {
     return await parseApiJson<ImproveTextResult>(response);

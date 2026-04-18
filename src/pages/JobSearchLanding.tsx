@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { 
-  Search, MapPin, Sparkles, Building2, Briefcase, 
-  Users, TrendingUp, Heart, ChevronRight, Quote,
+import {
+  Search, MapPin, Sparkles, Building2, Briefcase,
+  TrendingUp, ChevronRight, Quote,
   MessageSquare,
-  Globe, LayoutGrid, Filter, Bookmark,
-  ArrowRight, Zap, Award, CheckCircle2, Star, Smile, CheckCheck, ChevronLeft
+  Filter, Bookmark,
+  ArrowRight, Zap, CheckCircle2, Star, Smile, CheckCheck, ChevronLeft
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,41 +13,111 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { fetchAggregatedJobs } from '../services/jobSearchService';
 import type { AggregatedJob } from '../types/jobSearch';
 
-const JOB_CATEGORIES = [
-  { name: 'Real Estate', icon: <Building2 className="cat-icon" />, count: '1,200 jobs' },
-  { name: 'Recruitment Agencies', icon: <Users className="cat-icon" />, count: '850 jobs' },
-  { name: 'Remote', icon: <Globe className="cat-icon" />, count: '2,400 jobs' },
-  { name: 'Technology', icon: <Zap className="cat-icon" />, count: '3,100 jobs' },
-  { name: 'Healthcare', icon: <Heart className="cat-icon" />, count: '1,800 jobs' },
-  { name: 'Finance', icon: <Award className="cat-icon" />, count: '950 jobs' },
-  { name: 'Engineering', icon: <Briefcase className="cat-icon" />, count: '1,400 jobs' },
-  { name: 'Other', icon: <LayoutGrid className="cat-icon" />, count: '500 jobs' },
+const WORKSHOUR_AUDIENCES = [
+  {
+    name: 'Fresh Graduates',
+    icon: Sparkles,
+    description:
+      'Ideal for students entering the job market. They can use free resume builder and AI resume builder free tools to create professional resumes easily.',
+  },
+  {
+    name: 'Experienced Professionals',
+    icon: TrendingUp,
+    description:
+      'Perfect for professionals who want career growth using ATS resume builder, LinkedIn profile optimizer, and resume review service.',
+  },
+  {
+    name: 'Employers',
+    icon: Building2,
+    description:
+      'Helps companies find better candidates using AI job application tracker and job search CRM tools for smarter hiring.',
+  },
+];
+
+const WORKSHOUR_FEATURES = [
+  {
+    title: 'AI Job Matching',
+    icon: Zap,
+    description:
+      'Smart system that connects users with relevant jobs by reading skills, goals, and experience to reduce guesswork and improve search quality.',
+  },
+  {
+    title: 'Smart Resume Builder',
+    icon: Briefcase,
+    description:
+      'Build an ATS friendly resume using AI resume builder guidance, stronger formatting, and role-specific language that employers can scan quickly.',
+  },
+  {
+    title: 'Career Roadmap',
+    icon: TrendingUp,
+    description:
+      'Plan your next move using career management platform insights that show which skills to build and which opportunities are worth pursuing.',
+  },
+  {
+    title: 'One-Click Apply',
+    icon: ArrowRight,
+    description:
+      'Apply faster with job application autofill, organized submissions, and a job tracker that keeps your search moving without losing momentum.',
+  },
+  {
+    title: 'Interview Preparation',
+    icon: Search,
+    description:
+      'Improve performance using resume vs job description analysis so you can prepare better examples, clearer stories, and stronger answers.',
+  },
+  {
+    title: 'Real-time Job Alerts',
+    icon: MessageSquare,
+    description:
+      'Stay updated with job search organizer notifications for new openings, saved searches, and follow-ups that deserve your attention.',
+  },
+];
+
+const HOW_IT_WORKS_STEPS = [
+  {
+    title: 'Create Profile',
+    icon: Sparkles,
+    description:
+      'Build your resume using AI resume builder tools, add your skills, and set your preferences so Workshour understands your career direction.',
+  },
+  {
+    title: 'AI Matches You',
+    icon: Search,
+    description:
+      'The system uses ATS resume checker logic, resume keyword checker signals, and AI job application tracker insights to suggest better matches.',
+  },
+  {
+    title: 'Apply & Get Hired',
+    icon: CheckCheck,
+    description:
+      'Use one-click apply and improve your resume match score so every application is faster, stronger, and easier to track from one place.',
+  },
+];
+
+const TRUST_STATS = [
+  { value: '10,000+', label: 'Jobs' },
+  { value: '5,000+', label: 'Hired' },
+  { value: '500+', label: 'Companies' },
 ];
 
 const TESTIMONIALS = [
   {
-    name: 'Ayesha Khan',
-    role: 'Software Engineer @ Google',
-    quote: "Hirevo's AI matching is truly next-level. I landed an interview within 3 days of creating my profile.",
+    name: 'Sarah Khan',
+    role: 'Marketing Specialist',
+    quote: 'Workshour helped me improve my ATS friendly resume and I got interviews quickly.',
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80',
   },
   {
-    name: 'Faisal Ahmed',
-    role: 'Sr. Product Manager',
-    quote: "The ease of use and quality of job matches is better than any other platform I've used.",
+    name: 'Ahmed Ali',
+    role: 'Operations Manager',
+    quote: 'Best Jobscan alternative I have used. AI cover letter generator is amazing.',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
   },
   {
-    name: 'Mina Ali',
-    role: 'UX Designer',
-    quote: "As a designer, I appreciate the clean UI. The application process is seamless and very intuitive.",
+    name: 'John Smith',
+    role: 'Project Coordinator',
+    quote: 'Great platform for job tracking and resume optimization.',
     avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=150&q=80',
-  },
-  {
-    name: 'Omar Shah',
-    role: 'Data Scientist',
-    quote: "The personalized job recommendations are spot on. It saved me hours of manual searching.",
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80',
   },
 ];
 
@@ -239,34 +309,34 @@ const RECOMMENDED_JOBS = [
 
 const LANDING_FAQS = [
   {
-    question: 'What is ChatGPT and how does it work?',
+    question: 'What is Workshour?',
     answer:
-      'ChatGPT is an AI chatbot that understands and generates human-like text using machine learning and large language models.',
+      'Workshour is an AI-powered career platform that combines job search, resume building, ATS optimization, and job tracking so users can manage their complete career workflow in one place.',
   },
   {
-    question: 'What are the best AI tools for jobs?',
+    question: 'How does the AI resume builder help job seekers?',
     answer:
-      'Popular AI tools include ChatGPT for writing, Grammarly for grammar, and Canva for design.',
+      'The AI resume builder helps you write stronger summaries, organize experience clearly, and tailor your resume with more relevant keywords for the jobs you want.',
   },
   {
-    question: 'Which AI is best for business?',
+    question: 'What does the ATS resume checker do?',
     answer:
-      'Tools like ChatGPT, Jasper AI, and Zoho CRM help automate tasks, marketing, and customer support.',
+      'The ATS resume checker reviews formatting, keyword coverage, and job-description alignment so your resume is easier for applicant tracking systems and recruiters to understand.',
   },
   {
-    question: 'Can AI tools replace human workers?',
+    question: 'Is Workshour useful for fresh graduates?',
     answer:
-      'AI tools can automate repetitive tasks but still need humans for creativity, decision-making, and emotional intelligence.',
+      'Yes. Fresh graduates can build a first professional resume, discover entry-level jobs, and organize applications without needing separate resume, tracking, and job-search tools.',
   },
   {
-    question: 'Are AI tools free or paid?',
+    question: 'Can Workshour track my job applications?',
     answer:
-      'Many AI tools offer free versions, but advanced features usually require paid subscriptions.',
+      'Workshour supports a job application tracker workflow that helps you monitor saved jobs, submitted applications, interview progress, and follow-up tasks in one dashboard.',
   },
   {
-    question: 'How to choose the right AI tool?',
+    question: 'Does Workshour help with cover letters and interview prep?',
     answer:
-      'Choose based on your needs, such as writing, design, coding, or marketing, and compare features, pricing, and ease of use.',
+      'Yes. Workshour supports stronger cover letter writing, resume vs job description analysis, and interview preparation so you can apply with more confidence.',
   },
 ];
 
@@ -438,20 +508,28 @@ export const JobSearchLanding = () => {
           <div className="glow glow-2"></div>
           
           {/* Floating Avatars representing users/candidates */}
-          <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80" alt="User" className="hero-avatar ha-1" />
-          <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80" alt="User" className="hero-avatar ha-2" />
-          <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=150&q=80" alt="User" className="hero-avatar ha-3" />
-          <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80" alt="User" className="hero-avatar ha-4" />
+          <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80" alt="Fresh graduate creating a Workshour profile" className="hero-avatar ha-1" />
+          <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80" alt="Experienced professional exploring AI matched jobs" className="hero-avatar ha-2" />
+          <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=150&q=80" alt="Job seeker improving an ATS friendly resume" className="hero-avatar ha-3" />
+          <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80" alt="Hiring manager reviewing candidate matches on Workshour" className="hero-avatar ha-4" />
         </div>
         <div className="jsl-hero-content">
           <div className="hero-badge">
-            <Sparkles size={12} /> AI-Powered Matching
+            <Sparkles size={12} /> AI-Powered Career Platform
           </div>
-          <h1>Find the job that <span>fits you perfectly.</span></h1>
+          <h1>Find Your Dream Job with <span>AI-Powered Career Matching</span></h1>
           <p className="hero-sub">
-            Search thousands of jobs. Get matched by skills, location, and experience. Apply in one click.
+            Workshour is an AI-powered career platform that helps job seekers find better opportunities using smart automation. It offers tools like AI resume builder, ATS resume checker, and AI cover letter generator to improve your chances of getting hired. Whether you are a fresher or an experienced professional, Workshour helps you build a strong career path.
           </p>
-          
+
+          <div className="hero-actions">
+            <button className="jsl-btn-primary hero-cta-primary" onClick={() => navigate('/login')}>
+              Get Started Free
+            </button>
+            <button className="jsl-btn-outline hero-cta-secondary" onClick={() => navigate('/job-search')}>
+              Browse Jobs
+            </button>
+          </div>
 
           <div className="jsl-search-box">
             <div className="search-field">
@@ -488,24 +566,24 @@ export const JobSearchLanding = () => {
           <div className="jsl-hero-stats">
             <div className="stat-item">
               <div className="stat-icon"><Briefcase size={18} /></div>
-              <div className="stat-text"><strong>28,000+</strong> active jobs</div>
+              <div className="stat-text"><strong>AI Resume Builder</strong> for ATS ready resumes</div>
             </div>
             <div className="stat-item">
               <div className="stat-icon"><CheckCircle2 size={18} /></div>
-              <div className="stat-text"><strong>98%</strong> placement rate</div>
+              <div className="stat-text"><strong>ATS Resume Checker</strong> for smarter optimization</div>
             </div>
             <div className="stat-item">
               <div className="stat-icon"><Building2 size={18} /></div>
-              <div className="stat-text"><strong>1,200+</strong> top companies</div>
+              <div className="stat-text"><strong>Job Tracker</strong> for organized applications</div>
             </div>
           </div>
         </div>
 
         {/* Company Logo Strip */}
         <div className="jsl-logo-strip">
-          <p>Trusted by world-class teams</p>
+          <p>Trusted by job seekers and hiring teams</p>
           <div className="logo-strip-inner">
-            <img src="/trusted-logos.svg" alt="Trusted Companies" />
+            <img src="/trusted-logos.svg" alt="Hiring companies and employer brands associated with Workshour" />
           </div>
         </div>
       </header>
@@ -514,20 +592,26 @@ export const JobSearchLanding = () => {
       <section className="jsl-section" style={{ paddingBottom: '0' }}>
         <div className="resume-banner-cta">
           <div className="rb-content">
-            <h2>Join over <span>56,693</span><br />resume makers</h2>
-            <p>Start now and get hired faster.</p>
+            <span className="section-eyebrow">Career Platform Overview</span>
+            <h2>What is <span>Workshour?</span></h2>
+            <p>
+              Workshour is a modern career management platform designed to simplify job searching using artificial intelligence. It combines multiple tools like AI resume builder, job application tracker, and career guidance into one system. Instead of using different websites, users can manage everything in one place including resume building, job tracking, and applications.
+            </p>
+            <p>
+              The platform also helps users improve their ATS friendly resume using ATS optimization, resume keyword scanner, and resume match score analysis. It is built for job seekers who want better visibility in hiring systems, faster job applications, and smarter career decisions. Workshour acts as a complete job search organizer and job search CRM for modern professionals.
+            </p>
             <button 
               className="rb-btn" 
               onClick={() => navigate('/resume-builder')}
             >
-              Create my resume
+              Explore Resume Tools
             </button>
           </div>
           
           <div className="rb-visual">
             <div className="rb-person-container">
               <div className="rb-image-card">
-                <img src="/resume-banner-person.jpg" alt="Smiling person" />
+                <img src="/resume-banner-person.jpg" alt="Job seeker celebrating a stronger ATS friendly resume" />
               </div>
               <div className="rb-smile"><Smile size={32} color="#17c9b0" strokeWidth={2.5} /></div>
               <div className="rb-checks"><CheckCheck size={28} color="#17c9b0" strokeWidth={2.5} /></div>
@@ -546,16 +630,39 @@ export const JobSearchLanding = () => {
 
             <div className="rb-logos">
               <div className="rb-logo-box">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/4/4a/Amazon_icon.svg" alt="Amazon" />
+                <img src="https://upload.wikimedia.org/wikipedia/commons/4/4a/Amazon_icon.svg" alt="Amazon employer logo" />
               </div>
               <div className="rb-logo-box">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" />
+                <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google employer logo" />
               </div>
               <div className="rb-logo-box">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/6/69/Airbnb_Logo_B%C3%A9lo.svg" alt="Airbnb" className="airbnb-logo" />
+                <img src="https://upload.wikimedia.org/wikipedia/commons/6/69/Airbnb_Logo_B%C3%A9lo.svg" alt="Airbnb employer logo" className="airbnb-logo" />
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Who Is Workshour For */}
+      <section className="jsl-section">
+        <div className="section-header">
+          <div className="section-copy">
+            <h2>Who is Workshour For?</h2>
+            <p>Workshour supports job seekers at different stages and helps employers build a more organized hiring workflow with AI-powered tools.</p>
+          </div>
+        </div>
+        <div className="jsl-cat-grid audience-grid">
+          {WORKSHOUR_AUDIENCES.map((audience) => {
+            const Icon = audience.icon;
+
+            return (
+              <article key={audience.name} className="jsl-cat-card audience-card">
+                <div className="cat-icon-wrap"><Icon size={24} /></div>
+                <h3>{audience.name}</h3>
+                <p>{audience.description}</p>
+              </article>
+            );
+          })}
         </div>
       </section>
 
@@ -580,13 +687,13 @@ export const JobSearchLanding = () => {
 
           <div className="rs-content-wrapper">
             <div className="rs-text-content">
-              <h2>Get the interview with professional resume examples</h2>
-              <p>Impress employers and recruiters. Choose from hundreds of professionally-designed resume examples. Download to Word or PDF.</p>
+              <h2>Build better applications with Workshour career tools</h2>
+              <p>Use Workshour to create polished resumes, improve ATS alignment, organize applications, and move from job search confusion to a more focused career strategy.</p>
               <button 
                 className="rs-btn-primary" 
                 onClick={() => navigate('/resume-builder')}
               >
-                See all resume examples
+                See resume builder tools
               </button>
               
               <div className="rs-trustpilot">
@@ -606,30 +713,98 @@ export const JobSearchLanding = () => {
               {showcaseTemplates.length < 3 ? (
                 <>
                   <div className="rs-template-card t-left">
-                     <img src="https://images.unsplash.com/photo-1586281380117-5a60ae2050cc?auto=format&fit=crop&w=400&q=80" alt="Resume Placeholder" loading="lazy" decoding="async" />
+                     <img src="https://images.unsplash.com/photo-1586281380117-5a60ae2050cc?auto=format&fit=crop&w=400&q=80" alt="AI resume builder dashboard interface" loading="lazy" decoding="async" />
                   </div>
                   <div className="rs-template-card t-center">
-                     <img src="https://images.unsplash.com/photo-1586282391129-76a6df230234?auto=format&fit=crop&w=400&q=80" alt="Resume Placeholder" loading="lazy" decoding="async" />
+                     <img src="https://images.unsplash.com/photo-1586282391129-76a6df230234?auto=format&fit=crop&w=400&q=80" alt="ATS resume checker analyzing resume score" loading="lazy" decoding="async" />
                   </div>
                   <div className="rs-template-card t-right">
-                     <img src="https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&w=400&q=80" alt="Resume Placeholder" loading="lazy" decoding="async" />
+                     <img src="https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&w=400&q=80" alt="Job application tracker dashboard view" loading="lazy" decoding="async" />
                   </div>
                 </>
               ) : (
                 <>
                   <div className="rs-template-card t-left">
-                     <img src={showcaseTemplates[0]?.thumbnailUrl} alt={showcaseTemplates[0]?.name} loading="lazy" decoding="async" />
+                     <img src={showcaseTemplates[0]?.thumbnailUrl} alt={`Resume template preview in Workshour AI resume builder: ${showcaseTemplates[0]?.name}`} loading="lazy" decoding="async" />
                   </div>
                   <div className="rs-template-card t-center">
-                     <img src={showcaseTemplates[1]?.thumbnailUrl} alt={showcaseTemplates[1]?.name} loading="lazy" decoding="async" />
+                     <img src={showcaseTemplates[1]?.thumbnailUrl} alt={`Resume template preview in Workshour AI resume builder: ${showcaseTemplates[1]?.name}`} loading="lazy" decoding="async" />
                   </div>
                   <div className="rs-template-card t-right">
-                     <img src={showcaseTemplates[2]?.thumbnailUrl} alt={showcaseTemplates[2]?.name} loading="lazy" decoding="async" />
+                     <img src={showcaseTemplates[2]?.thumbnailUrl} alt={`Resume template preview in Workshour AI resume builder: ${showcaseTemplates[2]?.name}`} loading="lazy" decoding="async" />
                   </div>
                 </>
               )}
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Key Features */}
+      <section className="jsl-section jsl-features">
+        <div className="section-header centered">
+          <span className="badge">Platform Features</span>
+          <h2>Why Choose Workshour?</h2>
+          <p>Workshour brings job search, resume optimization, and career planning together so you can spend less time managing tools and more time moving forward.</p>
+        </div>
+        <div className="feature-grid">
+          {WORKSHOUR_FEATURES.map((feature) => {
+            const Icon = feature.icon;
+
+            return (
+              <article key={feature.title} className="feature-card">
+                <div className="feature-icon">
+                  <Icon size={22} />
+                </div>
+                <h3>{feature.title}</h3>
+                <p>{feature.description}</p>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section className="jsl-section jsl-how-it-works">
+        <div className="section-header centered">
+          <span className="badge">Simple Workflow</span>
+          <h2>How It Works</h2>
+          <p>Workshour turns a scattered job hunt into a clear process that helps you build, match, and apply with more confidence.</p>
+        </div>
+        <div className="how-grid">
+          {HOW_IT_WORKS_STEPS.map((step, index) => {
+            const Icon = step.icon;
+
+            return (
+              <article key={step.title} className="how-card">
+                <div className="how-step-top">
+                  <span className="how-step-number">0{index + 1}</span>
+                  <div className="feature-icon">
+                    <Icon size={22} />
+                  </div>
+                </div>
+                <h3>{step.title}</h3>
+                <p>{step.description}</p>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Trust Stats */}
+      <section className="jsl-section jsl-trust">
+        <div className="section-header centered">
+          <span className="badge">Proof of Momentum</span>
+          <h2>Trusted by Job Seekers</h2>
+          <p>From resume creation to application tracking, Workshour helps people take practical action and stay consistent throughout the hiring journey.</p>
+        </div>
+        <div className="trust-stats-grid">
+          {TRUST_STATS.map((stat) => (
+            <article key={stat.label} className="trust-stat-card">
+              <strong>{stat.value}</strong>
+              <span>{stat.label}</span>
+            </article>
+          ))}
         </div>
       </section>
 
@@ -692,28 +867,12 @@ export const JobSearchLanding = () => {
         </div>
       </section>
 
-      {/* Explore Categories */}
-      <section className="jsl-section">
-        <div className="section-header">
-          <h2>Explore Categories</h2>
-        </div>
-        <div className="jsl-cat-grid">
-          {JOB_CATEGORIES.map(cat => (
-            <div key={cat.name} className="jsl-cat-card">
-              <div className="cat-icon-wrap">{cat.icon}</div>
-              <h3>{cat.name}</h3>
-              <p>{cat.count}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* Success Stories */}
       <section className="jsl-section jsl-testimonials">
         <div className="section-header centered">
-          <span className="badge">Success Stories</span>
-          <h2>Real people. Real careers.</h2>
-          <p>Read how our platform helped thousands land their dream roles.</p>
+          <span className="badge">User Testimonials</span>
+          <h2>What Our Users Say</h2>
+          <p>Real feedback from professionals using Workshour to improve resume quality, apply faster, and organize their job search with more clarity.</p>
         </div>
         <div className="jsl-testi-scroll-wrapper">
           <div className="jsl-testi-scroll">
@@ -725,7 +884,7 @@ export const JobSearchLanding = () => {
                 </div>
                 <p className="quote">&ldquo;{t.quote}&rdquo;</p>
                 <div className="author">
-                  <img src={t.avatar} alt={t.name} />
+                  <img src={t.avatar} alt={`${t.name} testimonial portrait on Workshour`} />
                   <div className="author-meta">
                     <strong>{t.name} <CheckCircle2 size={14} color="#22c55e" style={{display:'inline',verticalAlign:'middle'}} /></strong>
                     <span>{t.role}</span>
@@ -902,7 +1061,7 @@ export const JobSearchLanding = () => {
         <div className="section-header centered">
           <span className="badge">FAQ</span>
           <h2 id="job-search-faq-heading">Frequently Asked Questions</h2>
-          <p>Key answers about job search, remote roles, resumes, and how Hirevo works.</p>
+          <p>Key answers about Workshour, AI resume tools, ATS optimization, job application tracking, and how the platform supports a more organized job search.</p>
         </div>
         <div className="jsl-faq-list">
           {LANDING_FAQS.map((item) => (
@@ -911,6 +1070,17 @@ export const JobSearchLanding = () => {
               <p>{item.answer}</p>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section className="jsl-section footer-cta-section">
+        <div className="footer-cta-shell">
+          <span className="section-eyebrow">Free To Start</span>
+          <h2>Ready to Start Your Career Journey?</h2>
+          <p>Join Workshour to build a stronger resume, discover better-fit jobs, and manage your career search with practical AI support.</p>
+          <button className="rb-btn footer-cta-button" onClick={() => navigate('/login')}>
+            Join Workshour Free
+          </button>
         </div>
       </section>
 
@@ -967,7 +1137,7 @@ export const JobSearchLanding = () => {
 
         /* HERO */
         .jsl-hero {
-          padding: 100px 40px 80px;
+          padding: 36px 40px 80px;
           position: relative;
           text-align: center;
           overflow: hidden;
@@ -1031,7 +1201,7 @@ export const JobSearchLanding = () => {
           border: 1px solid rgba(23, 201, 176, 0.4);
           color: var(--primary);
           border-radius: 999px;
-          font-size: 0.8rem;
+          font-size: 0.76rem;
           font-weight: 700;
           margin-bottom: 24px;
           transition: all 0.3s ease;
@@ -1040,7 +1210,7 @@ export const JobSearchLanding = () => {
           background: rgba(23, 201, 176, 0.05);
         }
         .jsl-hero h1 {
-          font-size: clamp(3rem, 6vw, 5rem);
+          font-size: clamp(2.7rem, 5.5vw, 4.6rem);
           font-weight: 900;
           line-height: 1.1;
           margin-bottom: 16px;
@@ -1051,17 +1221,28 @@ export const JobSearchLanding = () => {
           color: var(--primary);
         }
         .hero-sub {
-          font-size: 1.15rem;
+          font-size: 1.05rem;
           color: var(--muted);
           max-width: 580px;
-          margin: 0 auto 40px;
+          margin: 0 auto 28px;
           line-height: 1.6;
           font-weight: 500;
+        }
+        .hero-actions {
+          display: flex;
+          justify-content: center;
+          gap: 14px;
+          margin-bottom: 20px;
+          flex-wrap: wrap;
+        }
+        .hero-cta-primary,
+        .hero-cta-secondary {
+          min-width: 170px;
         }
 
         .jsl-search-box {
           max-width: 800px;
-          margin: 0 auto 32px;
+          margin: 0 auto 22px;
           background: #ffffff;
           padding: 8px;
           border-radius: 20px;
@@ -1089,7 +1270,7 @@ export const JobSearchLanding = () => {
           width: 100%;
           border: none;
           outline: none;
-          font-size: 1rem;
+          font-size: 0.95rem;
           font-weight: 500;
           color: var(--text);
           background: transparent;
@@ -1101,7 +1282,7 @@ export const JobSearchLanding = () => {
           padding: 14px 28px;
           border-radius: 14px;
           font-weight: 700;
-          font-size: 1rem;
+          font-size: 0.95rem;
           transition: background 0.2s;
           border: none;
           cursor: pointer;
@@ -1113,16 +1294,16 @@ export const JobSearchLanding = () => {
           align-items: center;
           justify-content: center;
           gap: 12px;
-          margin-bottom: 48px;
+          margin-bottom: 32px;
         }
-        .jsl-hero-popular span { font-weight: 600; color: #64748b; font-size: 0.9rem; }
+        .jsl-hero-popular span { font-weight: 600; color: #64748b; font-size: 0.84rem; }
         .chips { display: flex; gap: 8px; }
         .chips button {
           background: transparent;
           border: 1px solid rgba(0,0,0,0.06);
           padding: 6px 14px;
           border-radius: 8px;
-          font-size: 0.85rem;
+          font-size: 0.8rem;
           font-weight: 500;
           color: var(--text);
           transition: border-color 0.2s;
@@ -1132,13 +1313,14 @@ export const JobSearchLanding = () => {
         .jsl-hero-stats {
           display: flex;
           justify-content: center;
-          gap: 32px;
+          gap: 24px;
         }
         .stat-item {
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           gap: 10px;
           padding: 6px 16px;
+          max-width: 240px;
         }
         .stat-icon {
           width: 32px;
@@ -1150,15 +1332,15 @@ export const JobSearchLanding = () => {
           justify-content: center;
           color: var(--primary);
         }
-        .stat-text { font-size: 0.85rem; color: #64748b; font-weight: 500; }
+        .stat-text { font-size: 0.8rem; color: #64748b; font-weight: 500; line-height: 1.5; text-align: left; }
         .stat-text strong { color: #111827; font-weight: 800; }
 
         .jsl-logo-strip {
-          margin-top: 80px;
+          margin-top: 56px;
           opacity: 0.8;
         }
         .jsl-logo-strip p {
-          font-size: 0.9rem;
+          font-size: 0.84rem;
           font-weight: 600;
           color: var(--muted);
           margin-bottom: 24px;
@@ -1183,21 +1365,22 @@ export const JobSearchLanding = () => {
         .jsl-section {
           max-width: 1200px;
           margin: 0 auto;
-          padding: 60px 40px;
+          padding: 48px 40px;
         }
         .section-header {
           display: flex;
           align-items: flex-end;
           justify-content: space-between;
-          margin-bottom: 32px;
+          margin-bottom: 24px;
         }
-        .section-header h2 { font-size: 2rem; font-weight: 800; }
+        .section-header h2 { font-size: 1.82rem; font-weight: 800; }
         .view-all {
           display: flex;
           align-items: center;
           gap: 4px;
           color: var(--primary);
           font-weight: 700;
+          font-size: 0.88rem;
         }
         .jobs-shell {
           border: 1px solid rgba(15, 23, 42, 0.06);
@@ -1225,7 +1408,7 @@ export const JobSearchLanding = () => {
           margin: 10px 0 0;
           color: var(--muted);
           line-height: 1.7;
-          font-size: 0.98rem;
+          font-size: 0.92rem;
         }
         .section-eyebrow {
           display: inline-flex;
@@ -1234,7 +1417,7 @@ export const JobSearchLanding = () => {
           border-radius: 999px;
           background: rgba(23, 201, 176, 0.1);
           color: var(--primary-dark);
-          font-size: 0.74rem;
+          font-size: 0.66rem;
           font-weight: 800;
           text-transform: uppercase;
           letter-spacing: 0.08em;
@@ -1284,7 +1467,7 @@ export const JobSearchLanding = () => {
           padding: 6px 12px;
           background: rgba(15, 118, 110, 0.08);
           color: #0f766e;
-          font-size: 0.72rem;
+          font-size: 0.68rem;
           font-weight: 800;
           letter-spacing: 0.06em;
           text-transform: uppercase;
@@ -1298,7 +1481,7 @@ export const JobSearchLanding = () => {
           align-items: center;
           justify-content: center;
           font-weight: 800;
-          font-size: 1.2rem;
+          font-size: 1rem;
           color: var(--primary);
           overflow: hidden;
           flex-shrink: 0;
@@ -1322,7 +1505,7 @@ export const JobSearchLanding = () => {
         }
         .job-info .company {
           color: #334155;
-          font-size: 0.92rem;
+          font-size: 0.86rem;
           font-weight: 700;
           margin-bottom: 14px;
         }
@@ -1331,7 +1514,7 @@ export const JobSearchLanding = () => {
           grid-template-columns: 1fr;
           gap: 10px;
           color: var(--muted);
-          font-size: 0.85rem;
+          font-size: 0.8rem;
           margin-bottom: 16px;
         }
         .job-info .meta span {
@@ -1355,19 +1538,19 @@ export const JobSearchLanding = () => {
           gap: 4px;
         }
         .salary-label {
-          font-size: 0.72rem;
+          font-size: 0.68rem;
           letter-spacing: 0.06em;
           text-transform: uppercase;
           color: #94a3b8;
           font-weight: 700;
         }
         .salary {
-          font-size: 1rem;
+          font-size: 0.94rem;
           font-weight: 800;
           color: var(--primary-dark);
         }
         .type-pill {
-          font-size: 0.76rem;
+          font-size: 0.72rem;
           font-weight: 700;
           padding: 6px 12px;
           border-radius: 999px;
@@ -1382,7 +1565,7 @@ export const JobSearchLanding = () => {
           justify-content: space-between;
           gap: 8px;
           color: #0f172a;
-          font-size: 0.9rem;
+          font-size: 0.84rem;
           font-weight: 700;
           padding-top: 2px;
         }
@@ -1416,13 +1599,106 @@ export const JobSearchLanding = () => {
           border: 1px solid rgba(0,0,0,0.03);
         }
         .jsl-cat-card:hover .cat-icon-wrap { background: var(--primary); color: #fff; transform: rotate(-5deg); }
-        .jsl-cat-card h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: 6px; }
-        .jsl-cat-card p { color: var(--muted); font-size: 0.9rem; font-weight: 500; }
+        .jsl-cat-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; }
+        .jsl-cat-card p { color: var(--muted); font-size: 0.85rem; font-weight: 500; line-height: 1.7; }
+        .audience-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .audience-card {
+          min-height: 100%;
+        }
+
+        .feature-grid,
+        .how-grid,
+        .trust-stats-grid {
+          display: grid;
+          gap: 22px;
+        }
+        .feature-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .how-grid,
+        .trust-stats-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .feature-card,
+        .how-card,
+        .trust-stat-card,
+        .footer-cta-shell {
+          background: linear-gradient(180deg, #ffffff 0%, #f9fffe 100%);
+          border: 1px solid rgba(23, 201, 176, 0.12);
+          border-radius: 24px;
+          box-shadow: 0 20px 40px rgba(15, 23, 42, 0.04);
+        }
+        .feature-card,
+        .how-card {
+          padding: 28px;
+        }
+        .feature-icon {
+          width: 50px;
+          height: 50px;
+          border-radius: 16px;
+          background: rgba(23, 201, 176, 0.12);
+          color: var(--primary-dark);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 18px;
+        }
+        .feature-card h3,
+        .how-card h3 {
+          font-size: 1.02rem;
+          font-weight: 800;
+          margin-bottom: 10px;
+        }
+        .feature-card p,
+        .how-card p {
+          color: var(--muted);
+          font-size: 0.92rem;
+          line-height: 1.75;
+          margin: 0;
+        }
+        .how-step-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 18px;
+        }
+        .how-step-number {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 42px;
+          height: 42px;
+          border-radius: 999px;
+          background: rgba(15, 23, 42, 0.04);
+          color: var(--text);
+          font-size: 0.8rem;
+          font-weight: 800;
+          letter-spacing: 0.08em;
+        }
+        .trust-stat-card {
+          padding: 30px 24px;
+          text-align: center;
+        }
+        .trust-stat-card strong {
+          display: block;
+          font-size: clamp(1.85rem, 3.6vw, 2.7rem);
+          line-height: 1;
+          color: var(--primary-dark);
+          margin-bottom: 10px;
+        }
+        .trust-stat-card span {
+          color: var(--muted);
+          font-size: 0.92rem;
+          font-weight: 700;
+          letter-spacing: 0.02em;
+        }
 
         /* TESTIMONIALS */
         .section-header.centered { text-align: center; justify-content: center; flex-direction: column; align-items: center; }
         .section-header.centered h2 { margin-top: 12px; }
-        .badge { background: rgba(23, 201, 176, 0.15); color: var(--primary-dark); padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; }
+        .badge { background: rgba(23, 201, 176, 0.15); color: var(--primary-dark); padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 0.7rem; text-transform: uppercase; }
         .jsl-testi-scroll-wrapper {
           width: 100vw;
           margin-left: calc(-50vw + 50%); /* Break out of container to be full width */
@@ -1456,11 +1732,11 @@ export const JobSearchLanding = () => {
         .jsl-testi-card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0,0,0,0.05); border-color: var(--primary); }
         .quote-icon { color: var(--primary); opacity: 0.2; position: absolute; top: 32px; right: 32px; }
         .star-row { display: flex; gap: 3px; margin-bottom: 16px; }
-        .quote { font-size: 1.05rem; font-weight: 500; color: var(--text); line-height: 1.7; margin-bottom: 28px; position: relative; z-index: 1; opacity: 0.9; }
+        .quote { font-size: 0.96rem; font-weight: 500; color: var(--text); line-height: 1.7; margin-bottom: 28px; position: relative; z-index: 1; opacity: 0.9; }
         .author { display: flex; align-items: center; gap: 16px; }
         .author img { width: 56px; height: 56px; border-radius: 18px; object-fit: cover; border: 2px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .author-meta strong { display: block; font-size: 1rem; font-weight: 700; color: var(--text); }
-        .author-meta span { color: var(--muted); font-size: 0.85rem; font-weight: 600; }
+        .author-meta strong { display: block; font-size: 0.94rem; font-weight: 700; color: var(--text); }
+        .author-meta span { color: var(--muted); font-size: 0.8rem; font-weight: 600; }
 
         /* FEATURED */
         .filters-mini { display: flex; gap: 12px; align-items: center; }
@@ -1473,13 +1749,13 @@ export const JobSearchLanding = () => {
           padding: 8px 16px;
           border-radius: 10px;
         }
-        .filter-input input { border: none; outline: none; font-size: 0.9rem; width: 150px; }
+        .filter-input input { border: none; outline: none; font-size: 0.84rem; width: 150px; }
         .filters-mini select {
           background: #fff;
           border: 1px solid var(--border);
           padding: 8px 12px;
           border-radius: 10px;
-          font-size: 0.9rem;
+          font-size: 0.84rem;
           color: var(--muted);
           outline: none;
         }
@@ -1492,7 +1768,7 @@ export const JobSearchLanding = () => {
           padding: 8px 16px;
           border-radius: 10px;
           font-weight: 600;
-          font-size: 0.9rem;
+          font-size: 0.84rem;
         }
         .jsl-job-grid {
           display: grid;
@@ -1509,7 +1785,7 @@ export const JobSearchLanding = () => {
           right: 16px;
           background: linear-gradient(135deg, #17c9b0, #0f9a87);
           color: #fff;
-          font-size: 0.68rem;
+          font-size: 0.64rem;
           font-weight: 800;
           padding: 6px 12px;
           border-radius: 999px;
@@ -1571,7 +1847,7 @@ export const JobSearchLanding = () => {
         }
         .save-btn:hover { color: var(--primary); border-color: rgba(23, 201, 176, 0.35); background: #fff; }
         .jsl-job-card-v h3 {
-          font-size: 1.28rem;
+          font-size: 1.16rem;
           font-weight: 800;
           line-height: 1.4;
           margin-bottom: 16px;
@@ -1581,11 +1857,11 @@ export const JobSearchLanding = () => {
           color: var(--primary);
           font-weight: 800;
           margin: 0;
-          font-size: 0.98rem;
+          font-size: 0.9rem;
         }
         .card-meta {
           color: var(--muted);
-          font-size: 0.9rem;
+          font-size: 0.84rem;
         }
         .card-meta span {
           display: flex;
@@ -1615,19 +1891,19 @@ export const JobSearchLanding = () => {
           gap: 5px;
         }
         .salary-caption {
-          font-size: 0.72rem;
+          font-size: 0.68rem;
           letter-spacing: 0.06em;
           text-transform: uppercase;
           color: #94a3b8;
           font-weight: 700;
         }
         .card-salary {
-          font-size: 1.08rem;
+          font-size: 1rem;
           font-weight: 800;
           color: var(--primary-dark);
         }
         .job-posted-pill {
-          font-size: 0.78rem;
+          font-size: 0.74rem;
           font-weight: 700;
           padding: 7px 12px;
           border-radius: 999px;
@@ -1646,7 +1922,7 @@ export const JobSearchLanding = () => {
           background: #f8fafc;
           padding: 6px 12px;
           border-radius: 999px;
-          font-size: 0.77rem;
+          font-size: 0.72rem;
           font-weight: 700;
           color: #475569;
           border: 1px solid rgba(15, 23, 42, 0.06);
@@ -1738,17 +2014,17 @@ export const JobSearchLanding = () => {
         .blog-category {
           position: absolute; bottom: 12px; left: 12px;
           background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
-          color: #fff; font-size: 0.72rem; font-weight: 700;
+          color: #fff; font-size: 0.68rem; font-weight: 700;
           padding: 4px 12px; border-radius: 999px;
           text-transform: uppercase; letter-spacing: 0.06em;
         }
         .blog-meta-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .blog-content .date { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
-        .read-time { font-size: 0.78rem; color: var(--muted); font-weight: 500; }
-        .blog-content h3 { font-size: 1.2rem; font-weight: 800; margin-bottom: 10px; line-height: 1.4; }
-        .blog-content p { color: var(--muted); font-size: 0.95rem; line-height: 1.6; margin-bottom: 20px; }
-        .blog-author { font-size: 0.82rem; color: var(--muted); font-weight: 600; margin-bottom: 12px; }
-        .read-more { display: flex; align-items: center; gap: 6px; color: var(--text); font-weight: 700; font-size: 0.9rem; }
+        .blog-content .date { font-size: 0.76rem; color: var(--muted); font-weight: 600; }
+        .read-time { font-size: 0.74rem; color: var(--muted); font-weight: 500; }
+        .blog-content h3 { font-size: 1.08rem; font-weight: 800; margin-bottom: 10px; line-height: 1.4; }
+        .blog-content p { color: var(--muted); font-size: 0.88rem; line-height: 1.6; margin-bottom: 20px; }
+        .blog-author { font-size: 0.78rem; color: var(--muted); font-weight: 600; margin-bottom: 12px; }
+        .read-more { display: flex; align-items: center; gap: 6px; color: var(--text); font-weight: 700; font-size: 0.84rem; }
         .read-more:hover { color: var(--primary); }
         .jsl-blog-empty {
           text-align: center;
@@ -1773,7 +2049,7 @@ export const JobSearchLanding = () => {
           box-shadow: 0 20px 40px rgba(15, 23, 42, 0.04);
         }
         .jsl-faq-item h3 {
-          font-size: 1.05rem;
+          font-size: 0.98rem;
           font-weight: 800;
           line-height: 1.4;
           margin-bottom: 10px;
@@ -1783,6 +2059,31 @@ export const JobSearchLanding = () => {
           color: var(--muted);
           line-height: 1.7;
           margin: 0;
+        }
+        .footer-cta-section {
+          padding-top: 12px;
+        }
+        .footer-cta-shell {
+          text-align: center;
+          padding: 48px 28px;
+          max-width: 860px;
+          margin: 0 auto;
+          background:
+            radial-gradient(circle at top, rgba(23, 201, 176, 0.12), transparent 52%),
+            linear-gradient(180deg, #ffffff 0%, #f8fffd 100%);
+        }
+        .footer-cta-shell h2 {
+          font-size: clamp(1.85rem, 3.6vw, 2.7rem);
+          font-weight: 800;
+          margin: 16px 0 14px;
+          letter-spacing: -0.03em;
+        }
+        .footer-cta-shell p {
+          color: var(--muted);
+          max-width: 650px;
+          margin: 0 auto 28px;
+          line-height: 1.75;
+          font-size: 0.94rem;
         }
         .jsl-blog-card.is-loading { cursor: default; }
         .jsl-blog-card.is-loading .blog-img,
@@ -1814,17 +2115,17 @@ export const JobSearchLanding = () => {
         .jsl-footer-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1.5fr 3fr; gap: 80px; margin-bottom: 60px; }
         .jsl-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
         .logo-icon { width: 34px; height: 34px; background: linear-gradient(135deg, #17c9b0, #0f9a87); color: #fff; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; box-shadow: 0 4px 12px rgba(23,201,176,0.3); }
-        .jsl-logo span { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.03em; }
+        .jsl-logo span { font-size: 1.28rem; font-weight: 800; letter-spacing: -0.03em; }
         .footer-brand p { color: var(--muted); margin: 20px 0 24px; line-height: 1.6; max-width: 300px; }
         .social-links { display: flex; gap: 16px; color: var(--muted); }
         .social-links svg { cursor: pointer; transition: color 0.2s; }
         .social-links svg:hover { color: var(--primary); }
         .footer-links { display: flex; justify-content: space-between; gap: 40px; }
-        .link-col h4 { font-size: 1rem; font-weight: 700; margin-bottom: 20px; }
+        .link-col h4 { font-size: 0.94rem; font-weight: 700; margin-bottom: 20px; }
         .link-col { display: flex; flex-direction: column; gap: 12px; }
         .link-col a { color: var(--muted); font-weight: 500; transition: color 0.2s; }
         .link-col a:hover { color: var(--primary); }
-        .jsl-footer-bottom { max-width: 1200px; margin: 0 auto; border-top: 1px solid var(--border); padding-top: 40px; display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 0.9rem; }
+        .jsl-footer-bottom { max-width: 1200px; margin: 0 auto; border-top: 1px solid var(--border); padding-top: 40px; display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 0.84rem; }
         .footer-bottom-links { display: flex; gap: 24px; }
 
         /* RESUME BANNER CTA */
@@ -1845,7 +2146,7 @@ export const JobSearchLanding = () => {
           max-width: 480px;
         }
         .rb-content h2 {
-          font-size: 3.2rem;
+          font-size: 2.95rem;
           font-weight: 700;
           color: #1f2937;
           line-height: 1.08;
@@ -1857,16 +2158,19 @@ export const JobSearchLanding = () => {
           color: var(--primary); /* Teal mapping */
         }
         .rb-content p {
-          font-size: 1.15rem;
+          font-size: 1.04rem;
           color: #374151;
           line-height: 1.65;
-          max-width: 28ch;
-          margin-bottom: 40px;
+          max-width: 58ch;
+          margin-bottom: 16px;
+        }
+        .rb-content p:last-of-type {
+          margin-bottom: 32px;
         }
         .rb-btn {
           background: var(--primary);
           color: #ffffff;
-          font-size: 1.05rem;
+          font-size: 0.96rem;
           font-weight: 600;
           padding: 14px 28px;
           border: none;
@@ -1982,10 +2286,10 @@ export const JobSearchLanding = () => {
         }
         @media (max-width: 640px) {
           .rb-content h2 {
-            font-size: 2.45rem;
+            font-size: 2.28rem;
           }
           .rb-content p {
-            font-size: 1rem;
+            font-size: 0.94rem;
             margin-bottom: 28px;
           }
           .rb-visual {
@@ -2037,7 +2341,7 @@ export const JobSearchLanding = () => {
           color: #cbd5e1;
           padding: 8px 20px;
           border-radius: 999px;
-          font-size: 0.9rem;
+          font-size: 0.84rem;
           font-weight: 500;
           white-space: nowrap;
           cursor: pointer;
@@ -2073,14 +2377,14 @@ export const JobSearchLanding = () => {
           max-width: 480px;
         }
         .rs-text-content h2 {
-          font-size: 3rem;
+          font-size: 2.75rem;
           font-weight: 700;
           line-height: 1.15;
           margin-bottom: 24px;
           letter-spacing: -0.02em;
         }
         .rs-text-content p {
-          font-size: 1.1rem;
+          font-size: 1rem;
           color: #94a3b8;
           line-height: 1.6;
           margin-bottom: 32px;
@@ -2088,7 +2392,7 @@ export const JobSearchLanding = () => {
         .rs-btn-primary {
           background: var(--primary);
           color: #fff;
-          font-size: 1.05rem;
+          font-size: 0.96rem;
           font-weight: 700;
           padding: 16px 32px;
           border-radius: 8px;
@@ -2113,7 +2417,7 @@ export const JobSearchLanding = () => {
           margin-left: 8px;
         }
         .rs-trustpilot p {
-          font-size: 0.85rem;
+          font-size: 0.8rem;
           color: #64748b;
           margin-bottom: 0;
         }
@@ -2224,7 +2528,7 @@ export const JobSearchLanding = () => {
 
         /* SECTION HEADING ACCENT */
         .section-header h2 {
-          font-size: 2rem;
+          font-size: 1.82rem;
           font-weight: 800;
           background: linear-gradient(135deg, var(--text) 0%, #374151 100%);
           -webkit-background-clip: text;
@@ -2272,10 +2576,14 @@ export const JobSearchLanding = () => {
         [data-theme="dark"] .jobs-shell,
         [data-theme="dark"] .jsl-job-card-h,
         [data-theme="dark"] .jsl-cat-card,
+        [data-theme="dark"] .feature-card,
+        [data-theme="dark"] .how-card,
+        [data-theme="dark"] .trust-stat-card,
         [data-theme="dark"] .jsl-blog-card,
         [data-theme="dark"] .jsl-faq-item,
         [data-theme="dark"] .resume-banner-cta,
-        [data-theme="dark"] .blog-scroll-btn {
+        [data-theme="dark"] .blog-scroll-btn,
+        [data-theme="dark"] .footer-cta-shell {
           background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
           border-color: #243244;
           box-shadow: 0 10px 24px rgba(2, 6, 23, 0.22);
@@ -2314,6 +2622,9 @@ export const JobSearchLanding = () => {
         [data-theme="dark"] .jsl-hero-popular span,
         [data-theme="dark"] .stat-text,
         [data-theme="dark"] .section-copy p,
+        [data-theme="dark"] .feature-card p,
+        [data-theme="dark"] .how-card p,
+        [data-theme="dark"] .trust-stat-card span,
         [data-theme="dark"] .job-info .meta,
         [data-theme="dark"] .salary-label,
         [data-theme="dark"] .blog-content p,
@@ -2373,8 +2684,21 @@ export const JobSearchLanding = () => {
         [data-theme="dark"] .job-card-h-cta,
         [data-theme="dark"] .read-more,
         [data-theme="dark"] .view-all,
-        [data-theme="dark"] .job-info .company {
+        [data-theme="dark"] .job-info .company,
+        [data-theme="dark"] .feature-card h3,
+        [data-theme="dark"] .how-card h3,
+        [data-theme="dark"] .footer-cta-shell h2,
+        [data-theme="dark"] .how-step-number {
           color: #dbe7f5;
+        }
+
+        [data-theme="dark"] .feature-icon {
+          background: rgba(45, 212, 191, 0.14);
+          color: #5eead4;
+        }
+
+        [data-theme="dark"] .trust-stat-card strong {
+          color: #5eead4;
         }
 
         [data-theme="dark"] .resume-showcase-section {
@@ -2400,8 +2724,11 @@ export const JobSearchLanding = () => {
         @media (max-width: 1024px) {
           .jsl-footer-inner { grid-template-columns: 1fr; gap: 40px; }
           .footer-links { flex-wrap: wrap; gap: 24px; }
-          .jsl-hero h1 { font-size: 3rem; }
+          .jsl-hero h1 { font-size: 2.75rem; }
           .jsl-job-grid { grid-template-columns: repeat(2, 1fr); }
+          .feature-grid,
+          .how-grid,
+          .trust-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .filters-mini { flex-wrap: wrap; }
           .jsl-blog-card { min-width: 280px; max-width: 320px; }
           .card-meta-grid { grid-template-columns: 1fr; }
@@ -2412,9 +2739,9 @@ export const JobSearchLanding = () => {
           .search-divider { display: none; }
           .search-field { padding: 8px 12px; }
           .jsl-hero-stats { flex-direction: column; gap: 8px; align-items: stretch; }
-          .jsl-hero { padding: 60px 20px; }
+          .jsl-hero { padding: 32px 20px 60px; }
           .jsl-hero h1 { font-size: 2.2rem; }
-          .hero-sub { font-size: 1rem; }
+          .hero-sub { font-size: 0.9rem; }
           .jsl-job-card-h { width: 280px; }
           .jsl-search-btn { width: 100%; text-align: center; justify-content: center; margin-top: 8px; }
           .jsl-job-grid { grid-template-columns: 1fr; }
@@ -2422,8 +2749,11 @@ export const JobSearchLanding = () => {
           .jsl-testi-scroll-wrapper { padding: 20px 0; }
           .jsl-testi-card { width: 300px; padding: 30px; }
           .jsl-cat-grid { grid-template-columns: repeat(2, 1fr); }
+          .feature-grid,
+          .how-grid,
+          .trust-stats-grid { grid-template-columns: 1fr; }
           .section-header { flex-direction: column; align-items: flex-start; gap: 12px; }
-          .section-header h2 { font-size: 1.6rem; }
+          .section-header h2 { font-size: 1.48rem; }
           .filters-mini { display: none; }
           .jsl-logo-strip { margin-top: 48px; }
           .jsl-hero-popular { flex-direction: column; align-items: center; gap: 12px; }
@@ -2440,8 +2770,11 @@ export const JobSearchLanding = () => {
         }
         @media (max-width: 480px) {
           .jsl-cat-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-          .jsl-section { padding: 32px 16px; }
+          .jsl-section { padding: 28px 16px; }
           .stat-item { padding: 10px 12px; }
+          .hero-actions { width: 100%; }
+          .hero-cta-primary,
+          .hero-cta-secondary { width: 100%; }
           .jsl-job-card-h { width: 250px; padding: 18px; }
           .job-card-h-badge { padding: 5px 10px; font-size: 0.66rem; }
           .jsl-job-card-v { padding: 20px; border-radius: 22px; }
