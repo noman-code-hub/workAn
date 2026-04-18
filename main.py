@@ -38,31 +38,34 @@ AI_IMPROVE_RATE_LIMIT_PER_MINUTE = int(
     os.getenv("AI_IMPROVE_RATE_LIMIT_PER_MINUTE", "12")
 )
 AI_IMPROVE_CACHE_TTL_SECONDS = int(os.getenv("AI_IMPROVE_CACHE_TTL_SECONDS", "900"))
-AI_IMPROVE_PROMPT_VERSION = "v2"
+AI_IMPROVE_PROMPT_VERSION = "v3"
 AI_IMPROVE_SYSTEM_PROMPT = (
-    "You are a professional resume writer and ATS optimization expert. "
-    "Improve the user's text to be clear, concise, impactful, and professional. "
-    "Use strong action verbs and industry-standard language. Keep it relevant to resumes. "
-    "Do not add fake information. Keep the same meaning but improve wording. "
-    "Return only the final rewritten text. Do not include headings, introductions, "
-    "explanations, markdown, bold formatting, or quotation marks."
+    "You are a professional resume optimization AI trained to rewrite weak resume "
+    "sentences into strong, results-driven bullet points. Your goal is to transform "
+    "the input into a high-impact resume sentence. Start with a powerful action verb "
+    "such as Managed, Developed, Led, Assisted, or Implemented. Improve clarity and "
+    "professionalism. Make it concise and keep it to exactly one sentence. Use "
+    "industry-relevant wording and keep it ATS-optimized. Preserve the original "
+    "meaning. Do not hallucinate metrics, achievements, tools, or responsibilities. "
+    "If the sentence is too basic, enhance it naturally without adding false claims. "
+    "Return only the improved sentence with no explanations, headings, markdown, "
+    "bullets, or quotation marks."
 )
 AI_IMPROVE_USER_PROMPTS = {
     "experience": (
-        "Rewrite this job experience so it is easy to read, professional, and "
-        "resume-ready. Keep it concise and polished. Return only the improved "
-        "experience text with no heading or extra commentary.\n\n{text}"
+        "Rewrite this weak resume sentence into one strong, professional, ATS-friendly "
+        "sentence. Keep the original meaning, but make it more polished and "
+        "results-oriented. Return only one improved sentence.\n\n{text}"
     ),
     "summary": (
-        "Rewrite this into a short, easy-to-read, professional resume summary. "
-        "Avoid first-person phrases like 'I am' or 'my name is'. Keep it natural, "
-        "polished, and ATS-friendly. Return only the final summary paragraph with "
-        "no heading or extra commentary.\n\n{text}"
+        "Rewrite this profile sentence into one concise, professional resume summary "
+        "sentence. Avoid first-person phrases like 'I', 'my', or 'my name is'. "
+        "Keep it polished, ATS-friendly, and natural. Return only one improved "
+        "sentence.\n\n{text}"
     ),
     "skills": (
-        "Rewrite these skills into a clean, professional, easy-to-read resume "
-        "format. Return only the improved skills text with no heading or extra "
-        "commentary.\n\n{text}"
+        "Rewrite this skills statement into one concise, professional, ATS-friendly "
+        "sentence. Return only one improved sentence.\n\n{text}"
     ),
 }
 
@@ -185,6 +188,18 @@ def extract_chat_completion_text(payload: dict) -> str:
         return "\n".join(parts).strip()
 
     return ""
+
+
+def sanitize_improved_sentence(value: str) -> str:
+    cleaned = (
+        str(value or "")
+        .replace("\r\n", "\n")
+        .replace("**", "")
+        .strip()
+    )
+    cleaned = cleaned.lstrip(" >-*").strip().strip("\"'")
+    lines = [line.strip() for line in cleaned.split("\n") if line.strip()]
+    return " ".join(lines).strip()
 
 
 async def get_cached_improvement(cache_key: str) -> str | None:
@@ -377,8 +392,9 @@ async def request_improved_text(text_type: str, text: str, client_id: str) -> st
             detail="AI provider returned an empty response.",
         )
 
-    await set_cached_improvement(cache_key, improved_text)
-    return improved_text
+    normalized_text = sanitize_improved_sentence(improved_text)
+    await set_cached_improvement(cache_key, normalized_text)
+    return normalized_text
 
 
 @app.post("/chat")

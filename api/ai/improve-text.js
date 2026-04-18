@@ -14,14 +14,18 @@ const AI_API_KEY =
 const AI_TEMPERATURE = Number.parseFloat(process.env.AI_TEMPERATURE || '0.7');
 const AI_MAX_OUTPUT_TOKENS = Number.parseInt(process.env.AI_MAX_OUTPUT_TOKENS || '450', 10);
 const AI_IMPROVE_MAX_INPUT_CHARS = Number.parseInt(process.env.AI_IMPROVE_MAX_INPUT_CHARS || '1000', 10);
+const AI_IMPROVE_PROMPT_VERSION = 'v3';
 const AI_IMPROVE_SYSTEM_PROMPT = [
-  'You are a professional resume writer and ATS optimization expert.',
-  'Improve the user\'s text to be clear, concise, impactful, and professional.',
-  'Use strong action verbs and industry-standard language.',
-  'Keep it relevant to resumes and do not invent facts.',
-  'Preserve the original meaning while improving the wording.',
-  'Return only the final rewritten text.',
-  'Do not include headings, introductions, explanations, markdown, bold formatting, or quotation marks.',
+  'You are a professional resume optimization AI trained to rewrite weak resume sentences into strong, results-driven bullet points.',
+  'Your goal is to transform the input into a high-impact resume sentence.',
+  'Start with a powerful action verb such as Managed, Developed, Led, Assisted, or Implemented.',
+  'Improve clarity and professionalism.',
+  'Make it concise and keep it to exactly one sentence.',
+  'Use industry-relevant wording and keep it ATS-optimized.',
+  'Preserve the original meaning.',
+  'Do not hallucinate metrics, achievements, tools, or responsibilities.',
+  'If the sentence is too basic, enhance it naturally without adding false claims.',
+  'Return only the improved sentence with no explanations, headings, markdown, bullets, or quotation marks.',
 ].join(' ');
 
 const json = (response, status, payload) => {
@@ -36,25 +40,25 @@ const buildUserPrompt = (type, text) => {
   switch (type) {
     case 'experience':
       return [
-        'Rewrite this job experience so it is easy to read, professional, and resume-ready.',
-        'Keep it concise and polished.',
-        'Return only the improved experience text with no heading or extra commentary.',
+        'Rewrite this weak resume sentence into one strong, professional, ATS-friendly sentence.',
+        'Keep the original meaning, but make it more polished and results-oriented.',
+        'Return only one improved sentence.',
         '',
         text,
       ].join('\n');
     case 'summary':
       return [
-        'Rewrite this into a short, easy-to-read, professional resume summary.',
-        'Avoid first-person phrases like "I am" or "my name is".',
-        'Keep it natural, polished, and ATS-friendly.',
-        'Return only the final summary paragraph with no heading or extra commentary.',
+        'Rewrite this profile sentence into one concise, professional resume summary sentence.',
+        'Avoid first-person phrases like "I", "my", or "my name is".',
+        'Keep it polished, ATS-friendly, and natural.',
+        'Return only one improved sentence.',
         '',
         text,
       ].join('\n');
     case 'skills':
       return [
-        'Rewrite these skills into a clean, professional, easy-to-read resume format.',
-        'Return only the improved skills text with no heading or extra commentary.',
+        'Rewrite this skills statement into one concise, professional, ATS-friendly sentence.',
+        'Return only one improved sentence.',
         '',
         text,
       ].join('\n');
@@ -82,6 +86,23 @@ const normalizeContent = (content) => {
     })
     .join('\n')
     .trim();
+};
+
+const sanitizeImprovedSentence = (value) => {
+  const cleaned = String(value || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/^[\s>*-]+/, '')
+    .replace(/^"+|"+$/g, '')
+    .replace(/^'+|'+$/g, '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return cleaned;
 };
 
 export default async function handler(request, response) {
@@ -173,9 +194,10 @@ export default async function handler(request, response) {
     }
 
     return json(response, 200, {
-      improved_text: improvedText,
+      improved_text: sanitizeImprovedSentence(improvedText),
       provider: 'huggingface',
       model: AI_MODEL_ID,
+      prompt_version: AI_IMPROVE_PROMPT_VERSION,
     });
   } catch (error) {
     const details =
