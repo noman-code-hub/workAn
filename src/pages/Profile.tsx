@@ -14,6 +14,23 @@ import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
 
 const FAVORITE_JOBS_STORAGE_PREFIX = 'careerpilot:favorite-jobs';
 
+type AtsReport = {
+    overall_score: number;
+    score_band: 'Excellent' | 'Good' | 'Average' | 'Poor';
+    categories: {
+        format: { score: number; issues: string[] };
+        keywords: { score: number; issues: string[] };
+        contact_info: { score: number; issues: string[] };
+        length: { score: number; issues: string[] };
+        content_quality: { score: number; issues: string[] };
+    };
+    detected_keywords: string[];
+    missing_keywords: string[];
+    top_recommendations: string[];
+    improved_summary: string;
+    improved_bullet_points: string[];
+};
+
 export const Profile = () => {
     const { user, updateProfile } = useAuth();
     const navigate = useNavigate();
@@ -23,7 +40,9 @@ export const Profile = () => {
     const [isUploadingBanner, setIsUploadingBanner] = useState(false);
     const [isUploadingResume, setIsUploadingResume] = useState(false);
     const [isSyncingScore, setIsSyncingScore] = useState(false);
+    const [isRunningAtsCheck, setIsRunningAtsCheck] = useState(false);
     const [favoriteJobs, setFavoriteJobs] = useState<Job[]>([]);
+    const [atsReport, setAtsReport] = useState<AtsReport | null>(null);
     const [editName, setEditName] = useState(user?.name || '');
     const [editProfession, setEditProfession] = useState(user?.profession || '');
     const [editAbout, setEditAbout] = useState(user?.about || '');
@@ -45,6 +64,56 @@ export const Profile = () => {
         } catch (error) {
             console.error('Resume preview failed:', error);
             alert((error as Error).message || 'Failed to open resume. Please upload it again.');
+        }
+    };
+
+    const buildAnalyticsUpdate = (report: AtsReport | null, fallbackScore?: number, fallbackSummary?: string, resumeUrlOverride?: string) => {
+        const nextScore = typeof report?.overall_score === 'number' ? report.overall_score : fallbackScore;
+        if (typeof nextScore !== 'number') {
+            return null;
+        }
+
+        const previousHistory = user?.analytics?.scoreHistory || [];
+        return {
+            ...(user?.analytics || {}),
+            resumeScore: nextScore,
+            keywordsMatched: report?.detected_keywords || user?.analytics?.keywordsMatched || [],
+            matchedSkills: report?.detected_keywords || user?.analytics?.matchedSkills || [],
+            missingSkills: report?.missing_keywords || user?.analytics?.missingSkills || [],
+            aiFeedback: report?.top_recommendations?.join(' ') || fallbackSummary || user?.analytics?.aiFeedback || '',
+            lastAnalyzed: new Date(),
+            scoreHistory: [
+                ...previousHistory,
+                {
+                    score: nextScore,
+                    date: new Date(),
+                    resumeUrl: resumeUrlOverride || user?.resumeURL,
+                }
+            ]
+        };
+    };
+
+    const handleRunAtsCheck = async () => {
+        if (!user?.resumeURL) return;
+
+        setIsRunningAtsCheck(true);
+        try {
+            const response = await axios.post(apiUrl('/analyze-resume'), {
+                resumeUrl: user.resumeURL,
+            });
+
+            const report = response.data as AtsReport;
+            setAtsReport(report);
+
+            const analyticsUpdate = buildAnalyticsUpdate(report);
+            if (analyticsUpdate) {
+                await updateProfile({ analytics: analyticsUpdate });
+            }
+        } catch (error) {
+            console.error('Failed to run ATS check:', error);
+            alert('Failed to run ATS check. Please try again.');
+        } finally {
+            setIsRunningAtsCheck(false);
         }
     };
 
@@ -80,28 +149,15 @@ export const Profile = () => {
                     const formData = new FormData();
                     formData.append('resume', file);
                     const analysisRes = await axios.post(apiUrl('/upload-resume'), formData);
+                    const nextAtsReport = analysisRes.data?.ats_report || null;
+                    setAtsReport(nextAtsReport);
 
                     if (analysisRes.data && analysisRes.data.score !== undefined) {
                         const newScore = analysisRes.data.score;
-                        const previousHistory = user.analytics?.scoreHistory || [];
-
-                        updates.analytics = {
-                            ...(user.analytics || {}),
-                            resumeScore: newScore,
-                            keywordsMatched: analysisRes.data.keywords_matched,
-                            matchedSkills: analysisRes.data.keywords_matched, // Use same for now
-                            missingSkills: analysisRes.data.missing_skills,
-                            aiFeedback: analysisRes.data.summary,
-                            lastAnalyzed: new Date(),
-                            scoreHistory: [
-                                ...previousHistory,
-                                {
-                                    score: newScore,
-                                    date: new Date(),
-                                    resumeUrl: downloadURL
-                                }
-                            ]
-                        };
+                        const analyticsUpdate = buildAnalyticsUpdate(nextAtsReport, newScore, analysisRes.data.summary, downloadURL);
+                        if (analyticsUpdate) {
+                            updates.analytics = analyticsUpdate;
+                        }
                     }
                 } catch (err) {
                     console.error("Failed to analyze resume:", err);
@@ -152,10 +208,13 @@ export const Profile = () => {
             const response = await axios.post(apiUrl('/upload-resume'), {
                 resumeUrl: user.resumeURL
             });
+            const nextAtsReport = response.data?.ats_report || null;
+            setAtsReport(nextAtsReport);
 
             if (response.data && response.data.score !== undefined) {
+                const analyticsUpdate = buildAnalyticsUpdate(nextAtsReport, response.data.score, response.data.summary);
                 await updateProfile({
-                    analytics: {
+                    analytics: analyticsUpdate || {
                         ...(user.analytics || {}),
                         resumeScore: response.data.score
                     }
@@ -408,6 +467,14 @@ export const Profile = () => {
                                 >
                                     {isUploadingResume ? 'Uploading...' : user?.resumeURL ? 'Update Resume' : 'Add Resume'}
                                 </button>
+                                <button
+                                    className="view-resume-link ats-check-btn"
+                                    type="button"
+                                    onClick={handleRunAtsCheck}
+                                    disabled={!user?.resumeURL || isRunningAtsCheck || isUploadingResume}
+                                >
+                                    {isRunningAtsCheck ? 'Running ATS...' : 'ATS Check'}
+                                </button>
                                 {user?.resumeURL && (
                                     <a
                                         href={user.resumeURL}
@@ -428,6 +495,67 @@ export const Profile = () => {
                                 onChange={(e) => handleFileChange(e, 'resumes')}
                             />
                         </div>
+
+                        {atsReport && (
+                            <div className="profile-section-shell ats-insights-shell">
+                                <div className="ats-insights-header">
+                                    <div>
+                                        <p className="ats-kicker">ATS Report</p>
+                                        <h3>ATS insights for your latest resume</h3>
+                                    </div>
+                                    <div className="ats-score-chip">
+                                        <strong>{atsReport.overall_score}/100</strong>
+                                        <span>{atsReport.score_band}</span>
+                                    </div>
+                                </div>
+
+                                <div className="ats-category-grid">
+                                    <div className="ats-category-card">
+                                        <span>Format</span>
+                                        <strong>{atsReport.categories.format.score}%</strong>
+                                    </div>
+                                    <div className="ats-category-card">
+                                        <span>Keywords</span>
+                                        <strong>{atsReport.categories.keywords.score}%</strong>
+                                    </div>
+                                    <div className="ats-category-card">
+                                        <span>Contact</span>
+                                        <strong>{atsReport.categories.contact_info.score}%</strong>
+                                    </div>
+                                    <div className="ats-category-card">
+                                        <span>Length</span>
+                                        <strong>{atsReport.categories.length.score}%</strong>
+                                    </div>
+                                    <div className="ats-category-card">
+                                        <span>Content</span>
+                                        <strong>{atsReport.categories.content_quality.score}%</strong>
+                                    </div>
+                                </div>
+
+                                <div className="ats-recommendations">
+                                    <div className="ats-list-block">
+                                        <h4>Top recommendations</h4>
+                                        <ul>
+                                            {atsReport.top_recommendations.map((item) => (
+                                                <li key={item}>{item}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                    <div className="ats-list-block">
+                                        <h4>Missing keywords</h4>
+                                        {atsReport.missing_keywords.length > 0 ? (
+                                            <div className="ats-keyword-list">
+                                                {atsReport.missing_keywords.slice(0, 8).map((keyword) => (
+                                                    <span key={keyword}>{keyword}</span>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p>No critical missing keywords detected.</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Carousel Cards */}
                         <div className="status-carousel">
@@ -2117,12 +2245,143 @@ export const Profile = () => {
             gap: 10px;
         }
 
+        .ats-check-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         .view-resume-link {
             border-radius: 999px;
             padding: 8px 14px;
             border: 1px solid rgba(15, 23, 42, 0.16);
             color: #1e293b;
             background: #ffffff;
+        }
+
+        .ats-insights-shell {
+            display: grid;
+            gap: 16px;
+        }
+
+        .ats-insights-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+        }
+
+        .ats-kicker {
+            margin: 0 0 6px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #0f766e;
+        }
+
+        .ats-insights-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #0f172a;
+        }
+
+        .ats-score-chip {
+            min-width: 120px;
+            border-radius: 14px;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            background: #f8fafc;
+            padding: 12px 14px;
+            text-align: right;
+        }
+
+        .ats-score-chip strong {
+            display: block;
+            font-size: 22px;
+            color: #0f172a;
+        }
+
+        .ats-score-chip span {
+            font-size: 12px;
+            font-weight: 700;
+            color: #475569;
+        }
+
+        .ats-category-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .ats-category-card {
+            border-radius: 12px;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            background: #f8fafc;
+            padding: 12px;
+            display: grid;
+            gap: 8px;
+        }
+
+        .ats-category-card span {
+            font-size: 12px;
+            font-weight: 700;
+            color: #475569;
+        }
+
+        .ats-category-card strong {
+            font-size: 20px;
+            color: #0f172a;
+        }
+
+        .ats-recommendations {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+            gap: 14px;
+        }
+
+        .ats-list-block {
+            border-radius: 14px;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            background: #ffffff;
+            padding: 14px;
+        }
+
+        .ats-list-block h4 {
+            margin: 0 0 10px;
+            font-size: 14px;
+            color: #0f172a;
+        }
+
+        .ats-list-block ul {
+            margin: 0;
+            padding-left: 18px;
+            display: grid;
+            gap: 8px;
+            color: #334155;
+            font-size: 14px;
+        }
+
+        .ats-list-block p {
+            margin: 0;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .ats-keyword-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .ats-keyword-list span {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            border: 1px solid #bae6fd;
+            background: #f0f9ff;
+            color: #0f172a;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 700;
         }
 
         .status-carousel {
@@ -2332,6 +2591,14 @@ export const Profile = () => {
             .quick-stats-card {
                 padding: 16px;
             }
+
+            .ats-category-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .ats-recommendations {
+                grid-template-columns: 1fr;
+            }
         }
 
         @media (max-width: 768px) {
@@ -2360,6 +2627,15 @@ export const Profile = () => {
             .analytics-shell,
             .profile-section-shell {
                 border-radius: 16px;
+            }
+
+            .ats-insights-header {
+                flex-direction: column;
+            }
+
+            .ats-score-chip {
+                width: 100%;
+                text-align: left;
             }
         }
 
@@ -2390,6 +2666,10 @@ export const Profile = () => {
             .view-resume-link {
                 font-size: 12px;
                 padding: 7px 12px;
+            }
+
+            .ats-category-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
 
             .favorite-job-item {

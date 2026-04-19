@@ -22,6 +22,27 @@ const PAGE_SIZES = {
   letter: { label: 'Letter', width: 816, height: 1056 },
 } as const;
 type PreviewPageSize = keyof typeof PAGE_SIZES;
+type AtsReport = {
+  overall_score: number;
+  score_band: 'Excellent' | 'Good' | 'Average' | 'Poor';
+  score_band_message?: string;
+  pass_probability?: string;
+  categories: {
+    format: { score: number; issues: string[]; fix?: string; status?: string; passed_checks?: string[] };
+    keywords: { score: number; issues: string[]; fix?: string; status?: string; passed_checks?: string[]; matched_keywords?: string[]; missing_keywords?: string[] };
+    contact_info: { score: number; issues: string[]; fix?: string; status?: string; passed_checks?: string[] };
+    length: { score: number; issues: string[]; fix?: string; status?: string; passed_checks?: string[] };
+    content_quality: { score: number; issues: string[]; fix?: string; status?: string; passed_checks?: string[]; action_verbs_found?: string[]; quantified_achievements?: string[]; cliches_found?: string[] };
+  };
+  detected_keywords: string[];
+  missing_keywords: string[];
+  top_3_priorities?: string[];
+  quick_wins?: string[];
+  strengths?: string[];
+  top_recommendations: string[];
+  improved_summary: string;
+  improved_bullet_points: string[];
+};
 const ENABLE_PREVIEW_PAGINATION = false;
 const PAGE_GAP_PX = 24;
 const PREVIEW_FONT_SCALES = [1, 0.93, 0.86, 0.79, 0.75];
@@ -781,6 +802,8 @@ export const Resume = () => {
   const [hasUnlockedCustomize, setHasUnlockedCustomize] = useState(false);
   const [tailorRole, setTailorRole] = useState('');
   const [tailorKeywords, setTailorKeywords] = useState('');
+  const [isRunningAtsCheck, setIsRunningAtsCheck] = useState(false);
+  const [atsReport, setAtsReport] = useState<AtsReport | null>(null);
   const [projectsText, setProjectsText] = useState('');
   const [additionalText] = useState("");
   const [customDetails, setCustomDetails] = useState<{ id: string; label: string; value: string }[]>([]);
@@ -1630,6 +1653,128 @@ export const Resume = () => {
     templateFieldValues,
     templateSourceHtml,
   ]);
+
+  const buildAtsResumeText = useCallback(() => {
+    const summary = parseRichTextMultilineText(summaryText);
+    const skills = parseCommaOrNewline(skillsText).join(', ');
+    const projects = parseNewline(projectsText).join('\n');
+    const certifications = parseRichTextMultilineText((templateFieldValues.certifications || templateFieldValues.certifications_text || '').toString());
+    const awards = parseRichTextMultilineText((templateFieldValues.awards || templateFieldValues.awards_text || templateFieldValues.achievements || '').toString());
+    const website = (templateFieldValues.website || templateFieldValues.portfolio || '').toString().trim();
+    const linkedIn = (templateFieldValues.linkedin || '').toString().trim();
+
+    const experienceText = experienceItems
+      .map((item) => {
+        const role = parseRichTextInlineText(item.role);
+        const company = parseRichTextInlineText(item.company);
+        const dates = parseRichTextInlineText(item.dates);
+        const details = parseRichTextMultilineText(item.details);
+        return [[role, company].filter(Boolean).join(' - '), dates, details].filter(Boolean).join('\n');
+      })
+      .filter(Boolean)
+      .join('\n\n');
+
+    const educationText = educationItems
+      .map((item) => {
+        const degree = parseRichTextInlineText(item.degree);
+        const school = parseRichTextInlineText(item.school);
+        const dates = parseRichTextInlineText(item.dates);
+        const details = parseRichTextMultilineText(item.details);
+        return [[degree, school].filter(Boolean).join(' - '), dates, details].filter(Boolean).join('\n');
+      })
+      .filter(Boolean)
+      .join('\n\n');
+
+    return [
+      `FULL NAME: ${contactName || 'Not provided'}`,
+      `PROFESSIONAL TITLE: ${contactRole || 'Not provided'}`,
+      `EMAIL: ${contactEmail || 'Not provided'}`,
+      `PHONE: ${contactPhone || 'Not provided'}`,
+      `LOCATION: ${contactLocation || 'Not provided'}`,
+      `LINKEDIN: ${linkedIn || 'Not provided'}`,
+      `PORTFOLIO: ${website || 'Not provided'}`,
+      '',
+      `SUMMARY:\n${summary || 'Not provided'}`,
+      '',
+      `SKILLS:\n${skills || 'Not provided'}`,
+      '',
+      `EXPERIENCE:\n${experienceText || 'Not provided'}`,
+      '',
+      `EDUCATION:\n${educationText || 'Not provided'}`,
+      '',
+      `PROJECTS:\n${projects || 'Not provided'}`,
+      '',
+      `CERTIFICATIONS:\n${certifications || 'Not provided'}`,
+      '',
+      `AWARDS:\n${awards || 'Not provided'}`,
+    ].join('\n');
+  }, [
+    contactName,
+    contactRole,
+    contactEmail,
+    contactPhone,
+    contactLocation,
+    summaryText,
+    skillsText,
+    experienceItems,
+    educationItems,
+    projectsText,
+    templateFieldValues,
+  ]);
+
+  const handleRunAtsCheck = useCallback(async () => {
+    setActiveEditorTab('review');
+    setIsRunningAtsCheck(true);
+    setAtsReport(null);
+    setGenerateError(null);
+
+    try {
+      const localDevHost = typeof window !== 'undefined'
+        && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      const prefersLocalFallback = localDevHost && !/localhost|127\.0\.0\.1/i.test(API_BASE);
+      const analyzeEndpoints = [
+        apiUrl('/analyze-resume'),
+        ...(prefersLocalFallback ? ['http://localhost:5000/api/analyze-resume'] : []),
+      ];
+
+      const payload = {
+        resumeText: buildAtsResumeText(),
+        jobDescription: [tailorRole.trim(), tailorKeywords.trim()].filter(Boolean).join('\n'),
+      };
+
+      let response: AxiosResponse<AtsReport> | null = null;
+      let lastError: unknown = null;
+
+      for (const endpoint of analyzeEndpoints) {
+        try {
+          response = await axios.post<AtsReport>(endpoint, payload, {
+            timeout: RESUME_UPLOAD_TIMEOUT_MS,
+          });
+          lastError = null;
+          break;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      if (lastError) {
+        throw lastError;
+      }
+
+      if (!response?.data) {
+        throw new Error('ATS analysis did not return a result.');
+      }
+
+      setAtsReport(response.data);
+    } catch (error: any) {
+      const details = typeof error?.response?.data?.details === 'string'
+        ? error.response.data.details
+        : error?.message || 'ATS check failed.';
+      setGenerateError(details);
+    } finally {
+      setIsRunningAtsCheck(false);
+    }
+  }, [buildAtsResumeText, tailorKeywords, tailorRole]);
 
   const buildJsonResumeData = useCallback(() => {
     const skills = parseCommaOrNewline(skillsText).map((name) => ({ name, value: name, bullet: '\u2022' }));
@@ -4581,10 +4726,12 @@ export const Resume = () => {
                 </button>
                 <button
                   type="button"
-                  className={`resume-topbar-pill ${activeEditorTab === 'review' ? 'is-active' : ''}`}
-                  onClick={() => setActiveEditorTab('review')}
+                  className={`resume-topbar-pill ats-topbar-pill ${activeEditorTab === 'review' ? 'is-active' : ''}`}
+                  onClick={handleRunAtsCheck}
+                  disabled={isRunningAtsCheck}
+                  title="Run ATS analysis"
                 >
-                  AI Review
+                  ATS Check
                 </button>
                 <button
                   type="button"
@@ -5295,25 +5442,170 @@ export const Resume = () => {
                     <div className="tab-panel-header">
                       <div>
                         <h2>AI Review</h2>
-                        <p>See what’s missing and improve your resume quality.</p>
+                        <p>See ATS analysis fetched from the API.</p>
                       </div>
                       <div className="review-score">
                         <span>Score</span>
-                        <strong>{resumeScore}%</strong>
+                        <strong>{atsReport ? `${atsReport.overall_score}%` : '--'}</strong>
                       </div>
                     </div>
                     <div className="tab-panel-body">
-                      <div className="tab-section">
-                        <h3>Completion checklist</h3>
-                        <div className="review-list">
-                          {availableSections.map((sectionId) => (
-                            <div key={`review-${sectionId}`} className={`review-item ${sectionCompletion[sectionId] ? 'complete' : 'missing'}`}>
-                              <span>{RESUME_SECTION_TITLES[sectionId] || sectionId}</span>
-                              <strong>{sectionCompletion[sectionId] ? 'Complete' : 'Needs attention'}</strong>
+                      {isRunningAtsCheck && (
+                        <div className="ats-loading-shell" aria-live="polite" aria-busy="true">
+                          <div className="ats-loading-card">
+                            <div className="ats-loading-doc">
+                              <span className="ats-loading-line ats-loading-line-wide" />
+                              <span className="ats-loading-line" />
+                              <span className="ats-loading-line ats-loading-line-short" />
+                              <span className="ats-loading-line ats-loading-line-wide" />
+                              <span className="ats-loading-line" />
+                              <span className="ats-loading-line ats-loading-line-short" />
+                              <div className="ats-loading-scan" />
                             </div>
-                          ))}
+                            <div className="ats-loading-copy">
+                              <h3>Analyzing your resume</h3>
+                              <p>Checking formatting, keywords, contact details, structure, and content quality through the ATS API.</p>
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      )}
+                      {!isRunningAtsCheck && atsReport && (
+                        <>
+                          <div className="tab-section">
+                            <h3>ATS report</h3>
+                            <div className="ats-review-grid">
+                              <div className="ats-review-score-card">
+                                <span>Overall ATS score</span>
+                                <strong>{atsReport.overall_score}/100</strong>
+                                <p>{atsReport.score_band}</p>
+                              </div>
+                              <div className="ats-review-score-list">
+                                <div><span>Format</span><strong>{atsReport.categories.format.score}%</strong></div>
+                                <div><span>Keywords</span><strong>{atsReport.categories.keywords.score}%</strong></div>
+                                <div><span>Contact</span><strong>{atsReport.categories.contact_info.score}%</strong></div>
+                                <div><span>Length</span><strong>{atsReport.categories.length.score}%</strong></div>
+                                <div><span>Content</span><strong>{atsReport.categories.content_quality.score}%</strong></div>
+                              </div>
+                            </div>
+                            {(atsReport.score_band_message || atsReport.pass_probability) && (
+                              <div className="ats-summary-strip">
+                                {atsReport.score_band_message ? (
+                                  <p className="tab-section-copy">{atsReport.score_band_message}</p>
+                                ) : <span />}
+                                {atsReport.pass_probability ? (
+                                  <div className="ats-pass-chip">
+                                    <span>Pass probability</span>
+                                    <strong>{atsReport.pass_probability}</strong>
+                                  </div>
+                                ) : null}
+                              </div>
+                            )}
+                          </div>
+                          {!!atsReport.strengths?.length && (
+                            <div className="tab-section">
+                              <h3>Strengths</h3>
+                              <div className="review-list">
+                                {atsReport.strengths.map((item) => (
+                                  <div key={item} className="review-item complete">
+                                    <span>{item}</span>
+                                    <strong>Strength</strong>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          <div className="tab-section">
+                            <h3>Top recommendations</h3>
+                            <div className="review-list">
+                              {atsReport.top_recommendations.map((item) => (
+                                <div key={item} className="review-item missing">
+                                  <span>{item}</span>
+                                  <strong>Action needed</strong>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          {!!atsReport.quick_wins?.length && (
+                            <div className="tab-section">
+                              <h3>Quick wins</h3>
+                              <div className="review-list">
+                                {atsReport.quick_wins.map((item) => (
+                                  <div key={item} className="review-item complete">
+                                    <span>{item}</span>
+                                    <strong>Fast fix</strong>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {!!atsReport.top_3_priorities?.length && (
+                            <div className="tab-section">
+                              <h3>Top 3 priorities</h3>
+                              <div className="review-list">
+                                {atsReport.top_3_priorities.map((item) => (
+                                  <div key={item} className="review-item missing">
+                                    <span>{item}</span>
+                                    <strong>Priority</strong>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          <div className="tab-section">
+                            <h3>Missing keywords</h3>
+                            {atsReport.missing_keywords.length > 0 ? (
+                              <div className="ats-keyword-list">
+                                {atsReport.missing_keywords.map((keyword) => (
+                                  <span key={keyword}>{keyword}</span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="tab-section-copy">No major keyword gaps detected for the current resume context.</p>
+                            )}
+                          </div>
+                          <div className="tab-section">
+                            <h3>Category fixes</h3>
+                            <div className="ats-fix-grid">
+                              {[
+                                { label: 'Format', data: atsReport.categories.format },
+                                { label: 'Keywords', data: atsReport.categories.keywords },
+                                { label: 'Contact', data: atsReport.categories.contact_info },
+                                { label: 'Length', data: atsReport.categories.length },
+                                { label: 'Content', data: atsReport.categories.content_quality },
+                              ].map((item) => (
+                                <div key={item.label} className="ats-fix-card">
+                                  <div className="ats-fix-card-header">
+                                    <span>{item.label}</span>
+                                    <strong>{item.data.status || 'Review'}</strong>
+                                  </div>
+                                  <p>{item.data.fix || 'Review this category for improvement opportunities.'}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="tab-section">
+                            <h3>Improved summary</h3>
+                            <p className="tab-section-copy">{atsReport.improved_summary}</p>
+                          </div>
+                          <div className="tab-section">
+                            <h3>Improved bullet points</h3>
+                            <div className="review-list">
+                              {atsReport.improved_bullet_points.map((item) => (
+                                <div key={item} className="review-item complete">
+                                  <span>{item}</span>
+                                  <strong>Suggested</strong>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                      {!isRunningAtsCheck && !atsReport && (
+                        <div className="tab-section">
+                          <h3>No ATS report yet</h3>
+                          <p className="tab-section-copy">Click `ATS Check` to fetch live ATS analysis from the API.</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -6154,6 +6446,11 @@ export const Resume = () => {
           border-radius: 999px;
           font-size: 0.82rem;
           font-weight: 600;
+        }
+
+        .resume-topbar-pill:disabled {
+          opacity: 0.65;
+          cursor: not-allowed;
         }
 
         .resume-topbar-pill.is-active {
@@ -7210,6 +7507,17 @@ export const Resume = () => {
           box-shadow: 0 10px 20px -18px rgba(15, 23, 42, 0.4);
         }
 
+        .ai-chip:disabled {
+          opacity: 0.65;
+          cursor: not-allowed;
+        }
+
+        .ats-trigger-chip {
+          border-color: rgba(15, 118, 110, 0.2);
+          background: rgba(20, 184, 166, 0.1);
+          color: #0f766e;
+        }
+
         .builder-preview-panel {
           min-width: 0;
           display: flex;
@@ -7593,6 +7901,265 @@ export const Resume = () => {
         .step-header-actions {
           display: flex;
           gap: 8px;
+          justify-content: flex-end;
+        }
+
+        .ats-review-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+          gap: 16px;
+        }
+
+        .ats-review-score-card {
+          border: 1px solid #dbe5ef;
+          border-radius: 18px;
+          background: #f8fafc;
+          padding: 18px;
+          display: grid;
+          gap: 8px;
+        }
+
+        .ats-review-score-card span {
+          font-size: 0.78rem;
+          font-weight: 700;
+          color: #64748b;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .ats-review-score-card strong {
+          font-size: 2rem;
+          line-height: 1;
+          color: #0f172a;
+        }
+
+        .ats-review-score-card p {
+          margin: 0;
+          color: #475569;
+          font-weight: 600;
+        }
+
+        .ats-review-score-list {
+          display: grid;
+          gap: 10px;
+        }
+
+        .ats-review-score-list div {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          border: 1px solid #e2e8f0;
+          border-radius: 14px;
+          background: #ffffff;
+          padding: 12px 14px;
+        }
+
+        .ats-review-score-list span {
+          color: #475569;
+          font-weight: 600;
+        }
+
+        .ats-review-score-list strong {
+          color: #0f172a;
+          font-size: 1rem;
+        }
+
+        .ats-summary-strip {
+          margin-top: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          flex-wrap: wrap;
+        }
+
+        .ats-pass-chip {
+          display: inline-flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 2px;
+          padding: 10px 12px;
+          border-radius: 12px;
+          border: 1px solid #dbeafe;
+          background: #f8fbff;
+        }
+
+        .ats-pass-chip span {
+          font-size: 0.72rem;
+          font-weight: 700;
+          color: #64748b;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .ats-pass-chip strong {
+          font-size: 1rem;
+          color: #0f172a;
+        }
+
+        .ats-keyword-list {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .ats-keyword-list span {
+          padding: 6px 10px;
+          border-radius: 999px;
+          border: 1px solid #bfdbfe;
+          background: #eff6ff;
+          color: #1e3a8a;
+          font-size: 0.78rem;
+          font-weight: 700;
+        }
+
+        .tab-section-copy {
+          margin: 0;
+          color: #475569;
+          line-height: 1.65;
+        }
+
+        .ats-loading-shell {
+          min-height: 360px;
+          display: grid;
+          place-items: center;
+        }
+
+        .ats-loading-card {
+          width: min(100%, 720px);
+          border: 1px solid #dbe5ef;
+          border-radius: 24px;
+          background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+          box-shadow: 0 24px 40px -32px rgba(15, 23, 42, 0.28);
+          padding: 28px;
+          display: grid;
+          gap: 20px;
+          justify-items: center;
+        }
+
+        .ats-loading-doc {
+          width: min(100%, 320px);
+          height: 220px;
+          position: relative;
+          border-radius: 18px;
+          border: 1px solid #dbe5ef;
+          background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+          padding: 22px 20px;
+          overflow: hidden;
+        }
+
+        .ats-loading-doc::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          right: 0;
+          width: 46px;
+          height: 46px;
+          background: linear-gradient(135deg, #eef2ff 0%, #ffffff 70%);
+          clip-path: polygon(100% 0, 0 0, 100% 100%);
+          border-left: 1px solid #dbe5ef;
+          border-bottom: 1px solid #dbe5ef;
+        }
+
+        .ats-loading-line {
+          display: block;
+          height: 10px;
+          border-radius: 999px;
+          background: linear-gradient(90deg, #e2e8f0 0%, #f8fafc 50%, #e2e8f0 100%);
+          background-size: 200% 100%;
+          animation: atsShimmer 1.4s linear infinite;
+          margin-bottom: 14px;
+          width: 76%;
+        }
+
+        .ats-loading-line-wide {
+          width: 92%;
+        }
+
+        .ats-loading-line-short {
+          width: 58%;
+        }
+
+        .ats-loading-scan {
+          position: absolute;
+          left: 12px;
+          right: 12px;
+          height: 3px;
+          border-radius: 999px;
+          background: linear-gradient(90deg, rgba(37, 99, 235, 0), rgba(37, 99, 235, 0.95), rgba(37, 99, 235, 0));
+          box-shadow: 0 0 18px rgba(37, 99, 235, 0.35);
+          animation: atsScan 2.2s ease-in-out infinite;
+        }
+
+        .ats-loading-copy {
+          text-align: center;
+          max-width: 520px;
+        }
+
+        .ats-loading-copy h3 {
+          margin: 0 0 8px;
+          color: #0f172a;
+          font-size: 1.2rem;
+        }
+
+        .ats-loading-copy p {
+          margin: 0;
+          color: #64748b;
+          line-height: 1.7;
+        }
+
+        @keyframes atsShimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+
+        @keyframes atsScan {
+          0% { top: 18px; opacity: 0.3; }
+          50% { top: calc(100% - 24px); opacity: 1; }
+          100% { top: 18px; opacity: 0.3; }
+        }
+
+        .ats-fix-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+        }
+
+        .ats-fix-card {
+          border: 1px solid #e2e8f0;
+          border-radius: 14px;
+          background: #ffffff;
+          padding: 14px;
+          display: grid;
+          gap: 10px;
+        }
+
+        .ats-fix-card-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+        }
+
+        .ats-fix-card-header span {
+          font-size: 0.9rem;
+          font-weight: 700;
+          color: #0f172a;
+        }
+
+        .ats-fix-card-header strong {
+          font-size: 0.76rem;
+          font-weight: 700;
+          color: #64748b;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .ats-fix-card p {
+          margin: 0;
+          color: #475569;
+          line-height: 1.6;
         }
 
         .step-footer {
@@ -7950,6 +8517,14 @@ export const Resume = () => {
         }
 
         @media (max-width: 768px) {
+          .ats-review-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .ats-fix-grid {
+            grid-template-columns: 1fr;
+          }
+
           .resume-topbar {
             grid-template-columns: 1fr;
             margin: 10px 14px 0;
