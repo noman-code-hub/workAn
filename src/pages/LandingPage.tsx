@@ -219,8 +219,8 @@ export const LandingPage = () => {
         .hero-shell {
           max-width: 1200px;
           margin: 0 auto;
-          height: 100%;
-          padding: 64px 24px;
+          min-height: calc(100vh - var(--header-height));
+          padding: 64px 24px 48px;
           position: relative;
           z-index: 1;
           display: flex;
@@ -326,6 +326,7 @@ export const LandingPage = () => {
           gap: 12px;
           padding: 0 16px;
           color: #9ca7bb;
+          min-width: 0;
         }
 
         .hero-search-location {
@@ -339,6 +340,7 @@ export const LandingPage = () => {
           font-size: 1rem;
           color: #1e293b;
           background: transparent;
+          min-width: 0;
         }
 
         .hero-search-button {
@@ -571,13 +573,54 @@ export const LandingPage = () => {
         @media (max-width: 1024px) {
           .hero-search { grid-template-columns: 1fr; border-radius: 24px; }
           .hero-search-location { border-left: none; border-top: 1px solid #edf2f7; }
+          [data-theme="dark"] .hero-search-location { border-top-color: #243244; }
         }
 
         @media (max-width: 768px) {
+          .hero-shell {
+            padding: 48px 16px 40px;
+          }
           .hero-popular { flex-wrap: wrap; }
-          .hero-insights { flex-direction: column; align-items: center; }
+          .hero-popular-chips { flex-wrap: wrap; }
+          .hero-insights { flex-direction: column; align-items: center; width: 100%; }
+          .insight-card { width: 100%; max-width: 340px; }
           .ai-chat-pill span { display: none; }
-          .ai-chat-pill { padding: 12px; }
+          .ai-chat-pill { padding: 12px; right: 20px; bottom: 20px; }
+        }
+
+        @media (max-width: 480px) {
+          .hero-shell {
+            padding: 40px 12px 32px;
+          }
+          .hero-search {
+            padding: 6px;
+            gap: 0;
+          }
+          .hero-search-field {
+            padding: 10px 12px;
+          }
+          .hero-search-field input {
+            font-size: 16px !important;
+          }
+          .hero-search-button {
+            width: 100%;
+            min-height: 48px;
+            border-radius: 16px;
+          }
+          .hero-popular {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+          }
+          .hero-popular-chip {
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+          }
+          .insight-card {
+            width: 100%;
+            max-width: 100%;
+          }
         }
       `}</style>
     </div>

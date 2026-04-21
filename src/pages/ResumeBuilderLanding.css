@@ -704,9 +704,11 @@
   .rb-feat3 { grid-template-columns: repeat(2,1fr); }
   .rb-seo-grid { grid-template-columns: 1fr; }
   .rb-stats4 { grid-template-columns: repeat(2,1fr); }
+  .rb-hero-inner { padding: 0 24px; }
+  .rb-section, .rb-logos, .rb-interview, .rb-final { padding: 0 24px; }
 }
 @media (max-width: 768px) {
-  .rb-hero-inner { grid-template-columns: 1fr; }
+  .rb-hero-inner { grid-template-columns: 1fr; padding: 0 16px; }
   .rb-hero-right { display: none; }
   .rb-feat3 { grid-template-columns: 1fr; }
   .rb-beyond-grid { grid-template-columns: 1fr; }
@@ -715,15 +717,38 @@
   .rb-interview-inner { grid-template-columns: 1fr; padding: 32px 24px; }
   .rb-final-inner { grid-template-columns: 1fr; padding: 32px 24px; }
   .rb-final-person { display: none; }
-  .rb-section, .rb-logos, .rb-interview, .rb-final { padding: 0 20px; }
+  .rb-section, .rb-logos, .rb-interview, .rb-final { padding: 0 16px; }
+  .rb-beyond-inner { padding: 0 16px; }
   .rb-stats4 { grid-template-columns: repeat(2,1fr); }
   .rb-logos-inner { padding: 16px; }
   .rb-seo-intro,
   .rb-seo-card { padding: 20px; }
-  .rb-footer { padding: 32px 20px; }
-  .rb-footer-inner, .rb-footer-bottom { padding-left: 0; padding-right: 0; flex-direction: column; align-items: flex-start; }
+  .rb-bigstat { padding: 32px 16px 48px; }
+  .rb-btn-primary,
+  .rb-btn-green,
+  .rb-btn-ghost { min-height: 44px; }
 }
 @media (max-width: 480px) {
+  .rb-hero { padding: 32px 0 0; }
+  .rb-hero-inner { padding: 0 12px; }
+  .rb-hero-h1 { font-size: clamp(1.6rem, 7vw, 2rem); }
+  .rb-hero-ctas { flex-direction: column; gap: 10px; }
+  .rb-btn-primary,
+  .rb-btn-green,
+  .rb-btn-ghost { width: 100%; justify-content: center; padding: 14px 20px; }
   .rb-stats4 { grid-template-columns: 1fr 1fr; }
-  .rb-hero-h1 { font-size: 1.8rem; }
+  .rb-section, .rb-logos, .rb-interview, .rb-final { padding: 0 12px; }
+  .rb-beyond-inner { padding: 0 12px; }
+  .rb-interview-inner { padding: 24px 16px; }
+  .rb-final-inner { padding: 24px 16px; }
+  .rb-section { margin-top: 40px; }
+  .rb-tpl-card { width: 150px; }
+  .rb-tpl-thumb { height: 200px; }
+}
+@media (max-width: 320px) {
+  .rb-hero-inner { padding: 0 10px; }
+  .rb-hero-h1 { font-size: 1.5rem; }
+  .rb-section, .rb-logos, .rb-interview, .rb-final { padding: 0 10px; }
+  .rb-beyond-inner { padding: 0 10px; }
+  .rb-stats4 { grid-template-columns: 1fr; }
 }

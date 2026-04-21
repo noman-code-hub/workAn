@@ -175,6 +175,10 @@ export const Footer = () => {
             gap: 40px;
           }
 
+          .footer-brand-section {
+            max-width: 100%;
+          }
+
           .footer-nav {
             justify-content: flex-start;
             gap: 32px;
@@ -184,12 +188,40 @@ export const Footer = () => {
             flex-direction: column;
             align-items: flex-start;
           }
+
+          /* Larger tap targets for footer links on touch devices */
+          .footer-col a {
+            padding: 6px 0;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+          }
         }
 
         @media (max-width: 480px) {
           .footer-legal {
             flex-direction: column;
             gap: 12px;
+          }
+
+          .footer-nav {
+            grid-template-columns: repeat(2, 1fr);
+            display: grid;
+            gap: 24px;
+          }
+        }
+
+        @media (max-width: 375px) {
+          .global-footer {
+            padding: 36px 12px 24px;
+          }
+
+          .footer-nav {
+            grid-template-columns: 1fr 1fr;
+          }
+
+          .footer-col {
+            min-width: 0;
           }
         }
       `}</style>

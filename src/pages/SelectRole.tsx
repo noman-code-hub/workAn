@@ -33,11 +33,8 @@ export const SelectRole = () => {
         if (!user) return;
 
         try {
-            // Update role in Firestore and local state
             await updateProfile({ role });
 
-            // Navigation will be handled by the effect above on next render
-            // or explicit navigation here for faster feedback
             switch (role) {
                 case 'recruiter':
                     navigate('/recruiter', { replace: true });
@@ -49,7 +46,6 @@ export const SelectRole = () => {
             }
         } catch (error) {
             console.error('Failed to update role:', error);
-            // Handle error (maybe show toast)
         }
     };
 
@@ -63,8 +59,8 @@ export const SelectRole = () => {
 
     return (
         <div className="select-role-page">
-            <div className="container">
-                <div className="header">
+            <div className="sr-container">
+                <div className="sr-header">
                     <h1>Select Your Role</h1>
                     <p>Tell us how you plan to use Workshour</p>
                 </div>
@@ -74,22 +70,26 @@ export const SelectRole = () => {
                         className="role-card"
                         onClick={() => handleRoleSelect('user')}
                     >
-                        <div className="icon user">
-                            <UserIcon size={48} />
+                        <div className="role-icon role-icon-user">
+                            <UserIcon size={40} />
                         </div>
-                        <h3>Job Seeker</h3>
-                        <p>I'm looking for job opportunities and career growth.</p>
+                        <div className="role-card-text">
+                            <h3>Job Seeker</h3>
+                            <p>I'm looking for job opportunities and career growth.</p>
+                        </div>
                     </button>
 
                     <button
                         className="role-card"
                         onClick={() => handleRoleSelect('recruiter')}
                     >
-                        <div className="icon recruiter">
-                            <Briefcase size={48} />
+                        <div className="role-icon role-icon-recruiter">
+                            <Briefcase size={40} />
                         </div>
-                        <h3>Recruiter</h3>
-                        <p>I want to post jobs and find great talent.</p>
+                        <div className="role-card-text">
+                            <h3>Recruiter</h3>
+                            <p>I want to post jobs and find great talent.</p>
+                        </div>
                     </button>
                 </div>
             </div>
@@ -97,39 +97,41 @@ export const SelectRole = () => {
             <style>{`
                 .select-role-page {
                     min-height: 100vh;
+                    min-height: 100svh;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-                    padding: 20px;
+                    padding: clamp(16px, 4vw, 40px);
                 }
 
-                .container {
-                    max-width: 900px;
+                .sr-container {
+                    max-width: 860px;
                     width: 100%;
                     text-align: center;
                 }
 
-                .header {
+                .sr-header {
                     margin-bottom: 48px;
                 }
 
-                .header h1 {
-                    font-size: 36px;
+                .sr-header h1 {
+                    font-size: clamp(1.75rem, 5vw, 2.5rem);
                     font-weight: 800;
                     color: #111827;
                     margin: 0 0 12px 0;
                 }
 
-                .header p {
-                    font-size: 18px;
+                .sr-header p {
+                    font-size: clamp(1rem, 2.5vw, 1.125rem);
                     color: #6b7280;
+                    margin: 0;
                 }
 
                 .roles-grid {
                     display: grid;
                     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-                    gap: 32px;
+                    gap: 28px;
                 }
 
                 .role-card {
@@ -145,10 +147,11 @@ export const SelectRole = () => {
                     flex-direction: column;
                     align-items: center;
                     gap: 20px;
+                    min-height: 200px;
                 }
 
                 .role-card:hover {
-                    transform: translateY(-8px);
+                    transform: translateY(-6px);
                     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
                 }
 
@@ -157,48 +160,115 @@ export const SelectRole = () => {
                     border-color: #00d4aa;
                 }
 
-                .icon {
+                .role-card:focus-visible {
+                    outline: 3px solid #00d4aa;
+                    outline-offset: 2px;
+                }
+
+                .role-icon {
                     width: 80px;
                     height: 80px;
                     border-radius: 20px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    margin-bottom: 8px;
+                    flex-shrink: 0;
+                    transition: background 0.2s, color 0.2s;
                 }
 
-                .icon.user {
+                .role-icon-user {
                     background: #e0f2fe;
                     color: #0ea5e9;
                 }
 
-                .role-card:hover .icon.user {
+                .role-card:hover .role-icon-user {
                     background: #0ea5e9;
                     color: white;
                 }
 
-                .icon.recruiter {
+                .role-icon-recruiter {
                     background: #dcfce7;
                     color: #22c55e;
                 }
 
-                .role-card:hover .icon.recruiter {
+                .role-card:hover .role-icon-recruiter {
                     background: #22c55e;
                     color: white;
                 }
 
-                .role-card h3 {
-                    font-size: 24px;
+                .role-card-text h3 {
+                    font-size: 1.4rem;
                     font-weight: 700;
                     color: #111827;
-                    margin: 0;
+                    margin: 0 0 8px 0;
                 }
 
-                .role-card p {
-                    font-size: 16px;
+                .role-card-text p {
+                    font-size: 1rem;
                     color: #6b7280;
                     margin: 0;
                     line-height: 1.5;
+                }
+
+                /* ── RESPONSIVE ─────────────────────────────── */
+                @media (max-width: 640px) {
+                    .sr-header {
+                        margin-bottom: 32px;
+                    }
+
+                    .roles-grid {
+                        gap: 16px;
+                    }
+                }
+
+                @media (max-width: 480px) {
+                    .select-role-page {
+                        align-items: flex-start;
+                        padding-top: 48px;
+                    }
+
+                    .roles-grid {
+                        grid-template-columns: 1fr;
+                    }
+
+                    .role-card {
+                        flex-direction: row;
+                        text-align: left;
+                        padding: 24px 20px;
+                        gap: 16px;
+                        min-height: 80px;
+                    }
+
+                    .role-icon {
+                        width: 56px;
+                        height: 56px;
+                        border-radius: 14px;
+                    }
+                }
+
+                @media (max-width: 375px) {
+                    .select-role-page {
+                        padding-top: 36px;
+                    }
+
+                    .role-icon {
+                        width: 48px;
+                        height: 48px;
+                    }
+
+                    .role-card-text h3 {
+                        font-size: 1.2rem;
+                    }
+
+                    .role-card-text p {
+                        font-size: 0.9rem;
+                    }
+                }
+
+                @media (prefers-reduced-motion: reduce) {
+                    .role-card {
+                        transition: none !important;
+                    }
                 }
             `}</style>
         </div>

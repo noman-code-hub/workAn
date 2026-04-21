@@ -410,6 +410,57 @@ export const Register = () => {
 
                 .input-wrapper svg {
                     position: absolute;
+                }
+
+                .form-header {
+                    margin-bottom: 32px;
+                }
+
+                .form-header h2 {
+                    font-size: 32px;
+                    font-weight: 700;
+                    color: #111827;
+                    margin: 0 0 8px 0;
+                }
+
+                .form-header p {
+                    color: #6b7280;
+                    margin: 0;
+                    font-size: 16px;
+                }
+
+                .error-message {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    background: #fee2e2;
+                    color: #dc2626;
+                    padding: 12px 16px;
+                    border-radius: 8px;
+                    margin-bottom: 20px;
+                    font-size: 14px;
+                }
+
+                .form-group {
+                    margin-bottom: 20px;
+                }
+
+                .form-group label {
+                    display: block;
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: #374151;
+                    margin-bottom: 8px;
+                }
+
+                .input-wrapper {
+                    position: relative;
+                    display: flex;
+                    align-items: center;
+                }
+
+                .input-wrapper svg {
+                    position: absolute;
                     left: 16px;
                     color: #9ca3af;
                     pointer-events: none;
@@ -420,8 +471,9 @@ export const Register = () => {
                     padding: 12px 16px 12px 48px;
                     border: 2px solid #e5e7eb;
                     border-radius: 8px;
-                    font-size: 15px;
+                    font-size: 16px;
                     transition: all 0.2s;
+                    min-height: 48px;
                 }
 
                 .input-wrapper input:focus {
@@ -462,6 +514,7 @@ export const Register = () => {
                     font-weight: 700;
                     cursor: pointer;
                     transition: all 0.2s;
+                    min-height: 48px;
                 }
 
                 .btn-primary:hover:not(:disabled) {
@@ -714,9 +767,21 @@ export const Register = () => {
                         grid-template-columns: 1fr;
                     }
 
+                    /* Prevent iOS Safari auto-zoom */
+                    input[type="text"],
+                    input[type="email"],
+                    input[type="password"],
+                    input[type="tel"],
+                    select,
+                    textarea {
+                        font-size: 16px !important;
+                    }
+
                     .btn-primary,
-                    .btn-google {
+                    .btn-google,
+                    .btn-github {
                         font-size: 15px;
+                        min-height: 48px;
                     }
                 }
 
@@ -843,6 +908,7 @@ export const Register = () => {
                     font-size: 13px;
                     font-weight: 600;
                     transition: all 0.2s;
+                    min-height: 48px;
                 }
 
                 .role-btn:hover {

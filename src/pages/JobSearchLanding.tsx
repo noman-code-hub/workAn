@@ -2774,10 +2774,28 @@ export const JobSearchLanding = () => {
           .stat-item { padding: 10px 12px; }
           .hero-actions { width: 100%; }
           .hero-cta-primary,
-          .hero-cta-secondary { width: 100%; }
+          .hero-cta-secondary { width: 100%; min-height: 48px; }
           .jsl-job-card-h { width: 250px; padding: 18px; }
           .job-card-h-badge { padding: 5px 10px; font-size: 0.66rem; }
           .jsl-job-card-v { padding: 20px; border-radius: 22px; }
+          .search-field input,
+          .search-field select { font-size: 16px !important; }
+          .jsl-hero h1 { font-size: clamp(1.7rem, 7vw, 2.2rem); }
+        }
+        @media (max-width: 375px) {
+          .jsl-hero { padding: 24px 12px 48px; }
+          .jsl-section { padding: 24px 12px; }
+          .jsl-hero h1 { font-size: clamp(1.55rem, 8vw, 1.9rem); }
+          .hero-sub { font-size: 0.84rem; }
+          .jsl-feedback-btn span { display: none; }
+          .jsl-feedback-btn { padding: 12px; min-width: 44px; min-height: 44px; }
+          .jsl-footer { padding: 40px 12px 24px; }
+          .footer-bottom-links { flex-direction: column; gap: 10px; }
+        }
+        @media (max-width: 320px) {
+          .jsl-section { padding: 20px 10px; }
+          .jsl-cat-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+          .rs-container { padding: 0 10px; }
         }
       `}</style>
     </div>

@@ -220,7 +220,7 @@ export const Subscription = () => {
 
         .pricing-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
           gap: var(--spacing-xl);
           margin-bottom: var(--spacing-2xl);
         }
@@ -480,6 +480,33 @@ export const Subscription = () => {
 
           .price-amount {
             font-size: 2.5rem;
+          }
+
+          .features-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .faq-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .pricing-card {
+            padding: var(--spacing-lg);
+          }
+
+          .price-amount {
+            font-size: 2rem;
+          }
+
+          .page-header h1 {
+            font-size: clamp(1.6rem, 5vw, 2rem);
+          }
+
+          .btn-block {
+            min-height: 48px;
+            font-size: 1rem;
           }
         }
       `}</style>

@@ -763,12 +763,22 @@ const LEGACY_DEMO_SEED_MARKERS = [
   'linkedin.com/in/muhammadusmanahmed',
 ];
 
+const TEMPLATE_MOCK_CONTENT_MARKERS = [
+  'Highly skilled Web Developer delivering scalable and user-centric web applications through expertise in design, development, and deployment.',
+  'Designed and developed high-quality, professional mobile apps for clients across various industries.',
+  'Highly skilled Web Developer delivering scalable and user-centric web applications',
+  'Designed and developed high-quality, professional mobile apps for clients',
+];
+
 const hasLegacyDemoSeedData = (raw: string) => {
   const normalized = raw.toLowerCase();
-  const matches = LEGACY_DEMO_SEED_MARKERS.filter((marker) =>
+  const legacyMatches = LEGACY_DEMO_SEED_MARKERS.filter((marker) =>
     normalized.includes(marker.toLowerCase())
   ).length;
-  return matches >= 3;
+  const templateMockMatches = TEMPLATE_MOCK_CONTENT_MARKERS.filter((marker) =>
+    normalized.includes(marker.toLowerCase())
+  ).length;
+  return legacyMatches >= 3 || templateMockMatches >= 2;
 };
 
 export const Resume = () => {
@@ -8525,19 +8535,89 @@ export const Resume = () => {
             grid-template-columns: 1fr;
           }
 
+          /* ── Topbar: stack left / tabs / actions into 3 rows ── */
           .resume-topbar {
-            grid-template-columns: 1fr;
-            margin: 10px 14px 0;
-            justify-items: start;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 6px;
+            padding: 10px 12px;
+            margin: 0;
           }
 
-          .resume-topbar-center,
+          .resume-topbar-left {
+            flex-wrap: nowrap;
+            min-width: 0;
+            gap: 8px;
+          }
+
+          .topbar-title-group {
+            flex: 1;
+            min-width: 0;
+            gap: 6px;
+          }
+
+          .resume-topbar-title {
+            font-size: 0.82rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+          }
+
+          .topbar-language {
+            display: none;
+          }
+
+          /* Tab pills: scrollable row, no wrapping */
+          .resume-topbar-center {
+            display: flex;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+            justify-content: flex-start;
+            padding: 3px;
+            gap: 3px;
+          }
+
+          .resume-topbar-center::-webkit-scrollbar {
+            display: none;
+          }
+
+          .resume-topbar-pill {
+            flex-shrink: 0;
+            padding: 5px 12px;
+            font-size: 0.78rem;
+            white-space: nowrap;
+          }
+
+          /* Action buttons: fill available width */
           .resume-topbar-right {
             justify-content: flex-start;
+            flex-wrap: wrap;
+            gap: 8px;
           }
 
-          .resume-topbar-right {
-            flex-wrap: wrap;
+          .resume-topbar-outline {
+            flex: 1;
+            min-width: 100px;
+            text-align: center;
+            font-size: 0.8rem;
+            padding: 8px 10px;
+          }
+
+          .resume-topbar-download {
+            flex: 1;
+            min-width: 100px;
+            justify-content: center;
+            font-size: 0.8rem;
+            padding: 8px 10px;
+          }
+
+          /* Workspace: account for taller stacked topbar (~148px) */
+          .resume-workspace.is-editor {
+            margin-top: 148px;
+            height: calc(100svh - 148px);
           }
 
           .page-header {
@@ -9540,6 +9620,108 @@ export const Resume = () => {
           .resume-page::after {
             animation: none !important;
             transition: none !important;
+          }
+        }
+
+        /* ===== 480px – small phones ===== */
+        @media (max-width: 480px) {
+          .resume-topbar {
+            padding: 8px 10px;
+          }
+
+          .resume-topbar-title {
+            font-size: 0.77rem;
+            max-width: 160px;
+          }
+
+          .resume-topbar-outline,
+          .resume-topbar-download {
+            font-size: 0.75rem;
+            padding: 7px 8px;
+          }
+
+          .resume-topbar-icon {
+            width: 34px;
+            height: 34px;
+          }
+
+          .resume-workspace.is-editor {
+            margin-top: 140px;
+            height: calc(100svh - 140px);
+          }
+
+          /* Step footer dots */
+          .step-footer {
+            padding: 10px 12px;
+            gap: 8px;
+          }
+
+          .step-dots {
+            gap: 4px;
+          }
+
+          .step-dot {
+            width: 6px;
+            height: 6px;
+          }
+
+          .step-dot.active {
+            width: 14px;
+          }
+
+          /* iOS Safari: prevent auto-zoom on input focus */
+          .resume-page .form-group input,
+          .resume-page .form-group textarea,
+          .resume-page .form-group select,
+          .resume-page .tab-input,
+          .resume-page .tab-textarea,
+          .resume-page .skills-input {
+            font-size: 16px !important;
+          }
+        }
+
+        /* ===== 375px – iPhone SE / extra-small ===== */
+        @media (max-width: 375px) {
+          .resume-topbar-title {
+            max-width: 120px;
+          }
+
+          .resume-topbar-center {
+            gap: 2px;
+          }
+
+          .resume-topbar-pill {
+            padding: 5px 10px;
+            font-size: 0.74rem;
+          }
+
+          .resume-topbar-right {
+            gap: 6px;
+          }
+
+          .resume-topbar-outline,
+          .resume-topbar-download {
+            font-size: 0.72rem;
+            padding: 6px 8px;
+            min-width: 80px;
+          }
+
+          .step-dot {
+            width: 5px;
+            height: 5px;
+          }
+
+          .step-dot.active {
+            width: 12px;
+          }
+
+          .builder-section-header h3 {
+            font-size: 1rem;
+          }
+
+          .resume-workspace.is-editor {
+            margin-top: 136px;
+            height: calc(100svh - 136px);
           }
         }
       `}</style>

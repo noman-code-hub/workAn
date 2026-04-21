@@ -3212,10 +3212,76 @@ export const Jobs = () => {
           }
         }
 
+        @media (max-width: 480px) {
+          .search-hero h1 {
+            font-size: clamp(1.5rem, 7vw, 1.9rem);
+          }
+
+          .search-field input,
+          .search-field select,
+          .market-select,
+          .market-budget-input {
+            font-size: 16px !important;
+          }
+
+          .job-actions-modern {
+            flex-direction: column;
+            gap: 8px;
+          }
+
+          .btn-apply-modern,
+          .btn-details-modern {
+            width: 100%;
+            justify-content: center;
+            min-height: 48px;
+          }
+
+          .filter-toggle-btn {
+            min-height: 48px;
+          }
+
+          .job-details-modern {
+            flex-direction: column;
+            gap: 10px;
+          }
+
+          .market-job-footer {
+            flex-direction: column;
+            align-items: stretch;
+          }
+
+          .jobs-market-results .btn-apply-modern,
+          .jobs-market-results .btn-details-modern {
+            width: 100%;
+            min-width: unset;
+            text-align: center;
+            justify-content: center;
+          }
+        }
+
+        @media (max-width: 375px) {
+          .jobs-container {
+            padding: 8px;
+          }
+
+          .modern-job-card {
+            padding: 10px;
+          }
+
+          .market-job-card {
+            padding: 12px 0;
+          }
+
+          .hero-title {
+            font-size: clamp(1.3rem, 8vw, 1.5rem);
+          }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .jobs-page-modern *,
           .jobs-glow { animation: none !important; transition: none !important; }
         }
+
       `}</style>
     </div>
   );

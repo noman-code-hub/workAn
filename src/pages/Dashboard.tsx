@@ -490,6 +490,7 @@ export const Dashboard = () => {
         .ov-actions {
           margin-top: 16px;
           display: flex;
+          flex-wrap: wrap;
           gap: 10px;
         }
 
@@ -834,7 +835,9 @@ export const Dashboard = () => {
         }
 
         .ov-save {
-          flex: 0 0 40px;
+          flex: 0 0 44px;
+          min-width: 44px;
+          min-height: 44px;
           padding: 0;
         }
 
@@ -872,6 +875,7 @@ export const Dashboard = () => {
           color: #0f172a;
           transition: transform 220ms var(--ov-ease), border-color 200ms ease, box-shadow 220ms var(--ov-ease);
           margin-top: 8px;
+          min-height: 44px;
         }
 
         .ov-action svg:last-child {
@@ -1044,6 +1048,7 @@ export const Dashboard = () => {
 
         @media (max-width: 900px) {
           .ov-hero { grid-template-columns: 1fr; }
+          .ov-score { display: none; }
           .ov-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .ov-side { grid-template-columns: 1fr; }
         }
@@ -1056,9 +1061,19 @@ export const Dashboard = () => {
             border-radius: 14px;
           }
 
-          .ov-actions { flex-direction: column; }
-          .ov-stats { grid-template-columns: 1fr; }
+          .ov-actions { flex-direction: column; gap: 8px; }
+          .ov-actions .btn { width: 100%; justify-content: center; }
+          .ov-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .ov-job-actions { flex-wrap: wrap; gap: 6px; }
+          .ov-job-actions .btn { flex: 1 1 calc(50% - 3px); min-width: 80px; }
+          .ov-save { flex: 0 0 44px !important; }
+        }
+
+        @media (max-width: 480px) {
+          .ov-stats { grid-template-columns: 1fr 1fr; }
+          .ov h1 { font-size: clamp(1.6rem, 7vw, 2.4rem); }
           .ov-job-actions { flex-direction: column; }
+          .ov-job-actions .btn { width: 100%; }
         }
 
         @media (prefers-reduced-motion: reduce) {

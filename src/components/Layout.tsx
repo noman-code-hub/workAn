@@ -47,6 +47,7 @@ export const Layout = () => {
           min-height: 100svh;
           background: var(--color-bg-primary);
           width: 100%;
+          overflow-x: hidden;
         }
 
         .main-content {

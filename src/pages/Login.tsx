@@ -563,13 +563,31 @@ export const Login = () => {
 
                     .btn-google {
                         font-size: 15px;
+                        min-height: 48px;
                     }
 
                     .login-atmo {
                         width: 240px;
                         height: 240px;
                     }
+
+                    /* Prevent iOS Safari auto-zoom on input focus */
+                    input[type="email"],
+                    input[type="password"],
+                    input[type="text"],
+                    input[type="tel"],
+                    select,
+                    textarea {
+                        font-size: 16px !important;
+                    }
+
+                    /* Full-width CTA buttons */
+                    .btn-submit,
+                    .btn-google {
+                        width: 100%;
+                    }
                 }
+
 
                 @media (max-width: 360px) {
                     .login-page {

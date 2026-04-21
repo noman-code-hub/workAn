@@ -843,6 +843,71 @@ export const AICopilot = () => {
           .message {
             max-width: 96%;
           }
+
+          .prompt-btn {
+            min-height: 44px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .copilot-hero {
+            padding: 14px;
+            border-radius: 16px;
+          }
+
+          .hero-left h1 {
+            font-size: clamp(1.4rem, 6.5vw, 1.8rem);
+          }
+
+          /* Prevent iOS Safari auto-zoom on input focus */
+          .chat-input .input {
+            font-size: 16px !important;
+            min-height: 48px;
+          }
+
+          .send-btn {
+            min-width: 48px;
+            height: 48px;
+          }
+
+          .prompt-btn {
+            font-size: 0.82rem;
+            min-height: 44px;
+          }
+
+          .prompts-grid {
+            grid-template-columns: 1fr 1fr;
+          }
+
+          .hero-chips span {
+            font-size: 0.7rem;
+          }
+
+          .chat-shell {
+            border-radius: 14px;
+          }
+        }
+
+        @media (max-width: 375px) {
+          .copilot-hero {
+            padding: 12px;
+          }
+
+          .hero-left h1 {
+            font-size: clamp(1.3rem, 7.5vw, 1.6rem);
+          }
+
+          .prompts-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .chat-messages {
+            padding: 10px;
+          }
+
+          .chat-input-container {
+            padding: 10px 12px;
+          }
         }
 
         @media (prefers-reduced-motion: reduce) {

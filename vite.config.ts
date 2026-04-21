@@ -25,6 +25,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: true,   // expose on LAN — phone can open the Network URL
     proxy: {
       '/api': {
         target: 'http://localhost:5000',

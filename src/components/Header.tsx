@@ -105,102 +105,114 @@ export const Header = () => {
   const isResumeActive = location.pathname.startsWith('/resume');
 
   return (
-    <header className="universal-header">
-      <div className="header-inner">
-        <div className="header-left">
-          <div className="logo" onClick={handleLogoClick}>
-            <span className="logo-text">{BRAND.name}</span>
-            <span className="logo-dot" aria-hidden="true" />
+    <>
+      <header className="universal-header">
+        <div className="header-inner">
+          <div className="header-left">
+            <div className="logo" onClick={handleLogoClick} role="button" aria-label="Go to homepage">
+              <span className="logo-text">{BRAND.name}</span>
+              <span className="logo-dot" aria-hidden="true" />
+            </div>
           </div>
-        </div>
 
-        <nav className="header-nav">
-          <button onClick={() => handleNavClick('/jobs')} className={`nav-link ${isJobsActive ? 'active' : ''}`}>
-            {copy.jobSearch}
-          </button>
-          <button
-            onClick={() => handleNavClick(overviewPath)}
-            className={`nav-link ${location.pathname === overviewPath ? 'active' : ''}`}
-          >
-            {copy.overview}
-          </button>
-          <button
-            onClick={() => handleNavClick('/market-jobs')}
-            className={`nav-link ${location.pathname === '/market-jobs' ? 'active' : ''}`}
-          >
-            {copy.marketJobs}
-          </button>
-          <button onClick={() => handleNavClick('/resume')} className={`nav-link ${isResumeActive ? 'active' : ''}`}>
-            {copy.resumeOptimizer}
-          </button>
-          <button
-            onClick={() => handleNavClick('/community')}
-            className={`nav-link ${location.pathname.startsWith('/community') ? 'active' : ''}`}
-          >
-            {copy.community}
-          </button>
-          <button
-            onClick={() => handleNavClick('/trends')}
-            className={`nav-link ${location.pathname === '/trends' ? 'active' : ''}`}
-          >
-            {copy.trends}
-          </button>
-          <button
-            onClick={() => handleNavClick('/ai-copilot')}
-            className={`nav-link ${location.pathname === '/ai-copilot' ? 'active' : ''}`}
-          >
-            {copy.aiCopilot}
-          </button>
-          {user?.role === 'admin' && (
-            <button
-              onClick={() => handleNavClick('/admin')}
-              className={`nav-link admin-link ${location.pathname === '/admin' ? 'active' : ''}`}
-            >
-              Admin
+          <nav className="header-nav" aria-label="Main navigation">
+            <button onClick={() => handleNavClick('/jobs')} className={`nav-link ${isJobsActive ? 'active' : ''}`}>
+              {copy.jobSearch}
             </button>
-          )}
-          {(user?.role === 'recruiter' || user?.role === 'admin') && (
             <button
-              onClick={() => handleNavClick('/recruiter')}
-              className={`nav-link recruiter-link ${location.pathname === '/recruiter' ? 'active' : ''}`}
+              onClick={() => handleNavClick(overviewPath)}
+              className={`nav-link ${location.pathname === overviewPath ? 'active' : ''}`}
             >
-              Recruiter
+              {copy.overview}
             </button>
-          )}
-        </nav>
-
-        <div className="header-right">
-          <div className="header-actions">
             <button
-              className="icon-btn-universal desktop-only"
-              onClick={handleLanguageToggle}
-              aria-label={nextLanguageLabel}
-              title={nextLanguageLabel}
+              onClick={() => handleNavClick('/market-jobs')}
+              className={`nav-link ${location.pathname === '/market-jobs' ? 'active' : ''}`}
             >
-              <Globe size={18} />
-              <span>{language}</span>
+              {copy.marketJobs}
             </button>
-            {user ? (
-              <ProfileDropdown />
-            ) : (
-              <button className="signin-btn-universal" onClick={() => handleNavClick('/login')}>
-                {copy.signIn}
+            <button onClick={() => handleNavClick('/resume')} className={`nav-link ${isResumeActive ? 'active' : ''}`}>
+              {copy.resumeOptimizer}
+            </button>
+            <button
+              onClick={() => handleNavClick('/community')}
+              className={`nav-link ${location.pathname.startsWith('/community') ? 'active' : ''}`}
+            >
+              {copy.community}
+            </button>
+            <button
+              onClick={() => handleNavClick('/trends')}
+              className={`nav-link ${location.pathname === '/trends' ? 'active' : ''}`}
+            >
+              {copy.trends}
+            </button>
+            <button
+              onClick={() => handleNavClick('/ai-copilot')}
+              className={`nav-link ${location.pathname === '/ai-copilot' ? 'active' : ''}`}
+            >
+              {copy.aiCopilot}
+            </button>
+            {user?.role === 'admin' && (
+              <button
+                onClick={() => handleNavClick('/admin')}
+                className={`nav-link admin-link ${location.pathname === '/admin' ? 'active' : ''}`}
+              >
+                Admin
               </button>
             )}
-            <button
-              className="icon-btn-universal mobile-menu-btn"
-              onClick={() => setIsMenuOpen((current) => !current)}
-              aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
-              aria-expanded={isMenuOpen}
-            >
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
+            {(user?.role === 'recruiter' || user?.role === 'admin') && (
+              <button
+                onClick={() => handleNavClick('/recruiter')}
+                className={`nav-link recruiter-link ${location.pathname === '/recruiter' ? 'active' : ''}`}
+              >
+                Recruiter
+              </button>
+            )}
+          </nav>
+
+          <div className="header-right">
+            <div className="header-actions">
+              <button
+                className="icon-btn-universal desktop-only"
+                onClick={handleLanguageToggle}
+                aria-label={nextLanguageLabel}
+                title={nextLanguageLabel}
+              >
+                <Globe size={18} />
+                <span>{language}</span>
+              </button>
+              {user ? (
+                <ProfileDropdown />
+              ) : (
+                <button className="signin-btn-universal" onClick={() => handleNavClick('/login')}>
+                  {copy.signIn}
+                </button>
+              )}
+              <button
+                className="icon-btn-universal mobile-menu-btn"
+                onClick={() => setIsMenuOpen((current) => !current)}
+                aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+                aria-expanded={isMenuOpen}
+                aria-controls="mobile-nav-menu"
+              >
+                {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </header>
+
+      {/* Mobile menu backdrop — rendered OUTSIDE <header> to escape backdrop-filter stacking context */}
+      {isMenuOpen && (
+        <div
+          className="mobile-menu-backdrop"
+          onClick={() => setIsMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
       {isMenuOpen && (
-        <div className="mobile-menu">
+        <div className="mobile-menu" id="mobile-nav-menu" role="dialog" aria-label="Navigation menu">
           <div className="mobile-menu-actions">
             <button
               className="mobile-utility-btn"
@@ -275,9 +287,9 @@ export const Header = () => {
         </div>
       )}
 
-      <style>{`
+        <style>{`
         .universal-header {
-          background: rgba(255, 255, 255, 0.82);
+          background: #ffffff;
           border-bottom: 1px solid var(--color-border-light);
           height: var(--header-height);
           display: flex;
@@ -286,11 +298,9 @@ export const Header = () => {
           top: 0;
           left: 0;
           right: 0;
-          z-index: 1000;
+          z-index: 1300;
           width: 100%;
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
-          box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+          box-shadow: 0 1px 12px rgba(15, 23, 42, 0.07);
         }
 
         .header-inner {
@@ -302,6 +312,7 @@ export const Header = () => {
           align-items: center;
           justify-content: space-between;
           gap: 16px;
+          min-width: 0;
         }
 
         .header-left,
@@ -309,6 +320,7 @@ export const Header = () => {
         .header-actions {
           display: flex;
           align-items: center;
+          flex-shrink: 0;
         }
 
         .header-actions {
@@ -321,6 +333,8 @@ export const Header = () => {
           gap: 10px;
           cursor: pointer;
           transition: transform 0.2s;
+          min-width: 0;
+          flex-shrink: 0;
         }
 
         .logo:hover {
@@ -328,13 +342,14 @@ export const Header = () => {
         }
 
         .logo-text {
-          font-size: 26px;
+          font-size: clamp(18px, 4vw, 26px);
           font-weight: 800;
           color: var(--color-text-primary);
           font-family: var(--font-family-brand);
           letter-spacing: -0.6px;
           line-height: 1;
           text-transform: lowercase;
+          white-space: nowrap;
         }
 
         .logo-dot {
@@ -346,12 +361,15 @@ export const Header = () => {
           align-self: flex-end;
           margin-bottom: 4px;
           box-shadow: 0 0 0 2px rgba(29, 191, 115, 0.12);
+          flex-shrink: 0;
         }
 
         .header-nav {
           display: flex;
           align-items: center;
           gap: 20px;
+          min-width: 0;
+          overflow: hidden;
         }
 
         .nav-link {
@@ -362,9 +380,12 @@ export const Header = () => {
           color: var(--color-text-secondary);
           cursor: pointer;
           transition: all 0.2s;
-          padding: 8px 12px;
+          padding: 10px 12px;
           border-radius: 8px;
           white-space: nowrap;
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
         }
 
         .nav-link:hover {
@@ -380,16 +401,19 @@ export const Header = () => {
         .icon-btn-universal {
           display: flex;
           align-items: center;
+          justify-content: center;
           gap: 4px;
           background: none;
           border: none;
           color: var(--color-text-secondary);
           cursor: pointer;
-          padding: 8px;
+          padding: 10px;
           border-radius: 8px;
           font-size: 13px;
           font-weight: 600;
           transition: all 0.2s;
+          min-height: 44px;
+          min-width: 44px;
         }
 
         .icon-btn-universal:hover {
@@ -401,12 +425,16 @@ export const Header = () => {
           background: linear-gradient(135deg, var(--color-text-primary), #1f2937);
           color: white;
           border: none;
-          padding: 8px 20px;
+          padding: 10px 20px;
           border-radius: 10px;
-          font-size: 13px;
+          font-size: 14px;
           font-weight: 700;
           cursor: pointer;
           transition: transform 0.2s, box-shadow 0.2s;
+          min-height: 44px;
+          white-space: nowrap;
+          display: inline-flex;
+          align-items: center;
         }
 
         .signin-btn-universal:hover {
@@ -418,17 +446,37 @@ export const Header = () => {
           display: none;
         }
 
+        /* ── MOBILE MENU ─────────────────────────────────────────────
+           Rendered OUTSIDE <header> so the header's backdrop-filter
+           stacking context doesn't trap the menu behind page content.
+           z-index must be > 1000 (header) to layer correctly.
+        ─────────────────────────────────────────────────────────── */
+        .mobile-menu-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 1100;
+          background: rgba(15, 23, 42, 0.45);
+          backdrop-filter: blur(2px);
+          -webkit-backdrop-filter: blur(2px);
+        }
+
         .mobile-menu {
           position: fixed;
           top: var(--header-height);
           left: 0;
           right: 0;
           bottom: 0;
-          background: linear-gradient(180deg, rgba(248, 252, 255, 0.98) 0%, rgba(243, 247, 251, 0.98) 100%);
-          z-index: 999;
-          padding: 20px var(--page-gutter) 24px;
+          background: linear-gradient(180deg, #f8fcff 0%, #f3f7fb 100%);
+          z-index: 1200;
+          padding: 16px var(--page-gutter) env(safe-area-inset-bottom, 24px);
           overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
           border-top: 1px solid var(--color-border-light);
+          box-shadow: 0 8px 32px rgba(15, 23, 42, 0.18);
+        }
+
+        [data-theme="dark"] .mobile-menu {
+          background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
         }
 
         .mobile-menu-actions {
@@ -448,10 +496,12 @@ export const Header = () => {
           border: 1px solid var(--color-border);
           background: var(--color-surface);
           color: var(--color-text-primary);
-          font-size: 0.92rem;
+          font-size: 1rem;
           font-weight: 700;
           cursor: pointer;
           transition: transform 0.2s, border-color 0.2s, background 0.2s;
+          width: 100%;
+          padding: 0 16px;
         }
 
         .mobile-utility-btn:hover {
@@ -466,7 +516,7 @@ export const Header = () => {
         }
 
         .mobile-nav-link {
-          padding: 16px;
+          padding: 16px 20px;
           border: none;
           background: var(--color-surface-hover);
           border-radius: 12px;
@@ -476,6 +526,10 @@ export const Header = () => {
           text-align: left;
           cursor: pointer;
           transition: all 0.2s;
+          min-height: 52px;
+          display: flex;
+          align-items: center;
+          width: 100%;
         }
 
         .mobile-nav-link:hover,
@@ -488,6 +542,7 @@ export const Header = () => {
           background: var(--color-text-primary);
           color: var(--color-text-inverse);
           text-align: center;
+          justify-content: center;
           margin-top: 16px;
         }
 
@@ -507,20 +562,37 @@ export const Header = () => {
 
         @media (max-width: 768px) {
           .header-inner {
-            gap: 10px;
+            gap: 8px;
           }
 
           .signin-btn-universal {
-            padding: 8px 14px;
+            padding: 10px 14px;
+            font-size: 13px;
           }
         }
 
-        @media (max-width: 640px) {
+        @media (max-width: 480px) {
+          .header-inner {
+            gap: 6px;
+            padding: 0 12px;
+          }
+
           .logo-text {
-            font-size: 22px;
+            font-size: 20px;
+          }
+
+          .logo-dot {
+            display: none;
+          }
+        }
+
+        @media (max-width: 370px) {
+          .signin-btn-universal {
+            font-size: 12px;
+            padding: 10px 10px;
           }
         }
       `}</style>
-    </header>
+    </>
   );
 };

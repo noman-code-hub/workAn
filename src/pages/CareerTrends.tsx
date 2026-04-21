@@ -852,6 +852,41 @@ export const CareerTrends = () => {
             flex-direction: column;
             align-items: flex-start;
           }
+
+          .industry-link {
+            min-height: 44px;
+            width: 100%;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .hero-stats {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
+          .insights-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
+          .industry-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .hero-copy h1 {
+            font-size: clamp(1.6rem, 7vw, 2rem);
+          }
+        }
+
+        @media (max-width: 375px) {
+          .hero-stats,
+          .insights-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .hero-stat {
+            flex-direction: row;
+            align-items: center;
+          }
         }
 
         @media (prefers-reduced-motion: reduce) {

@@ -123,16 +123,36 @@
   --glass-bg: rgba(30, 41, 59, 0.7);
   --glass-border: rgba(148, 163, 184, 0.1);
   --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --color-surface: #1e293b;
+  --color-surface-hover: #334155;
+
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #cbd5e1;
+  --color-text-tertiary: #94a3b8;
+
+  --color-border: #334155;
+  --color-border-light: #1e293b;
+  --color-border-dark: #475569;
+
+  --glass-bg: rgba(30, 41, 59, 0.7);
+  --glass-border: rgba(148, 163, 184, 0.1);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
 /* ===========================
    Base Styles
    =========================== */
 
-* {
+/* ===========================
+   Universal Box-Sizing & Overflow Reset
+   =========================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
 }
 
 html {
@@ -141,7 +161,10 @@ html {
   -moz-osx-font-smoothing: grayscale;
   height: 100%;
   width: 100%;
+  max-width: 100vw;
   scroll-behavior: smooth;
+  overflow-x: hidden;
+  scroll-padding-top: var(--header-height);
 }
 
 body {
@@ -157,6 +180,7 @@ body {
   min-height: 100%;
   height: 100%;
   width: 100%;
+  max-width: 100vw;
 }
 
 /* Prevent caret appearing on regular text when caret-browsing is enabled */
@@ -192,6 +216,8 @@ svg,
 video,
 canvas {
   max-width: 100%;
+  height: auto;
+  display: block;
 }
 
 button,
@@ -199,6 +225,7 @@ input,
 textarea,
 select {
   font: inherit;
+  font-size: 16px; /* Prevent iOS Safari auto-zoom */
 }
 
 /* ===========================
@@ -218,15 +245,15 @@ h6 {
 }
 
 h1 {
-  font-size: var(--font-size-4xl);
+  font-size: clamp(1.8rem, 5vw, 3rem);
 }
 
 h2 {
-  font-size: var(--font-size-3xl);
+  font-size: clamp(1.4rem, 4vw, 2.25rem);
 }
 
 h3 {
-  font-size: var(--font-size-2xl);
+  font-size: clamp(1.1rem, 3vw, 1.5rem);
 }
 
 h4 {
@@ -730,14 +757,17 @@ a:hover {
   color: #e2e8f0 !important;
 }
 
-/* Responsive */
+/* ===========================
+   Responsive Breakpoints
+   =========================== */
+
 @media (max-width: 768px) {
   :root {
     --header-height: 68px;
   }
 
   html {
-    font-size: 14px;
+    font-size: 15px;
   }
 
   /* Prevent iOS Safari auto-zoom on focused form controls. */
@@ -751,7 +781,196 @@ a:hover {
   .container {
     padding: 0 var(--page-gutter);
   }
+
+  /* Hero CTA full-width on small screens */
+  .hero-cta {
+    width: 100%;
+    text-align: center;
+  }
+
+  /* Flex rows that should stack */
+  .flex-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* Two-column layouts collapse to one */
+  .two-col {
+    grid-template-columns: 1fr !important;
+  }
 }
+
+@media (max-width: 480px) {
+  html {
+    font-size: 14px;
+  }
+
+  /* Ensure all form controls prevent zoom */
+  input,
+  textarea,
+  select,
+  button,
+  .input {
+    font-size: 16px !important;
+  }
+
+  /* Button groups stack on small phones */
+  .button-group {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .button-group button,
+  .button-group a {
+    width: 100%;
+  }
+}
+
+/* ===========================
+   Responsive Grid Utilities
+   =========================== */
+
+.grid-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.three-col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .three-col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .three-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===========================
+   Modal Responsive
+   =========================== */
+
+.modal {
+  width: min(90vw, 560px);
+  max-height: 85vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 12px;
+  padding: 24px 20px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal-backdrop);
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+}
+
+/* ===========================
+   Table Responsiveness
+   =========================== */
+
+.table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+
+.table-wrapper table {
+  min-width: 600px;
+}
+
+@media (max-width: 640px) {
+  .table-responsive table,
+  .table-responsive thead,
+  .table-responsive tbody,
+  .table-responsive th,
+  .table-responsive td,
+  .table-responsive tr {
+    display: block;
+  }
+
+  .table-responsive td {
+    padding-left: 130px;
+    position: relative;
+  }
+
+  .table-responsive td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    display: inline-block;
+    width: 120px;
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-secondary);
+    font-size: 0.75rem;
+  }
+
+  .table-responsive thead {
+    display: none;
+  }
+}
+
+/* ===========================
+   Skeleton Shimmer
+   =========================== */
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+[data-theme="dark"] .skeleton-shimmer {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 200% 100%;
+}
+
+/* ===========================
+   Accessibility: Focus Ring
+   =========================== */
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* ===========================
+   Reduced Motion
+   =========================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ===========================
+   Misc Utilities
+   =========================== */
 
 .no-scroll {
   overflow: hidden !important;
