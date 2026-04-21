@@ -282,6 +282,29 @@ const buildJobPage = ({ path, title, description, keyword, audience, bullets }) 
     { href: path, label: 'Browse Jobs', variant: 'primary' },
     { href: '/resume-builder', label: 'Build Your Resume', variant: 'secondary' },
   ],
+  jsonLd: {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: `${title} | Workshour`,
+    description,
+    url: buildAbsoluteUrl(path),
+    isPartOf: { '@type': 'WebSite', name: 'Workshour', url: SITE_URL },
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${SITE_URL}/job-search?keyword=${encodeURIComponent(keyword)}&location={location_string}`,
+      },
+      'query-input': 'required name=location_string',
+    },
+    breadcrumb: {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
+        { '@type': 'ListItem', position: 2, name: title, item: buildAbsoluteUrl(path) },
+      ],
+    },
+  },
 });
 
 const buildStaticPages = (recentBlogs) => {

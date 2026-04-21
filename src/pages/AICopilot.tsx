@@ -12,7 +12,7 @@ export const AICopilot = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatMessagesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const greeting: ChatMessage = {
@@ -25,7 +25,10 @@ export const AICopilot = () => {
   }, [user]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = chatMessagesRef.current;
+    if (!el) return;
+    // Scroll only the chat panel — never jumps the whole page
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
   const normalizeChatEndpoint = (base: string) => {
@@ -189,7 +192,7 @@ export const AICopilot = () => {
           <span className="chat-status">Live</span>
         </div>
 
-        <div className="chat-messages">
+        <div className="chat-messages" ref={chatMessagesRef}>
           {messages.map((message, index) => (
             <article
               key={message.id}
@@ -241,7 +244,7 @@ export const AICopilot = () => {
             </article>
           )}
 
-          <div ref={messagesEndRef} />
+
         </div>
 
         {messages.length <= 1 && (
