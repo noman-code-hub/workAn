@@ -3,14 +3,17 @@ import path from 'path';
 
 const ATS_AI_API_URL =
   process.env.AI_API_BASE ||
+  process.env.ZAI_API_URL ||
   process.env.HUGGINGFACE_INFERENCE_URL ||
   'https://router.huggingface.co/v1/chat/completions';
 const ATS_AI_MODEL =
   process.env.AI_MODEL ||
+  process.env.ZAI_MODEL ||
   process.env.HUGGINGFACE_MODEL_ID ||
   'meta-llama/Meta-Llama-3-8B-Instruct';
 const ATS_AI_API_KEY =
   process.env.AI_API_KEY ||
+  process.env.ZAI_API_KEY ||
   process.env.HF_TOKEN ||
   process.env.HUGGINGFACE_API_TOKEN ||
   '';
@@ -96,8 +99,20 @@ const normalizeWhitespace = (value) => {
 };
 
 const pickKeywordsFromText = (text) => {
-  const haystack = ` ${cleanText(text).toLowerCase()} `;
-  return COMMON_SKILL_KEYWORDS.filter((keyword) => haystack.includes(` ${keyword.toLowerCase()} `));
+  const normalizedHaystack = ` ${cleanText(text)
+    .toLowerCase()
+    .replace(/[^a-z0-9+#./]+/g, ' ')
+    .replace(/\bnode\s+js\b/g, 'node.js')
+    .replace(/\bnext\s+js\b/g, 'next.js')
+    .replace(/\bc\s*\+\s*\+\b/g, 'c++')
+    .replace(/\bc\s*#\b/g, 'c#')
+    .replace(/\s+/g, ' ')
+    .trim()} `;
+
+  return COMMON_SKILL_KEYWORDS.filter((keyword) => {
+    const normalizedKeyword = keyword.toLowerCase().replace(/\s+/g, ' ');
+    return normalizedHaystack.includes(` ${normalizedKeyword} `);
+  });
 };
 
 const detectContactSignals = (resumeText) => {
@@ -105,11 +120,15 @@ const detectContactSignals = (resumeText) => {
   const compact = normalized.replace(/\s+/g, ' ');
   const lines = normalized.split('\n').map((line) => line.trim()).filter(Boolean);
   const firstLine = lines[0] || '';
+  const labeledNameLine = lines.find((line) => /^(full name|name)\s*:/i.test(line)) || '';
+  const extractedName = labeledNameLine.replace(/^(full name|name)\s*:/i, '').trim();
 
   const hasEmail = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(compact);
   const hasPhone = /(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)?\d{3,4}[\s.-]?\d{4}/.test(compact);
   const hasLinkedIn = /linkedin\.com\/in\//i.test(compact);
-  const hasName = /^[A-Za-z][A-Za-z'.-]+(?:\s+[A-Za-z][A-Za-z'.-]+){1,3}$/.test(firstLine);
+  const hasName =
+    /^[A-Za-z][A-Za-z'.-]+(?:\s+[A-Za-z][A-Za-z'.-]+){1,3}$/.test(firstLine)
+    || /^[A-Za-z][A-Za-z'.-]+(?:\s+[A-Za-z][A-Za-z'.-]+){1,3}$/.test(extractedName);
 
   const issues = [];
   if (!hasName) issues.push('Add your full name clearly at the top of the resume.');
@@ -126,6 +145,13 @@ const detectContactSignals = (resumeText) => {
 const estimatePageCount = (resumeText) => {
   const words = cleanText(resumeText).split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.round((words / 450) * 10) / 10);
+};
+
+const scoreStatusFromPercent = (score) => {
+  if (score >= 90) return 'Excellent';
+  if (score >= 70) return 'Good';
+  if (score >= 45) return 'Needs Work';
+  return 'Poor';
 };
 
 const buildHeuristicReport = (resumeText, jobDescription) => {
@@ -158,7 +184,7 @@ const buildHeuristicReport = (resumeText, jobDescription) => {
     formatScore -= 12;
   }
   if (formatIssues.length === 0) {
-    formatIssues.push('Keep section headings simple and avoid graphics, tables, or text boxes.');
+    formatScore = Math.max(formatScore, 90);
   }
 
   const keywordIssues = [];
@@ -205,6 +231,15 @@ const buildHeuristicReport = (resumeText, jobDescription) => {
     contentIssues.push('Content quality is solid, but adding more measurable impact would strengthen the resume further.');
   }
 
+  const quantifiedAchievementLines = normalizedResume
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !/^(full name|name|professional title|email|phone|location|linkedin|portfolio|summary|skills|experience|education|projects|certifications|awards)\s*:/i.test(line))
+    .filter((line) => !/^\d{4}\s*[-/]\s*\d{4}$/i.test(line))
+    .filter((line) => /\b\d+(?:\.\d+)?%?\b/.test(line))
+    .slice(0, 3);
+
   const overallScore = Math.round(
     (Math.max(0, formatScore) + Math.max(0, keywordScore) + contact.score + Math.max(0, lengthScore) + Math.max(0, contentScore)) / 5,
   );
@@ -219,14 +254,14 @@ const buildHeuristicReport = (resumeText, jobDescription) => {
     categories: {
       format: {
         score: formatScore,
-        max: 20,
+        max: 100,
         passed_checks: formatIssues.length === 0 ? ['Resume structure appears reasonably clean for ATS parsing.'] : [],
         issues: formatIssues,
         fix: 'Use a simple single-column layout with standard section headings and plain bullet formatting.',
       },
       keywords: {
         score: keywordScore,
-        max: 25,
+        max: 100,
         matched_keywords: detectedKeywords,
         missing_keywords: missingKeywords,
         passed_checks: detectedKeywords.length > 0 ? [`Detected relevant keywords such as ${detectedKeywords.slice(0, 4).join(', ')}.`] : [],
@@ -235,7 +270,7 @@ const buildHeuristicReport = (resumeText, jobDescription) => {
       },
       contact_info: {
         score: contact.score,
-        max: 15,
+        max: 100,
         detected: {
           name: !contact.issues.some((issue) => issue.includes('full name')),
           email: !contact.issues.some((issue) => issue.includes('email')),
@@ -249,22 +284,22 @@ const buildHeuristicReport = (resumeText, jobDescription) => {
       },
       length_structure: {
         score: lengthScore,
-        max: 20,
+        max: 100,
         estimated_pages: Math.min(3, Math.max(1, Math.round(pageCount))),
         word_count: resumeWords,
         sections_found: ['Contact', hasSummarySection ? 'Summary' : '', hasExperienceSection ? 'Experience' : '', hasEducationSection ? 'Education' : '', hasSkillsSection ? 'Skills' : '']
           .filter(Boolean),
         sections_missing: [hasSummarySection ? '' : 'Summary', hasExperienceSection ? '' : 'Experience', hasEducationSection ? '' : 'Education', hasSkillsSection ? '' : 'Skills']
           .filter(Boolean),
-        passed_checks: pageCount >= 0.7 && pageCount <= 2.2 ? ['Resume length is within a generally ATS-friendly range.'] : [],
+        passed_checks: pageCount >= 0.7 && pageCount <= 2.2 && resumeWords >= 180 ? ['Resume length is within a generally ATS-friendly range.'] : [],
         issues: lengthIssues,
         fix: 'Keep the resume between one and two pages with clear section order and visible date ranges.',
       },
       content_quality: {
         score: contentScore,
-        max: 20,
+        max: 100,
         action_verbs_found: ACTION_VERBS.filter((verb) => new RegExp(`\\b${verb}\\b`, 'i').test(normalizedResume)).slice(0, 5),
-        quantified_achievements: (normalizedResume.match(/[^\n]*\b\d+(?:\.\d+)?%?[^\n]*/g) || []).slice(0, 3),
+        quantified_achievements: quantifiedAchievementLines,
         cliches_found: CLICHE_PATTERNS.flatMap((pattern) => normalizedResume.match(pattern) || []).slice(0, 5),
         passed_checks: quantifiedCount >= 2 ? ['Resume includes measurable results and concrete evidence of impact.'] : [],
         issues: contentIssues,
@@ -334,8 +369,8 @@ const normalizeAtsReport = (payload) => {
 
   const normalizedLengthStructure = {
     score: clampScore(lengthStructure?.score, 0),
-    max: clampScore(lengthStructure?.max, 20) || 20,
-    status: String(lengthStructure?.status || statusFromCategoryScore(clampScore(lengthStructure?.score, 0), clampScore(lengthStructure?.max, 20) || 20)),
+    max: clampScore(lengthStructure?.max, 100) || 100,
+    status: String(lengthStructure?.status || scoreStatusFromPercent(clampScore(lengthStructure?.score, 0))),
     estimated_pages: Math.max(1, Math.min(3, Number.parseInt(String(lengthStructure?.estimated_pages ?? 1), 10) || 1)),
     word_count: Math.max(0, Number.parseInt(String(lengthStructure?.word_count ?? 0), 10) || 0),
     sections_found: cleanList(lengthStructure?.sections_found),
@@ -355,16 +390,16 @@ const normalizeAtsReport = (payload) => {
     categories: {
       format: {
         score: clampScore(categories?.format?.score, 0),
-        max: clampScore(categories?.format?.max, 20) || 20,
-        status: String(categories?.format?.status || statusFromCategoryScore(clampScore(categories?.format?.score, 0), clampScore(categories?.format?.max, 20) || 20)),
+        max: clampScore(categories?.format?.max, 100) || 100,
+        status: String(categories?.format?.status || scoreStatusFromPercent(clampScore(categories?.format?.score, 0))),
         passed_checks: cleanList(categories?.format?.passed_checks),
         issues: cleanList(categories?.format?.issues),
         fix: normalizeWhitespace(categories?.format?.fix),
       },
       keywords: {
         score: clampScore(keywordCategory?.score, 0),
-        max: clampScore(keywordCategory?.max, 25) || 25,
-        status: String(keywordCategory?.status || statusFromCategoryScore(clampScore(keywordCategory?.score, 0), clampScore(keywordCategory?.max, 25) || 25)),
+        max: clampScore(keywordCategory?.max, 100) || 100,
+        status: String(keywordCategory?.status || scoreStatusFromPercent(clampScore(keywordCategory?.score, 0))),
         matched_keywords: matchedKeywords,
         missing_keywords: missingKeywords,
         passed_checks: cleanList(keywordCategory?.passed_checks),
@@ -373,8 +408,8 @@ const normalizeAtsReport = (payload) => {
       },
       contact_info: {
         score: clampScore(categories?.contact_info?.score, 0),
-        max: clampScore(categories?.contact_info?.max, 15) || 15,
-        status: String(categories?.contact_info?.status || statusFromCategoryScore(clampScore(categories?.contact_info?.score, 0), clampScore(categories?.contact_info?.max, 15) || 15)),
+        max: clampScore(categories?.contact_info?.max, 100) || 100,
+        status: String(categories?.contact_info?.status || scoreStatusFromPercent(clampScore(categories?.contact_info?.score, 0))),
         detected: {
           name: normalizeBoolean(categories?.contact_info?.detected?.name),
           email: normalizeBoolean(categories?.contact_info?.detected?.email),
@@ -390,8 +425,8 @@ const normalizeAtsReport = (payload) => {
       length: normalizedLengthStructure,
       content_quality: {
         score: clampScore(categories?.content_quality?.score, 0),
-        max: clampScore(categories?.content_quality?.max, 20) || 20,
-        status: String(categories?.content_quality?.status || statusFromCategoryScore(clampScore(categories?.content_quality?.score, 0), clampScore(categories?.content_quality?.max, 20) || 20)),
+        max: clampScore(categories?.content_quality?.max, 100) || 100,
+        status: String(categories?.content_quality?.status || scoreStatusFromPercent(clampScore(categories?.content_quality?.score, 0))),
         action_verbs_found: cleanList(categories?.content_quality?.action_verbs_found),
         quantified_achievements: cleanList(categories?.content_quality?.quantified_achievements),
         cliches_found: cleanList(categories?.content_quality?.cliches_found),
@@ -403,7 +438,7 @@ const normalizeAtsReport = (payload) => {
     detected_keywords: matchedKeywords,
     missing_keywords: missingKeywords,
     top_3_priorities: cleanList(payload?.top_3_priorities || payload?.top_recommendations, []).slice(0, 3),
-    top_recommendations: cleanList(payload?.top_3_priorities || payload?.top_recommendations, []).slice(0, 5),
+    top_recommendations: cleanList(payload?.top_recommendations || payload?.top_3_priorities, []).slice(0, 5),
     quick_wins: cleanList(payload?.quick_wins, []).slice(0, 3),
     strengths: cleanList(payload?.strengths, []).slice(0, 4),
     improved_summary: normalizeWhitespace(payload?.improved_summary),

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { AlertCircle, ArrowLeft, Bot, MessageCircle, Pencil, Send, Settings, Trash2, X, Zap } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Bot, Pencil, Send, Settings, Trash2, X, Zap } from 'lucide-react';
 import axios, { type AxiosResponse } from 'axios';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -825,6 +825,7 @@ export const Resume = () => {
     { role: 'assistant', content: "Hi! I'm your AI Resume Assistant.\n\nI can help you:\n- Write stronger bullet points\n- Improve your summary\n- Tailor content for a role\n- Suggest better skills\n\nWhat would you like to improve?" },
   ]);
   const aiChatBodyRef = useRef<HTMLDivElement>(null);
+  const aiChatInputRef = useRef<HTMLInputElement | null>(null);
   const [educationItems, setEducationItems] = useState<EducationItem[]>([]);
   const [experienceItems, setExperienceItems] = useState<ExperienceItem[]>([]);
   const [sectionOrder, setSectionOrder] = useState<string[]>([
@@ -3438,6 +3439,19 @@ export const Resume = () => {
     }, 60);
   };
 
+  const openAiChat = () => {
+    setShowAiChat(true);
+  };
+
+  useEffect(() => {
+    if (!showAiChat) return;
+    scrollAiChatToBottom();
+    const focusTimer = window.setTimeout(() => {
+      aiChatInputRef.current?.focus();
+    }, 80);
+    return () => window.clearTimeout(focusTimer);
+  }, [showAiChat]);
+
   const handleAiChatSend = async () => {
     const text = aiChatInput.trim();
     if (!text || aiChatLoading) return;
@@ -4821,15 +4835,6 @@ export const Resume = () => {
                     {downloadingPdf ? 'Downloading...' : 'Download'} <span className="caret" aria-hidden="true" />
                   </button>
                 )}
-                <button
-                  type="button"
-                  className="resume-topbar-icon resume-topbar-ai-btn"
-                  aria-label="AI Resume Assistant"
-                  onClick={() => setShowAiChat(v => !v)}
-                  title="AI Resume Assistant"
-                >
-                  <MessageCircle size={18} />
-                </button>
                 <button type="button" className="resume-topbar-icon" aria-label="Settings">
                   <Settings size={18} />
                 </button>
@@ -4945,7 +4950,7 @@ export const Resume = () => {
                                 <div className="form-group">
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Professional Title</label>
                                   <input
-                                    placeholder="e.g. Software Engineer"
+                                    placeholder="Senior Software Engineer"
                                     className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                     value={contactRole}
                                     onChange={(e) => setContactRole(e.target.value)}
@@ -4991,7 +4996,7 @@ export const Resume = () => {
                                   <div className="form-group">
                                     <label className="block text-sm font-semibold mb-2 text-gray-700">First Name</label>
                                     <input
-                                      placeholder="It's"
+                                      placeholder="Alex"
                                       className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                       value={contactNameParts.first}
                                       onChange={(e) => updateContactNameParts(e.target.value, contactNameParts.last)}
@@ -5000,7 +5005,7 @@ export const Resume = () => {
                                   <div className="form-group">
                                     <label className="block text-sm font-semibold mb-2 text-gray-700">Last Name</label>
                                     <input
-                                      placeholder="Coder"
+                                      placeholder="Morgan"
                                       className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                       value={contactNameParts.last}
                                       onChange={(e) => updateContactNameParts(contactNameParts.first, e.target.value)}
@@ -5013,7 +5018,7 @@ export const Resume = () => {
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Email</label>
                                   <input
                                     type="email"
-                                    placeholder="you@email.com"
+                                    placeholder="alex.morgan@email.com"
                                     className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                     value={contactEmail}
                                     onChange={(e) => setContactEmail(e.target.value)}
@@ -5025,7 +5030,7 @@ export const Resume = () => {
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Phone</label>
                                   <input
                                     type="tel"
-                                    placeholder="(555) 555-1234"
+                                    placeholder="+1 (555) 123-4567"
                                     className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                     value={contactPhone}
                                     onChange={(e) => setContactPhone(e.target.value)}
@@ -5037,7 +5042,7 @@ export const Resume = () => {
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Portfolio</label>
                                   <input
                                     type="url"
-                                    placeholder="www.yourportfolio.com"
+                                    placeholder="www.alexmorgan.dev"
                                     className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                     value={getTemplateFieldValue('website') || getTemplateFieldValue('portfolio')}
                                     onChange={(e) => setTemplateFieldValue('portfolio', e.target.value)}
@@ -5049,7 +5054,7 @@ export const Resume = () => {
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">LinkedIn URL</label>
                                   <input
                                     type="url"
-                                    placeholder="linkedin.com/in/you"
+                                    placeholder="linkedin.com/in/alexmorgan"
                                     className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                     value={getTemplateFieldValue('linkedin')}
                                     onChange={(e) => setTemplateFieldValue('linkedin', e.target.value)}
@@ -5083,7 +5088,7 @@ export const Resume = () => {
                                 <div className="form-group">
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">City / Address</label>
                                   <input
-                                    placeholder="City / Address"
+                                    placeholder="Lahore, Pakistan"
                                     className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                     value={contactLocation}
                                     onChange={(e) => setContactLocation(e.target.value)}
@@ -5107,7 +5112,7 @@ export const Resume = () => {
                               <button
                                 type="button"
                                 className="ask-ai-btn"
-                                onClick={() => setActiveEditorTab('review')}
+                                onClick={openAiChat}
                               >
                                 Ask AI writer
                               </button>
@@ -5506,7 +5511,6 @@ export const Resume = () => {
                     <div className="tab-panel-header">
                       <div>
                         <h2>AI Review</h2>
-                        <p>See ATS analysis fetched from the API.</p>
                       </div>
                       <div className="review-score">
                         <span>Score</span>
@@ -9903,14 +9907,6 @@ export const Resume = () => {
           transition: opacity 0.2s;
         }
         .rai-send-btn:disabled { opacity: 0.45; cursor: default; }
-        .resume-topbar-ai-btn {
-          background: linear-gradient(135deg,rgba(20,184,166,0.1),rgba(15,118,110,0.06));
-          border: 1px solid rgba(20,184,166,0.35) !important;
-          color: #0f766e !important;
-        }
-        .resume-topbar-ai-btn:hover {
-          background: linear-gradient(135deg,rgba(20,184,166,0.18),rgba(15,118,110,0.12));
-        }
       `}</style>
 
       {/* ── AI Resume Assistant Slide-in Panel ── */}
@@ -9942,6 +9938,7 @@ export const Resume = () => {
         </div>
         <div className="rai-input-row">
           <input
+            ref={aiChatInputRef}
             type="text"
             placeholder="Ask about bullet points, skills, summaries..."
             value={aiChatInput}
