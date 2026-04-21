@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { AlertCircle, ArrowLeft, Pencil, Settings, Trash2, Zap } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Bot, MessageCircle, Pencil, Send, Settings, Trash2, X, Zap } from 'lucide-react';
 import axios, { type AxiosResponse } from 'axios';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -817,6 +817,14 @@ export const Resume = () => {
   const [projectsText, setProjectsText] = useState('');
   const [additionalText] = useState("");
   const [customDetails, setCustomDetails] = useState<{ id: string; label: string; value: string }[]>([]);
+  // AI Resume Assistant chat
+  const [showAiChat, setShowAiChat] = useState(false);
+  const [aiChatInput, setAiChatInput] = useState('');
+  const [aiChatLoading, setAiChatLoading] = useState(false);
+  const [aiChatMessages, setAiChatMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([
+    { role: 'assistant', content: "Hi! I'm your AI Resume Assistant.\n\nI can help you:\n- Write stronger bullet points\n- Improve your summary\n- Tailor content for a role\n- Suggest better skills\n\nWhat would you like to improve?" },
+  ]);
+  const aiChatBodyRef = useRef<HTMLDivElement>(null);
   const [educationItems, setEducationItems] = useState<EducationItem[]>([]);
   const [experienceItems, setExperienceItems] = useState<ExperienceItem[]>([]);
   const [sectionOrder, setSectionOrder] = useState<string[]>([
@@ -2334,9 +2342,8 @@ export const Resume = () => {
     const anyEducationFilled = educationItems.some((item) => {
       const degreeOk = hasChars(item.degree, 2);
       const schoolOk = hasChars(item.school, 2);
-      const datesOk = hasChars(item.dates, 4);
-      const detailsOk = hasLongText(item.details, 12);
-      return degreeOk && schoolOk && datesOk && detailsOk;
+      // Only degree + school are required; dates and details are optional
+      return degreeOk && schoolOk;
     });
 
     const allPersonalInfoFilled = personalInfoFields.length > 0
@@ -3423,6 +3430,43 @@ export const Resume = () => {
     templateSourceHtml,
   ]);
 
+  const scrollAiChatToBottom = () => {
+    setTimeout(() => {
+      if (aiChatBodyRef.current) {
+        aiChatBodyRef.current.scrollTop = aiChatBodyRef.current.scrollHeight;
+      }
+    }, 60);
+  };
+
+  const handleAiChatSend = async () => {
+    const text = aiChatInput.trim();
+    if (!text || aiChatLoading) return;
+    const userMsg = { role: 'user' as const, content: text };
+    const updated = [...aiChatMessages, userMsg];
+    setAiChatMessages(updated);
+    setAiChatInput('');
+    setAiChatLoading(true);
+    scrollAiChatToBottom();
+    try {
+      const res = await fetch(apiUrl('/copilot/chat'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: updated,
+          userProfile: { name: user?.name, profession: user?.profession },
+        }),
+      });
+      const data = await res.json();
+      const content = data?.response || data?.message || "Sorry, I couldn't get a response. Please try again.";
+      setAiChatMessages(prev => [...prev, { role: 'assistant', content }]);
+    } catch {
+      setAiChatMessages(prev => [...prev, { role: 'assistant', content: 'Network error. Please try again.' }]);
+    } finally {
+      setAiChatLoading(false);
+      scrollAiChatToBottom();
+    }
+  };
+
   const handleDownloadPDF = async () => {
     const filenameBase = contactName
       || getTemplateFieldValue('name')
@@ -3935,7 +3979,8 @@ export const Resume = () => {
   }, [sectionCompletion]);
 
   const requiredDownloadSectionIds = useMemo(() => {
-    const requiredSectionSet = new Set(['contact', 'summary', 'experience', 'education', 'skills']);
+    // Unlock download when user fills: name + role title (contact) + education
+    const requiredSectionSet = new Set(['contact', 'education']);
     return availableSections.filter((id) => requiredSectionSet.has(id));
   }, [availableSections]);
 
@@ -4776,6 +4821,15 @@ export const Resume = () => {
                     {downloadingPdf ? 'Downloading...' : 'Download'} <span className="caret" aria-hidden="true" />
                   </button>
                 )}
+                <button
+                  type="button"
+                  className="resume-topbar-icon resume-topbar-ai-btn"
+                  aria-label="AI Resume Assistant"
+                  onClick={() => setShowAiChat(v => !v)}
+                  title="AI Resume Assistant"
+                >
+                  <MessageCircle size={18} />
+                </button>
                 <button type="button" className="resume-topbar-icon" aria-label="Settings">
                   <Settings size={18} />
                 </button>
@@ -9645,9 +9699,10 @@ export const Resume = () => {
             height: 34px;
           }
 
+          /* Workspace: account for 3-row stacked topbar + added AI btn (~160px) */
           .resume-workspace.is-editor {
-            margin-top: 140px;
-            height: calc(100svh - 140px);
+            margin-top: 162px;
+            height: calc(100svh - 162px);
           }
 
           /* Step footer dots */
@@ -9720,11 +9775,189 @@ export const Resume = () => {
           }
 
           .resume-workspace.is-editor {
-            margin-top: 136px;
-            height: calc(100svh - 136px);
+            margin-top: 157px;
+            height: calc(100svh - 157px);
           }
         }
+
+        /* ── AI Resume Assistant Panel ── */
+        .resume-ai-chat-panel {
+          position: fixed;
+          top: 0; right: 0; bottom: 0;
+          width: min(380px, 100vw);
+          background: #fff;
+          border-left: 1px solid #e2e8f0;
+          box-shadow: -16px 0 48px rgba(15,23,42,0.14);
+          display: flex;
+          flex-direction: column;
+          z-index: 1400;
+          transform: translateX(100%);
+          transition: transform 0.32s cubic-bezier(0.22,1,0.36,1);
+        }
+        .resume-ai-chat-panel.is-open { transform: translateX(0); }
+        .rai-head {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 14px 16px;
+          border-bottom: 1px solid #e2e8f0;
+          background: #f8fafc;
+          flex-shrink: 0;
+        }
+        .rai-head-icon {
+          width: 34px; height: 34px;
+          border-radius: 10px;
+          background: linear-gradient(135deg,#14b8a6,#0f766e);
+          color: #fff;
+          display: grid; place-items: center;
+          flex-shrink: 0;
+        }
+        .rai-head-title { font-size: 0.9rem; font-weight: 700; color: #0f172a; margin: 0; }
+        .rai-head-sub { font-size: 0.72rem; color: #64748b; margin: 0; }
+        .rai-close {
+          margin-left: auto;
+          width: 32px; height: 32px;
+          border: none; background: none;
+          border-radius: 8px; cursor: pointer;
+          display: grid; place-items: center;
+          color: #64748b;
+          transition: background 0.15s;
+        }
+        .rai-close:hover { background: #f1f5f9; color: #0f172a; }
+        .rai-messages {
+          flex: 1;
+          min-height: 0;
+          overflow-y: auto;
+          padding: 14px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .rai-msg {
+          max-width: 88%;
+          padding: 9px 12px;
+          border-radius: 12px;
+          font-size: 0.84rem;
+          line-height: 1.65;
+          white-space: pre-wrap;
+        }
+        .rai-msg.user {
+          align-self: flex-end;
+          background: linear-gradient(135deg,#14b8a6,#0f766e);
+          color: #fff;
+          border-bottom-right-radius: 4px;
+        }
+        .rai-msg.assistant {
+          align-self: flex-start;
+          background: #f1f5f9;
+          color: #0f172a;
+          border-bottom-left-radius: 4px;
+        }
+        .rai-typing {
+          align-self: flex-start;
+          display: flex; gap: 4px;
+          padding: 9px 12px;
+          background: #f1f5f9;
+          border-radius: 12px;
+          border-bottom-left-radius: 4px;
+        }
+        .rai-typing span {
+          width: 6px; height: 6px;
+          border-radius: 50%;
+          background: #94a3b8;
+          animation: rai-bounce 1.2s ease-in-out infinite;
+        }
+        .rai-typing span:nth-child(2) { animation-delay: 0.2s; }
+        .rai-typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes rai-bounce {
+          0%,60%,100% { transform: translateY(0); }
+          30% { transform: translateY(-5px); }
+        }
+        .rai-input-row {
+          padding: 12px 14px;
+          border-top: 1px solid #e2e8f0;
+          display: flex;
+          gap: 8px;
+          flex-shrink: 0;
+        }
+        .rai-input-row input {
+          flex: 1; min-width: 0;
+          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+          padding: 9px 12px;
+          font-size: 16px;
+          outline: none;
+          background: #f8fafc;
+          font-family: inherit;
+        }
+        .rai-input-row input:focus { border-color: #14b8a6; background: #fff; }
+        .rai-send-btn {
+          width: 38px; height: 38px;
+          border-radius: 10px;
+          border: none;
+          background: linear-gradient(135deg,#14b8a6,#0f766e);
+          color: #fff;
+          cursor: pointer;
+          display: grid; place-items: center;
+          flex-shrink: 0;
+          transition: opacity 0.2s;
+        }
+        .rai-send-btn:disabled { opacity: 0.45; cursor: default; }
+        .resume-topbar-ai-btn {
+          background: linear-gradient(135deg,rgba(20,184,166,0.1),rgba(15,118,110,0.06));
+          border: 1px solid rgba(20,184,166,0.35) !important;
+          color: #0f766e !important;
+        }
+        .resume-topbar-ai-btn:hover {
+          background: linear-gradient(135deg,rgba(20,184,166,0.18),rgba(15,118,110,0.12));
+        }
       `}</style>
+
+      {/* ── AI Resume Assistant Slide-in Panel ── */}
+      <div
+        className={`resume-ai-chat-panel ${showAiChat ? 'is-open' : ''}`}
+        role="dialog"
+        aria-label="AI Resume Assistant"
+        aria-modal="false"
+      >
+        <div className="rai-head">
+          <div className="rai-head-icon"><Bot size={16} /></div>
+          <div>
+            <p className="rai-head-title">AI Resume Assistant</p>
+            <p className="rai-head-sub">Ask anything about your resume</p>
+          </div>
+          <button className="rai-close" onClick={() => setShowAiChat(false)} aria-label="Close">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="rai-messages" ref={aiChatBodyRef}>
+          {aiChatMessages.map((msg, i) => (
+            <div key={i} className={`rai-msg ${msg.role}`}>{msg.content}</div>
+          ))}
+          {aiChatLoading && (
+            <div className="rai-typing">
+              <span /><span /><span />
+            </div>
+          )}
+        </div>
+        <div className="rai-input-row">
+          <input
+            type="text"
+            placeholder="Ask about bullet points, skills, summaries..."
+            value={aiChatInput}
+            onChange={e => setAiChatInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleAiChatSend()}
+          />
+          <button
+            className="rai-send-btn"
+            onClick={handleAiChatSend}
+            disabled={!aiChatInput.trim() || aiChatLoading}
+            aria-label="Send"
+          >
+            <Send size={16} />
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
