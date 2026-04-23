@@ -2494,7 +2494,11 @@ export const Resume = () => {
     const templateSlug = slugifyTemplate(template.name.split('/').pop() || template.name);
     if (isEditorRoute) {
       const nextStorageKey = `hirevo:resume-editor:${templateSlug || 'default'}:${user?.id || 'anon'}`;
-      window.localStorage.setItem(nextStorageKey, getEditorSnapshotRef.current());
+      try {
+        window.localStorage.setItem(nextStorageKey, getEditorSnapshotRef.current());
+      } catch {
+        // Ignore storage quota errors so template changes still work.
+      }
       restoreKeyRef.current = nextStorageKey;
     }
     selectTemplate(template.name);
@@ -3958,7 +3962,11 @@ export const Resume = () => {
     if (autosaveTimerRef.current) window.clearInterval(autosaveTimerRef.current);
     autosaveTimerRef.current = window.setInterval(() => {
       if (isApplyingHistoryRef.current) return;
-      window.localStorage.setItem(storageKey, getEditorSnapshot());
+      try {
+        window.localStorage.setItem(storageKey, getEditorSnapshot());
+      } catch {
+        // Ignore storage quota errors so editing can continue even with large embedded photos.
+      }
     }, 2500);
     return () => {
       if (autosaveTimerRef.current) window.clearInterval(autosaveTimerRef.current);

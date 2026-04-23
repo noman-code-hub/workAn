@@ -191,32 +191,20 @@ export const ImageCropModal = ({
 
   const handleConfirm = useCallback(() => {
     const image = imageRef.current;
-    const viewport = viewportRef.current;
-    if (!image || !viewport || !naturalSize.width || !naturalSize.height) return;
+    const viewportSize = getViewportSize();
+    if (!image || !viewportSize || !naturalSize.width || !naturalSize.height || !scale) return;
 
-    const viewportRect = viewport.getBoundingClientRect();
-    const imageRect = image.getBoundingClientRect();
-    if (!viewportRect.width || !viewportRect.height || !imageRect.width || !imageRect.height) return;
-
+    const sourceWidth = clamp(viewportSize / scale, 1, naturalSize.width);
+    const sourceHeight = clamp(viewportSize / scale, 1, naturalSize.height);
     const sourceX = clamp(
-      ((viewportRect.left - imageRect.left) / imageRect.width) * naturalSize.width,
+      (naturalSize.width - sourceWidth) / 2 - (position.x / scale),
       0,
-      naturalSize.width,
+      Math.max(0, naturalSize.width - sourceWidth),
     );
     const sourceY = clamp(
-      ((viewportRect.top - imageRect.top) / imageRect.height) * naturalSize.height,
+      (naturalSize.height - sourceHeight) / 2 - (position.y / scale),
       0,
-      naturalSize.height,
-    );
-    const sourceWidth = clamp(
-      (viewportRect.width / imageRect.width) * naturalSize.width,
-      1,
-      naturalSize.width - sourceX,
-    );
-    const sourceHeight = clamp(
-      (viewportRect.height / imageRect.height) * naturalSize.height,
-      1,
-      naturalSize.height - sourceY,
+      Math.max(0, naturalSize.height - sourceHeight),
     );
 
     const canvas = document.createElement('canvas');
@@ -240,7 +228,9 @@ export const ImageCropModal = ({
     );
 
     onConfirm(canvas.toDataURL('image/png'));
-  }, [naturalSize.height, naturalSize.width, onConfirm, outputSize]);
+  }, [getViewportSize, naturalSize.height, naturalSize.width, onConfirm, outputSize, position.x, position.y, scale]);
+
+  const canConfirm = naturalSize.width > 0 && naturalSize.height > 0 && getViewportSize() > 0;
 
   if (!isOpen || !imageSrc) return null;
 
@@ -319,7 +309,7 @@ export const ImageCropModal = ({
           <button type="button" className="btn btn-secondary" onClick={onCancel}>
             Cancel
           </button>
-          <button type="button" className="btn btn-primary" onClick={handleConfirm}>
+          <button type="button" className="btn btn-primary" onClick={handleConfirm} disabled={!canConfirm}>
             Apply Crop
           </button>
         </div>
