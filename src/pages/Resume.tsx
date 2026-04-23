@@ -508,6 +508,20 @@ body {
 };
 
 const isLocalHostname = (hostname: string) => hostname === 'localhost' || hostname === '127.0.0.1';
+const isLocalPdfEndpoint = (endpoint: string) => /localhost:5000|127\.0\.0\.1:5000/i.test(endpoint);
+const isSameOriginPdfEndpoint = (endpoint: string) => /^\/api\/render-resume-pdf$/i.test(endpoint);
+
+const getPdfEndpointHelpMessage = (endpoint: string) => {
+  if (isLocalPdfEndpoint(endpoint)) {
+    return `Cannot reach the PDF service at ${endpoint}. Start the Node backend in c:/Hirevo/server and check whether a browser extension is blocking the request.`;
+  }
+
+  if (isSameOriginPdfEndpoint(endpoint)) {
+    return `Cannot reach the PDF service at ${endpoint}. Redeploy workshour.com and make sure the Vercel PDF function is available.`;
+  }
+
+  return `Cannot reach the PDF service at ${endpoint}. Verify VITE_PDF_API_BASE points to a working /render-resume-pdf endpoint.`;
+};
 
 const buildPdfEndpointCandidates = () => {
   const configuredEndpoint = pdfApiUrl('/render-resume-pdf');
@@ -607,7 +621,9 @@ const parsePdfHttpFailure = (endpoint: string, status: number, data: ArrayBuffer
   const text = bytes.length ? new TextDecoder().decode(bytes).trim() : '';
 
   if (status === 404) {
-    return `PDF route not found at ${endpoint}. Point VITE_PDF_API_BASE to the Node PDF service or run the local backend on port 5000.`;
+    return isSameOriginPdfEndpoint(endpoint)
+      ? `PDF route not found at ${endpoint}. Redeploy workshour.com so the Vercel PDF function is included.`
+      : `PDF route not found at ${endpoint}. Verify that endpoint serves /render-resume-pdf.`;
   }
 
   if (text.startsWith('{') || text.startsWith('[')) {
@@ -3545,10 +3561,7 @@ export const Resume = () => {
           || /load failed/i.test(networkMessage)
         ) {
           const target = pdfApiUrl('/render-resume-pdf');
-          const isLocalPdfTarget = /localhost:5000|127\.0\.0\.1:5000/i.test(target);
-          return isLocalPdfTarget
-            ? `Cannot reach the PDF service at ${target}. Start the Node backend in c:/Hirevo/server and check whether a browser extension is blocking the request.`
-            : `Cannot reach the PDF service at ${target}. Verify VITE_PDF_API_BASE points to a Node service that hosts /render-resume-pdf.`;
+          return getPdfEndpointHelpMessage(target);
         }
       }
 
@@ -3588,7 +3601,9 @@ export const Resume = () => {
       const statusCode = (error as { response?: { status?: number } })?.response?.status;
       if (statusCode === 404) {
         const target = pdfApiUrl('/render-resume-pdf');
-        return `PDF route not found at ${target}. Point VITE_PDF_API_BASE to the Node PDF service or run the local backend on port 5000.`;
+        return isSameOriginPdfEndpoint(target)
+          ? `PDF route not found at ${target}. Redeploy workshour.com so the Vercel PDF function is included.`
+          : `PDF route not found at ${target}. Verify that endpoint serves /render-resume-pdf.`;
       }
 
       return (error as { message?: string })?.message || 'Failed to generate PDF.';
@@ -3602,7 +3617,7 @@ export const Resume = () => {
 
       const pdfEndpoints = buildPdfEndpointCandidates();
       if (!pdfEndpoints.length) {
-        throw new Error('No PDF service is configured. Set VITE_PDF_API_BASE to a Node backend that hosts /render-resume-pdf.');
+        throw new Error('No PDF service is configured. Use the built-in Vercel PDF route or set VITE_PDF_API_BASE to a working /render-resume-pdf endpoint.');
       }
 
       let response: Blob | null = null;
@@ -3625,12 +3640,7 @@ export const Resume = () => {
             || /failed to fetch/i.test(networkMessage)
             || /load failed/i.test(networkMessage)
           ) {
-            const isLocalPdfTarget = /localhost:5000|127\.0\.0\.1:5000/i.test(endpoint);
-            lastError = new Error(
-              isLocalPdfTarget
-                ? `Cannot reach the PDF service at ${endpoint}. Start the Node backend in c:/Hirevo/server and try again.`
-                : `Cannot reach the PDF service at ${endpoint}. Verify VITE_PDF_API_BASE points to a Node service that hosts /render-resume-pdf.`,
-            );
+            lastError = new Error(getPdfEndpointHelpMessage(endpoint));
             continue;
           }
           lastError = error;

@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/render-resume-pdf.js": {
+      "maxDuration": 60
+    }
+  },
   "redirects": [
     {
       "source": "/:path*",
