@@ -230,7 +230,7 @@ export const ImageCropModal = ({
     onConfirm(canvas.toDataURL('image/png'));
   }, [getViewportSize, naturalSize.height, naturalSize.width, onConfirm, outputSize, position.x, position.y, scale]);
 
-  const canConfirm = naturalSize.width > 0 && naturalSize.height > 0 && getViewportSize() > 0;
+  const canConfirm = naturalSize.width > 0 && naturalSize.height > 0;
 
   if (!isOpen || !imageSrc) return null;
 
