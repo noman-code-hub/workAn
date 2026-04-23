@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 import { Bot, FileText, Lightbulb, Send, Sparkles, TrendingUp, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import type { ChatMessage } from '../types';
-import { apiUrl, parseApiJson } from '../config/api';
+import { parseApiJson } from '../config/api';
 
 export const AICopilot = () => {
   const FASTAPI_LOCAL_BASE = 'http://127.0.0.1:8000';
@@ -51,7 +51,7 @@ export const AICopilot = () => {
       }
     }
 
-    return [VERCEL_COPILOT_PATH, apiUrl('/copilot/chat')];
+    return [VERCEL_COPILOT_PATH];
   };
 
   const requestCopilotResponse = async (conversation: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>) => {
