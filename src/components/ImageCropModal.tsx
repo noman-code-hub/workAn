@@ -31,11 +31,14 @@ export const ImageCropModal = ({
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const dragStartRef = useRef<{ pointerId: number; pointerX: number; pointerY: number; offset: Point } | null>(null);
+  const cropInitializedRef = useRef(false);
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
   const [position, setPosition] = useState<Point>({ x: 0, y: 0 });
   const [minScale, setMinScale] = useState(1);
   const [scale, setScale] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
+  const [isImageReady, setIsImageReady] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const maxScale = useMemo(() => Math.max(minScale * 4, minScale + 1.5), [minScale]);
 
@@ -117,10 +120,13 @@ export const ImageCropModal = ({
 
   useEffect(() => {
     if (!isOpen || !imageSrc) return;
+    cropInitializedRef.current = false;
     setNaturalSize({ width: 0, height: 0 });
     setPosition({ x: 0, y: 0 });
     setMinScale(1);
     setScale(1);
+    setIsImageReady(false);
+    setLoadError(null);
   }, [imageSrc, isOpen]);
 
   const handleImageLoad = useCallback(() => {
@@ -128,11 +134,38 @@ export const ImageCropModal = ({
     if (!image) return;
     const width = image.naturalWidth || image.width;
     const height = image.naturalHeight || image.height;
+    if (!width || !height) return;
+    setLoadError(null);
+    setIsImageReady(true);
     setNaturalSize({ width, height });
-    requestAnimationFrame(() => {
-      initializeCrop(width, height);
+  }, []);
+
+  const handleImageError = useCallback(() => {
+    cropInitializedRef.current = false;
+    setIsImageReady(false);
+    setNaturalSize({ width: 0, height: 0 });
+    setLoadError('This image could not be loaded. Please try another file.');
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || !imageSrc || isImageReady) return;
+    const image = imageRef.current;
+    if (!image || !image.complete || !image.naturalWidth || !image.naturalHeight) return;
+    handleImageLoad();
+  }, [handleImageLoad, imageSrc, isImageReady, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !isImageReady || !naturalSize.width || !naturalSize.height || cropInitializedRef.current) return;
+
+    let frameId = window.requestAnimationFrame(() => {
+      const viewportSize = getViewportSize();
+      if (!viewportSize) return;
+      initializeCrop(naturalSize.width, naturalSize.height);
+      cropInitializedRef.current = true;
     });
-  }, [initializeCrop]);
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [getViewportSize, initializeCrop, isImageReady, isOpen, naturalSize.height, naturalSize.width]);
 
   const handleZoomChange = useCallback((nextScale: number) => {
     const safeScale = clamp(nextScale, minScale, maxScale);
@@ -230,7 +263,7 @@ export const ImageCropModal = ({
     onConfirm(canvas.toDataURL('image/png'));
   }, [getViewportSize, naturalSize.height, naturalSize.width, onConfirm, outputSize, position.x, position.y, scale]);
 
-  const canConfirm = naturalSize.width > 0 && naturalSize.height > 0;
+  const canConfirm = isImageReady && naturalSize.width > 0 && naturalSize.height > 0;
 
   if (!isOpen || !imageSrc) return null;
 
@@ -272,6 +305,7 @@ export const ImageCropModal = ({
                   className="hirevo-crop-image"
                   draggable={false}
                   onLoad={handleImageLoad}
+                  onError={handleImageError}
                   style={{
                     transform: `scale(${scale})`,
                   }}
@@ -283,7 +317,12 @@ export const ImageCropModal = ({
 
           <div className="hirevo-crop-controls">
             <div className="hirevo-crop-zoom-row">
-              <button type="button" className="hirevo-crop-zoom-btn" onClick={() => handleZoomChange(scale - minScale * 0.12)}>
+              <button
+                type="button"
+                className="hirevo-crop-zoom-btn"
+                onClick={() => handleZoomChange(scale - minScale * 0.12)}
+                disabled={!isImageReady}
+              >
                 -
               </button>
               <input
@@ -294,13 +333,23 @@ export const ImageCropModal = ({
                 value={scale}
                 onChange={(event) => handleZoomChange(Number(event.target.value))}
                 className="hirevo-crop-range"
+                disabled={!isImageReady}
               />
-              <button type="button" className="hirevo-crop-zoom-btn" onClick={() => handleZoomChange(scale + minScale * 0.12)}>
+              <button
+                type="button"
+                className="hirevo-crop-zoom-btn"
+                onClick={() => handleZoomChange(scale + minScale * 0.12)}
+                disabled={!isImageReady}
+              >
                 +
               </button>
             </div>
             <div className="hirevo-crop-help">
-              Drag to reposition. Use the slider to zoom. The final image will be exported at {outputSize} x {outputSize}px.
+              {loadError || (
+                isImageReady
+                  ? `Drag to reposition. Use the slider to zoom. The final image will be exported at ${outputSize} x ${outputSize}px.`
+                  : 'Preparing image for cropping...'
+              )}
             </div>
           </div>
         </div>
