@@ -5,7 +5,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from 'react-rout
 import { useAuth } from '../contexts/AuthContext';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
 import { normalizeFieldKey, renderTemplateWithSchema } from '../services/resumeTemplateRenderer';
-import { API_BASE, apiUrl, pdfApiUrl } from '../config/api';
+import { API_BASE, apiUrl, parseApiJson, pdfApiUrl } from '../config/api';
 import { AppLoader } from '../components/AppLoader';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { ImageCropModal } from '../components/ImageCropModal';
@@ -46,6 +46,13 @@ type AtsReport = {
 const ENABLE_PREVIEW_PAGINATION = false;
 const PAGE_GAP_PX = 24;
 const PREVIEW_FONT_SCALES = [1, 0.93, 0.86, 0.79, 0.75];
+const RESUME_COPILOT_PATH = '/api/copilot/chat';
+const normalizeCopilotEndpoint = (base: string) => {
+  const trimmed = base.trim().replace(/\/+$/, '');
+  if (!trimmed) return '';
+  return trimmed.endsWith('/chat') ? trimmed : `${trimmed}/chat`;
+};
+
 const getPreviewDocumentSize = (doc: Document, fallback: { width: number; height: number }) => {
   const fitManagedRoot = doc.querySelector<HTMLElement>('[data-preview-fit-managed="true"]');
   if (fitManagedRoot) {
@@ -3466,16 +3473,45 @@ export const Resume = () => {
     setAiChatLoading(true);
     scrollAiChatToBottom();
     try {
-      const res = await fetch(apiUrl('/copilot/chat'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: updated,
-          userProfile: { name: user?.name, profession: user?.profession },
-        }),
-      });
-      const data = await res.json();
-      const content = data?.response || data?.message || "Sorry, I couldn't get a response. Please try again.";
+      const envCopilotBase = (import.meta.env.VITE_COPILOT_API_BASE || '').trim();
+      const envCopilotEndpoint = normalizeCopilotEndpoint(envCopilotBase);
+      const copilotEndpoints = envCopilotEndpoint
+        ? [envCopilotEndpoint]
+        : [RESUME_COPILOT_PATH];
+
+      let content = '';
+      let lastError: unknown = null;
+
+      for (const endpoint of copilotEndpoints) {
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(user?.id ? { 'X-Session-Id': user.id } : {}),
+            },
+            body: JSON.stringify({
+              messages: updated,
+              userProfile: {
+                name: user?.name,
+                profession: user?.profession,
+                country: user?.country,
+                skills: user?.skills ?? [],
+              },
+            }),
+          });
+          const data = await parseApiJson<{ response?: string; reply?: string; message?: string }>(res);
+          content = (data?.response || data?.reply || data?.message || '').trim();
+          if (content) break;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      if (!content) {
+        throw lastError instanceof Error ? lastError : new Error("Sorry, I couldn't get a response. Please try again.");
+      }
+
       setAiChatMessages(prev => [...prev, { role: 'assistant', content }]);
     } catch {
       setAiChatMessages(prev => [...prev, { role: 'assistant', content: 'Network error. Please try again.' }]);
