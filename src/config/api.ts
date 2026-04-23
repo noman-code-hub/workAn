@@ -39,7 +39,7 @@ const localAiBase = 'http://localhost:8000';
 export const API_BASE = envBaseUrl ? ensureApiBase(envBaseUrl) : fallbackBase;
 export const PDF_API_BASE = envPdfBaseUrl
   ? ensureApiBase(envPdfBaseUrl)
-  : (isLocalRuntime ? localPdfBase : API_BASE);
+  : (isLocalRuntime ? localPdfBase : LOCAL_API_PREFIX);
 export const AI_API_BASE = envAiBaseUrl
   ? trimTrailingSlash(envAiBaseUrl)
   : (isLocalRuntime ? localAiBase : '');
