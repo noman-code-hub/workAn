@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import {
+  findStaticCommunityArticle,
+  filterStaticCommunityArticles,
+} from '../data/communityArticles';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { applySeoMeta } from '../utils/seo';
 
@@ -86,43 +90,78 @@ export const CommunityBlogDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const loadRelated = useCallback(async (category: string, currentId: string) => {
-    if (!isSupabaseConfigured || !supabase) return;
+  const loadRelated = useCallback(async (category: string, currentSlug: string, currentId?: string) => {
+    const staticRelated = filterStaticCommunityArticles('', category)
+      .filter((article) => article.slug !== currentSlug)
+      .map((article) => ({
+        id: article.id,
+        slug: article.slug,
+        title: article.title,
+        coverImage: article.coverImage,
+      }));
+
+    if (!isSupabaseConfigured || !supabase) {
+      setRelated(staticRelated.slice(0, 3));
+      return;
+    }
+
     try {
-      const { data, error: fetchError } = await supabase
+      let builder = supabase
         .from('blogs')
         .select('id, slug, title, cover_image, image_url')
         .eq('published', true)
         .eq('category', category)
-        .neq('id', currentId)
         .order('published_at', { ascending: false })
         .limit(3);
 
+      if (currentId) {
+        builder = builder.neq('id', currentId);
+      }
+
+      const { data, error: fetchError } = await builder;
       if (fetchError) throw fetchError;
 
-      const normalized = ((data || []) as RelatedPostRow[]).map((row) => ({
-        id: row.id,
-        slug: row.slug?.trim() || row.id,
-        title: row.title?.trim() || 'Untitled story',
-        coverImage: row.cover_image || row.image_url || '',
-      }));
-      setRelated(normalized);
+      const normalized = ((data || []) as RelatedPostRow[])
+        .map((row) => ({
+          id: row.id,
+          slug: row.slug?.trim() || row.id,
+          title: row.title?.trim() || 'Untitled story',
+          coverImage: row.cover_image || row.image_url || '',
+        }))
+        .filter((post) => post.slug !== currentSlug);
+
+      const merged = [...staticRelated, ...normalized].filter(
+        (post, index, array) => array.findIndex((item) => item.slug === post.slug) === index
+      );
+      setRelated(merged.slice(0, 3));
     } catch (err) {
       console.error('Error loading related posts:', err);
+      setRelated(staticRelated.slice(0, 3));
     }
   }, []);
 
   useEffect(() => {
     const loadBlog = async () => {
       if (!slug) return;
+      setLoading(true);
+      setError('');
+      setBlog(null);
+      setRelated([]);
+
+      const staticBlog = findStaticCommunityArticle(slug);
+
+      if (staticBlog) {
+        setBlog(staticBlog);
+        setLoading(false);
+        void loadRelated(staticBlog.category, staticBlog.slug);
+        return;
+      }
+
       if (!isSupabaseConfigured || !supabase) {
         setError('Supabase is not configured.');
         setLoading(false);
         return;
       }
-
-      setLoading(true);
-      setError('');
 
       try {
         const { data, error: fetchError } = await supabase
@@ -142,7 +181,7 @@ export const CommunityBlogDetail = () => {
         const normalized = normalizeBlog(data as BlogRow);
         setBlog(normalized);
         if (normalized.category) {
-          void loadRelated(normalized.category, normalized.id);
+          void loadRelated(normalized.category, normalized.slug, normalized.id);
         }
       } catch (err) {
         console.error('Error loading blog:', err);

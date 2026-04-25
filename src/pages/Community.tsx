@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  filterStaticCommunityArticles,
+  getStaticCommunityCategories,
+} from '../data/communityArticles';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { applySeoMeta } from '../utils/seo';
 
@@ -78,7 +82,12 @@ export const Community = () => {
   const [categories, setCategories] = useState<string[]>([]);
 
   const fetchCategories = useCallback(async () => {
-    if (!isSupabaseConfigured || !supabase) return;
+    const unique = new Set<string>(getStaticCommunityCategories());
+    if (!isSupabaseConfigured || !supabase) {
+      setCategories(Array.from(unique));
+      return;
+    }
+
     try {
       const { data, error: fetchError } = await supabase
         .from('blogs')
@@ -87,7 +96,6 @@ export const Community = () => {
 
       if (fetchError) throw fetchError;
 
-      const unique = new Set<string>();
       (data || []).forEach((row: { category?: string | null }) => {
         const value = row.category?.trim();
         if (value) unique.add(value);
@@ -100,8 +108,23 @@ export const Community = () => {
 
   const fetchBlogs = useCallback(
     async (targetPage: number, replace: boolean) => {
+      const staticMatches = filterStaticCommunityArticles(query, category).map((article) => ({
+        id: article.id,
+        slug: article.slug,
+        title: article.title,
+        description: article.description,
+        category: article.category,
+        authorName: article.authorName,
+        coverImage: article.coverImage,
+        publishedAt: article.publishedAt,
+        metaTitle: article.metaTitle,
+        metaDescription: article.metaDescription,
+      }));
+
       if (!isSupabaseConfigured || !supabase) {
-        setError('Supabase is not configured.');
+        setBlogs(targetPage === 1 ? staticMatches : []);
+        setHasMore(false);
+        setError('');
         setLoading(false);
         return;
       }
@@ -133,13 +156,20 @@ export const Community = () => {
         if (fetchError) throw fetchError;
 
         const normalized = (data || []).map((row: BlogRow) => normalizeBlogRow(row));
-        setBlogs((prev) => (replace ? normalized : [...prev, ...normalized]));
+        const merged = targetPage === 1 ? [...staticMatches, ...normalized] : normalized;
+        setBlogs((prev) => (replace ? merged : [...prev, ...merged]));
 
-        const total = count ?? normalized.length + (replace ? 0 : (targetPage - 1) * PAGE_SIZE);
-        setHasMore(from + normalized.length < total);
+        const totalRemote = count ?? normalized.length + (replace ? 0 : (targetPage - 1) * PAGE_SIZE);
+        const total = totalRemote + staticMatches.length;
+        const loaded = staticMatches.length + from + normalized.length;
+        setHasMore(loaded < total);
       } catch (err) {
         console.error('Error loading blogs:', err);
-        setError('Unable to load blog posts right now.');
+        if (targetPage === 1) {
+          setBlogs(staticMatches);
+        }
+        setHasMore(false);
+        setError(staticMatches.length > 0 ? '' : 'Unable to load blog posts right now.');
       } finally {
         setLoading(false);
       }
