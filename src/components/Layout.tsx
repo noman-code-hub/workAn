@@ -13,7 +13,9 @@ export const Layout = () => {
   const isCommunity = location.pathname.startsWith('/community');
   const isProfile = location.pathname === '/profile';
   const isJobs = location.pathname.startsWith('/jobs');
+  const isJobsLanding = location.pathname === '/jobs';
   const isResume = location.pathname.startsWith('/resume-builder');
+  const hideGlobalFooter = isJobs && !isJobsLanding;
   const adSlotMain = (import.meta.env.VITE_ADSENSE_SLOT_MAIN || '').trim();
 
   // Handle role-based redirects (e.g. users with no role -> /select-role)
@@ -37,7 +39,7 @@ export const Layout = () => {
         </main>
       </div>
       
-      {!isJobs && <Footer />}
+      {!hideGlobalFooter && <Footer />}
 
       <style>{`
         .layout {
