@@ -34,6 +34,7 @@ type BlogCard = {
   category: string;
   authorName: string;
   coverImage: string;
+  coverImagePosition?: string;
   publishedAt: string;
   metaTitle: string;
   metaDescription: string;
@@ -116,6 +117,7 @@ export const Community = () => {
         category: article.category,
         authorName: article.authorName,
         coverImage: article.coverImage,
+        coverImagePosition: article.coverImagePosition,
         publishedAt: article.publishedAt,
         metaTitle: article.metaTitle,
         metaDescription: article.metaDescription,
@@ -256,6 +258,7 @@ export const Community = () => {
                     decoding="async"
                     width={640}
                     height={360}
+                    style={{ objectPosition: blog.coverImagePosition || 'center center' }}
                   />
                 ) : (
                   <div className="blog-card-placeholder" aria-hidden="true" />

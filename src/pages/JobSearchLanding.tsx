@@ -12,6 +12,7 @@ import { useResumeTemplate } from '../hooks/useResumeTemplate';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { fetchAggregatedJobs } from '../services/jobSearchService';
 import type { AggregatedJob } from '../types/jobSearch';
+import { STATIC_COMMUNITY_ARTICLES } from '../data/communityArticles';
 
 const WORKSHOUR_AUDIENCES = [
   {
@@ -146,6 +147,7 @@ type BlogPreview = {
   category: string;
   authorName: string;
   coverImage: string;
+  coverImagePosition?: string;
   publishedAt: string;
   readTime: string;
   isFeatured: boolean;
@@ -259,6 +261,26 @@ const normalizeBlogPreview = (row: BlogRow): BlogPreview => {
     isFeatured,
   };
 };
+
+const STATIC_BLOG_PREVIEWS: BlogPreview[] = STATIC_COMMUNITY_ARTICLES.map((article, index) => ({
+  id: article.id,
+  slug: article.slug,
+  title: article.title,
+  description: article.description,
+  category: article.category,
+  authorName: article.authorName,
+  coverImage: article.coverImage,
+  coverImagePosition: article.coverImagePosition,
+  publishedAt: article.publishedAt,
+  readTime: estimateReadTime(article.content),
+  isFeatured: index === 0,
+}));
+
+const mergeBlogPreviews = (posts: BlogPreview[]) =>
+  posts
+    .filter((post) => Boolean(post.slug))
+    .filter((post, index, array) => array.findIndex((item) => item.slug === post.slug) === index)
+    .sort((left, right) => new Date(right.publishedAt).getTime() - new Date(left.publishedAt).getTime());
 
 const BLOG_FALLBACKS: BlogPreview[] = [
   {
@@ -387,7 +409,11 @@ export const JobSearchLanding = () => {
 
     const loadLatestBlogs = async () => {
       if (!isSupabaseConfigured || !supabase) {
-        if (mounted) setBlogsLoading(false);
+        if (mounted) {
+          setLatestBlogs(STATIC_BLOG_PREVIEWS);
+          setBlogsLoaded(true);
+          setBlogsLoading(false);
+        }
         return;
       }
 
@@ -401,10 +427,15 @@ export const JobSearchLanding = () => {
 
         if (error) throw error;
         const normalized = (data || []).map((row: BlogRow) => normalizeBlogPreview(row));
-        if (mounted) setLatestBlogs(normalized);
+        const merged = mergeBlogPreviews([...STATIC_BLOG_PREVIEWS, ...normalized]);
+        if (mounted) setLatestBlogs(merged);
         if (mounted) setBlogsLoaded(true);
       } catch (err) {
         console.error('Failed to load latest blogs:', err);
+        if (mounted) {
+          setLatestBlogs(STATIC_BLOG_PREVIEWS);
+          setBlogsLoaded(true);
+        }
       } finally {
         if (mounted) setBlogsLoading(false);
       }
@@ -1034,7 +1065,15 @@ export const JobSearchLanding = () => {
                 onClick={() => navigate(post.slug ? `/community/${post.slug}` : '/community')}
               >
                 <div className="blog-img">
-                  {post.coverImage ? <img src={post.coverImage} alt={post.title} loading="lazy" decoding="async" /> : null}
+                  {post.coverImage ? (
+                    <img
+                      src={post.coverImage}
+                      alt={post.title}
+                      loading="lazy"
+                      decoding="async"
+                      style={{ objectPosition: post.coverImagePosition || 'center center' }}
+                    />
+                  ) : null}
                   {post.isFeatured ? <span className="blog-featured">Featured</span> : null}
                   <span className="blog-category">{post.category}</span>
                 </div>
@@ -1988,6 +2027,8 @@ export const JobSearchLanding = () => {
           font: inherit;
           min-width: 320px;
           max-width: 360px;
+          display: flex;
+          flex-direction: column;
           scroll-snap-align: start;
         }
         .jsl-blog-card:hover { transform: translateY(-4px); box-shadow: 0 15px 30px rgba(0,0,0,0.08); }
@@ -2018,13 +2059,38 @@ export const JobSearchLanding = () => {
           padding: 4px 12px; border-radius: 999px;
           text-transform: uppercase; letter-spacing: 0.06em;
         }
+        .blog-content {
+          padding: 18px 20px 20px;
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          min-height: 290px;
+        }
         .blog-meta-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
         .blog-content .date { font-size: 0.76rem; color: var(--muted); font-weight: 600; }
         .read-time { font-size: 0.74rem; color: var(--muted); font-weight: 500; }
-        .blog-content h3 { font-size: 1.08rem; font-weight: 800; margin-bottom: 10px; line-height: 1.4; }
-        .blog-content p { color: var(--muted); font-size: 0.88rem; line-height: 1.6; margin-bottom: 20px; }
+        .blog-content h3 {
+          font-size: 1.08rem;
+          font-weight: 800;
+          margin-bottom: 10px;
+          line-height: 1.4;
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+        .blog-content p {
+          color: var(--muted);
+          font-size: 0.88rem;
+          line-height: 1.6;
+          margin-bottom: 20px;
+          display: -webkit-box;
+          -webkit-line-clamp: 4;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
         .blog-author { font-size: 0.78rem; color: var(--muted); font-weight: 600; margin-bottom: 12px; }
-        .read-more { display: flex; align-items: center; gap: 6px; color: var(--text); font-weight: 700; font-size: 0.84rem; }
+        .read-more { display: flex; align-items: center; gap: 6px; color: var(--text); font-weight: 700; font-size: 0.84rem; margin-top: auto; }
         .read-more:hover { color: var(--primary); }
         .jsl-blog-empty {
           text-align: center;

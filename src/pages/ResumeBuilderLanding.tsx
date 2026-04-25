@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
+import { STATIC_COMMUNITY_ARTICLES } from '../data/communityArticles';
 import './ResumeBuilderLanding.css';
 
 /* ── helpers ──────────────────── */
@@ -136,6 +137,14 @@ export const ResumeBuilderLanding = () => {
       .map((template) => ({ name: template.displayName, slug: slugify(template.name), thumb: template.thumbnailUrl }))
       .slice(0, 10),
     [templates],
+  );
+
+  const adviceArticles = useMemo(
+    () =>
+      [...STATIC_COMMUNITY_ARTICLES].sort(
+        (left, right) => new Date(right.publishedAt).getTime() - new Date(left.publishedAt).getTime()
+      ),
+    []
   );
 
   const goTpl = () => navigate('/resume-builder/templates');
@@ -372,17 +381,25 @@ export const ResumeBuilderLanding = () => {
         <h2>Need some expert advice?</h2>
         <p className="rb-section-sub">Read our guides to level up your job search.</p>
         <div className="rb-blog3">
-          {blogs.map(({ cls, emoji, tag, title, desc }) => (
-            <div key={title} className="rb-blog-card">
-              <div className={`rb-blog-img ${cls}`}>
-                <span className="rb-blog-emoji">{emoji}</span>
+          {adviceArticles.map(({ slug, coverImage, coverImagePosition, category, title, description }) => (
+            <Link key={slug} to={`/community/${slug}`} className="rb-blog-card">
+              <div className="rb-blog-img">
+                {coverImage ? (
+                  <img
+                    src={coverImage}
+                    alt={title}
+                    loading="lazy"
+                    decoding="async"
+                    style={{ objectPosition: coverImagePosition || 'center center' }}
+                  />
+                ) : null}
               </div>
               <div className="rb-blog-body">
-                <span className="rb-blog-tag">{tag}</span>
+                <span className="rb-blog-tag">{category}</span>
                 <h3>{title}</h3>
-                <p>{desc}</p>
+                <p>{description}</p>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </section>

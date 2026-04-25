@@ -29,6 +29,7 @@ export type CommunityArticle = {
   category: string;
   authorName: string;
   coverImage: string;
+  coverImagePosition?: string;
   publishedAt: string;
   metaTitle: string;
   metaDescription: string;
@@ -45,6 +46,7 @@ const atsFriendlyResumeArticle: CommunityArticle = {
   category: 'Resume Tips',
   authorName: 'Workshour Editorial',
   coverImage: atsResumeCover,
+  coverImagePosition: 'center center',
   publishedAt: '2026-04-24T00:00:00.000Z',
   metaTitle: 'How To Make Your Resume ATS-Friendly In 4 Simple Steps',
   metaDescription:
@@ -100,6 +102,7 @@ const noExperienceResumeArticle: CommunityArticle = {
   category: 'Resume Tips',
   authorName: 'Workshour Editorial',
   coverImage: step1StrongResumeSummary,
+  coverImagePosition: 'center center',
   publishedAt: '2026-04-25T00:00:00.000Z',
   metaTitle: 'How To Write a Resume With No Experience (For Fresh Graduates And Career Starters)',
   metaDescription:
@@ -260,6 +263,7 @@ const bestResumeFormatArticle: CommunityArticle = {
   category: 'Resume Tips',
   authorName: 'Workshour Editorial',
   coverImage: resumeFormatCover,
+  coverImagePosition: 'center center',
   publishedAt: '2026-04-25T00:00:00.000Z',
   metaTitle: 'How To Choose The Best Resume Format In 2026 (Chronological vs Functional vs Combination)',
   metaDescription:
@@ -416,6 +420,7 @@ const resumeSummaryArticle: CommunityArticle = {
   category: 'Resume Tips',
   authorName: 'Workshour Editorial',
   coverImage: resumeSummaryCover,
+  coverImagePosition: 'left center',
   publishedAt: '2026-04-25T00:00:00.000Z',
   metaTitle: 'How To Write a Resume Summary That Gets You Noticed In 6 Seconds',
   metaDescription:

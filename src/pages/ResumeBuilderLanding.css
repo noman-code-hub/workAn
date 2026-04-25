@@ -378,12 +378,15 @@
   border: 1px solid var(--border);
   overflow: hidden; cursor: pointer;
   transition: transform .22s, box-shadow .22s;
+  text-decoration: none;
+  color: inherit;
 }
 .rb-blog-card:hover { transform: translateY(-4px); box-shadow: 0 16px 32px -12px rgba(0,0,0,.12); }
 .rb-blog-img { height: 140px; position: relative; display: flex; align-items: center; justify-content: center; }
 .rb-blog-img.blog1 { background: linear-gradient(135deg,#fde68a,#fbbf24); }
 .rb-blog-img.blog2 { background: linear-gradient(135deg,#fb923c,#ef4444); }
 .rb-blog-img.blog3 { background: linear-gradient(135deg,#a78bfa,#7c3aed); }
+.rb-blog-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .rb-blog-emoji { font-size: 3rem; }
 .rb-blog-body { padding: 16px 18px 18px; }
 .rb-blog-tag { font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--blue); margin-bottom: 6px; display: block; }
