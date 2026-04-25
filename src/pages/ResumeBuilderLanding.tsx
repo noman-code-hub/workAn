@@ -70,12 +70,6 @@ const testimonials = [
   { name: 'Mina A.',   role: 'Marketing Lead',    quote: 'The AI prompts helped me fix wording I had struggled with for months. 10/10 experience.', rating: 5 },
 ];
 
-const blogs = [
-  { cls: 'blog1', emoji: '📄', tag: 'Resume Tips', title: 'How to build a resume that gets you hired in 2024', desc: 'A step-by-step breakdown of what hiring managers actually look for.' },
-  { cls: 'blog2', emoji: '💼', tag: 'Career Advice', title: 'Best resume format for every career stage', desc: 'Chronological, functional, or hybrid? We help you pick the right one.' },
-  { cls: 'blog3', emoji: '🤖', tag: 'AI Tools', title: 'How to use AI to write a better resume', desc: 'Practical tips to leverage AI without making your resume sound robotic.' },
-];
-
 const faqs = [
   { q: 'What is the definition of a resume?', a: 'A resume is a concise document summarising your experience, skills, and education tailored to a specific job.' },
   { q: 'What is the difference between a CV and a resume?', a: 'A CV is longer and more comprehensive, while a resume is shorter and customised for a specific application.' },
