@@ -700,26 +700,10 @@ export const JobSearchLanding = () => {
       {/* Resume Showcase Section */}
       <section className="resume-showcase-section">
         <div className="rs-container">
-          <div className="rs-categories">
-            <button className="rs-pill active">All</button>
-            <button className="rs-pill">Doctor</button>
-            <button className="rs-pill">Architect</button>
-            <button className="rs-pill">Civil Engineer</button>
-            <button className="rs-pill">Driver</button>
-            <button className="rs-pill">Teacher</button>
-            <button className="rs-pill">Accountant</button>
-            <button className="rs-pill">Retail</button>
-            <button className="rs-pill">Human Resources</button>
-            <button className="rs-pill">Administrative</button>
-            <button className="rs-pill">Student</button>
-            <button className="rs-pill">Legal</button>
-            <button className="rs-chevron"><ChevronRight size={18} /></button>
-          </div>
-
           <div className="rs-content-wrapper">
             <div className="rs-text-content">
-              <h2>Build better applications with Workshour career tools</h2>
-              <p>Use Workshour to create polished resumes, improve ATS alignment, organize applications, and move from job search confusion to a more focused career strategy.</p>
+              <h2>Build a Winning Resume with Workshour</h2>
+              <p>Your resume is your first impression - make it count. Workshour's AI-powered resume builder helps you create polished, professional resumes tailored to every job description in minutes. Choose from expertly designed ATS-friendly resume templates that pass automated screening systems and capture recruiter attention instantly. Simply paste a job posting and let Workshour's intelligent engine suggest the right resume keywords, structure, and content to maximize your chances of landing an interview. Whether you're writing your first resume or refreshing an existing one, Workshour ensures every application you send is targeted, compelling, and professionally formatted.</p>
               <button 
                 className="rs-btn-primary" 
                 onClick={() => navigate('/resume-builder')}
@@ -1913,7 +1897,7 @@ export const JobSearchLanding = () => {
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 12px 16px;
           margin-bottom: 18px;
-          padding: 16px 0;
+          padding: 0px 0;
           border-top: 1px solid rgba(15, 23, 42, 0.08);
           border-bottom: 1px solid rgba(15, 23, 42, 0.08);
         }
@@ -2380,7 +2364,7 @@ export const JobSearchLanding = () => {
         /* RESUME SHOWCASE SECTION */
         .resume-showcase-section {
           background: #0f172a;
-          padding: 80px 0;
+          padding: 0px 0;
           margin: 60px 0 0 0;
           width: 100%;
           color: #fff;
@@ -2389,61 +2373,20 @@ export const JobSearchLanding = () => {
         .rs-container {
           max-width: 1200px;
           margin: 0 auto;
-          padding: 0 40px;
+          padding: 40px;
         }
-        .rs-categories {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          overflow-x: auto;
-          padding-bottom: 20px;
-          margin-bottom: 60px;
-          scrollbar-width: none;
-        }
-        .rs-categories::-webkit-scrollbar { display: none; }
-        .rs-pill {
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          color: #cbd5e1;
-          padding: 8px 20px;
-          border-radius: 999px;
-          font-size: 0.84rem;
-          font-weight: 500;
-          white-space: nowrap;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .rs-pill:hover {
-          background: rgba(255, 255, 255, 0.1);
-          color: #fff;
-        }
-        .rs-pill.active {
-          background: var(--primary);
-          border-color: var(--primary);
-          color: #fff;
-          font-weight: 700;
-        }
-        .rs-chevron {
-          background: transparent;
-          border: none;
-          color: #fff;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-        }
-        
         .rs-content-wrapper {
           display: grid;
           grid-template-columns: 1fr 1.5fr;
           gap: 60px;
           align-items: center;
+          padding: 16px 0;
         }
         .rs-text-content {
           max-width: 480px;
         }
         .rs-text-content h2 {
-          font-size: 2.75rem;
+          color: #fff;
           font-weight: 700;
           line-height: 1.15;
           margin-bottom: 24px;
@@ -2536,6 +2479,7 @@ export const JobSearchLanding = () => {
           .rs-content-wrapper {
             grid-template-columns: 1fr;
             text-align: center;
+            padding: 0px 0;
           }
           .rs-text-content {
             max-width: 100%;
@@ -2769,11 +2713,6 @@ export const JobSearchLanding = () => {
 
         [data-theme="dark"] .resume-showcase-section {
           background: linear-gradient(180deg, #07111f 0%, #0b1220 100%);
-        }
-
-        [data-theme="dark"] .rs-pill {
-          background: rgba(148, 163, 184, 0.08);
-          border-color: rgba(148, 163, 184, 0.12);
         }
 
         [data-theme="dark"] .rs-template-card {
