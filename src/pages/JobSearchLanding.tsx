@@ -4,7 +4,7 @@ import {
   TrendingUp, ChevronRight, Quote,
   MessageSquare,
   Filter, Bookmark,
-  ArrowRight, Zap, CheckCircle2, Star, Smile, CheckCheck, ChevronLeft,
+  ArrowRight, CheckCircle2, Star, Smile, CheckCheck, ChevronLeft,
   FileEdit, BrainCircuit, Map, MousePointerClick, UserCheck, BellRing
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';

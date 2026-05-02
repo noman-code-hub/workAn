@@ -479,6 +479,77 @@ const buildStaticPages = (recentBlogs) => {
       bullets: ['Public-sector openings', 'Federal and local roles', 'Structured career pathways'],
     }),
     {
+      path: '/market-jobs',
+      title: 'Weekly Market Jobs | Workshour',
+      description: 'Browse the latest job listings across all industries. Find opportunities in tech, healthcare, finance, and more with advanced filtering.',
+      keywords: 'job listings, job search, market jobs, career opportunities, job openings, workshour',
+      eyebrow: 'Job Market',
+      h1: 'Weekly Market Jobs',
+      intro: [
+        'Workshour aggregates job listings across all industries and refreshes them weekly. Browse opportunities in technology, healthcare, finance, engineering, and more with powerful search and filtering tools.',
+        'Search by job title, company, location, or skill requirements. Use advanced filters to find roles that match your experience and career goals. Every listing is reviewed and organized for faster discovery.',
+      ],
+      highlights: [
+        {
+          title: 'Live Job Listings',
+          text: 'Browse updated job opportunities refreshed weekly from multiple trusted sources.',
+        },
+        {
+          title: 'Advanced Filtering',
+          text: 'Search by title, company, location, salary, and required skills with dynamic refinement.',
+        },
+        {
+          title: 'Complete Job Details',
+          text: 'View full descriptions, requirements, benefits, and apply directly from the platform.',
+        },
+      ],
+      sections: [
+        {
+          heading: 'How to use the market jobs page',
+          bullets: [
+            'Search by job title, company name, or location to find relevant roles',
+            'Filter by role category to narrow results to your field (tech, healthcare, finance, etc.)',
+            'Review salary ranges, required skills, and posting dates for each opportunity',
+            'Click "Details" for the full job description or "Apply Now" to go directly to the application',
+          ],
+        },
+        {
+          heading: 'Why Workshour for job discovery',
+          paragraphs: [
+            'Instead of managing multiple job boards, Workshour brings together listings in one searchable platform. You can compare roles side-by-side, track opportunities, and pair job discovery with resume tools to strengthen your applications.',
+            'The market jobs page updates weekly and removes old or unavailable postings automatically. This keeps the listing fresh and relevant for job seekers at any stage of their search.',
+          ],
+        },
+      ],
+      ctas: [
+        { href: '/market-jobs', label: 'Browse Market Jobs', variant: 'primary' },
+        { href: '/resume-builder', label: 'Improve Your Resume', variant: 'secondary' },
+      ],
+      jsonLd: {
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        name: 'Weekly Market Jobs | Workshour',
+        description: 'Browse the latest job listings across all industries. Find opportunities in tech, healthcare, finance, and more with advanced filtering.',
+        url: buildAbsoluteUrl('/market-jobs'),
+        isPartOf: { '@type': 'WebSite', name: 'Workshour', url: SITE_URL },
+        mainEntity: {
+          '@type': 'JobSearchAction',
+          target: {
+            '@type': 'EntryPoint',
+            urlTemplate: `${SITE_URL}/market-jobs`,
+            actionPlatform: 'DesktopWebPlatform',
+          },
+        },
+        breadcrumb: {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
+            { '@type': 'ListItem', position: 2, name: 'Market Jobs', item: buildAbsoluteUrl('/market-jobs') },
+          ],
+        },
+      },
+    },
+    {
       path: '/resume-builder/templates',
       title: 'Resume Templates | Workshour',
       description: 'Browse ATS-friendly resume templates and start building a stronger application faster.',
