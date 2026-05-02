@@ -1,15 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { AlertCircle, ArrowLeft, Bot, Pencil, Send, Settings, Trash2, X, Zap } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertCircle, ArrowLeft, Pencil, Settings, Trash2, Zap } from 'lucide-react';
 import axios, { type AxiosResponse } from 'axios';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useResumeTemplate } from '../hooks/useResumeTemplate';
 import { normalizeFieldKey, renderTemplateWithSchema } from '../services/resumeTemplateRenderer';
-import { API_BASE, apiUrl, parseApiJson, pdfApiUrl } from '../config/api';
+import { API_BASE, apiUrl, pdfApiUrl } from '../config/api';
 import { AppLoader } from '../components/AppLoader';
 import { RichTextEditor } from '../components/RichTextEditor';
-import { ImageCropModal } from '../components/ImageCropModal';
-import { ImproveTextAction } from '../components/resume/ImproveTextAction';
 import { buildResumePdfHtml } from '../utils/resumePdfExport';
 
 const RESUME_VIEW_STORAGE_KEY = 'careerpilot:resume-view';
@@ -22,60 +20,10 @@ const PAGE_SIZES = {
   letter: { label: 'Letter', width: 816, height: 1056 },
 } as const;
 type PreviewPageSize = keyof typeof PAGE_SIZES;
-type AtsReport = {
-  overall_score: number;
-  score_band: 'Excellent' | 'Good' | 'Average' | 'Poor';
-  score_band_message?: string;
-  pass_probability?: string;
-  categories: {
-    format: { score: number; issues: string[]; fix?: string; status?: string; passed_checks?: string[] };
-    keywords: { score: number; issues: string[]; fix?: string; status?: string; passed_checks?: string[]; matched_keywords?: string[]; missing_keywords?: string[] };
-    contact_info: { score: number; issues: string[]; fix?: string; status?: string; passed_checks?: string[] };
-    length: { score: number; issues: string[]; fix?: string; status?: string; passed_checks?: string[] };
-    content_quality: { score: number; issues: string[]; fix?: string; status?: string; passed_checks?: string[]; action_verbs_found?: string[]; quantified_achievements?: string[]; cliches_found?: string[] };
-  };
-  detected_keywords: string[];
-  missing_keywords: string[];
-  top_3_priorities?: string[];
-  quick_wins?: string[];
-  strengths?: string[];
-  top_recommendations: string[];
-  improved_summary: string;
-  improved_bullet_points: string[];
-};
 const ENABLE_PREVIEW_PAGINATION = false;
 const PAGE_GAP_PX = 24;
 const PREVIEW_FONT_SCALES = [1, 0.93, 0.86, 0.79, 0.75];
-const RESUME_COPILOT_PATH = '/api/copilot/chat';
-const normalizeCopilotEndpoint = (base: string) => {
-  const trimmed = base.trim().replace(/\/+$/, '');
-  if (!trimmed) return '';
-  return trimmed.endsWith('/chat') ? trimmed : `${trimmed}/chat`;
-};
-
 const getPreviewDocumentSize = (doc: Document, fallback: { width: number; height: number }) => {
-  const fitManagedRoot = doc.querySelector<HTMLElement>('[data-preview-fit-managed="true"]');
-  if (fitManagedRoot) {
-    const rect = fitManagedRoot.getBoundingClientRect();
-    const width = Math.max(
-      fitManagedRoot.scrollWidth || 0,
-      fitManagedRoot.offsetWidth || 0,
-      rect.width || 0
-    );
-    const height = Math.max(
-      fitManagedRoot.scrollHeight || 0,
-      fitManagedRoot.offsetHeight || 0,
-      rect.height || 0
-    );
-
-    if (width > 0 && height > 0) {
-      return {
-        width: Math.ceil(width),
-        height: Math.ceil(height),
-      };
-    }
-  }
-
   const root = doc.documentElement;
   const body = doc.body;
 
@@ -139,7 +87,6 @@ const CLASSIC_TEMPLATE_HEADING_FIELDS = [
   { key: 'h6Size', label: 'H6', note: 'Compact rich-text heading' },
 ] as const;
 const DEFAULT_CUSTOM_TEMPLATE_COLOR = '#c3aa72';
-const SECTION_RICH_TEXT_TOOLBAR_HOST_ID = 'resume-section-rich-text-toolbar';
 type TemplateColorPresetId = (typeof TEMPLATE_COLOR_PRESETS)[number]['id'] | 'custom';
 type ClassicTemplateHeadingKey = (typeof CLASSIC_TEMPLATE_HEADING_FIELDS)[number]['key'];
 type ClassicTemplateStyleSettings = {
@@ -161,24 +108,6 @@ type ClassicTemplateStyleSettings = {
 type ClassicTemplateStyleColorKey = 'textColor' | 'headingColor' | 'highlightColor';
 type ClassicTemplateStyleFontKey = 'bodyFontFamily' | 'headingFontFamily';
 type ClassicTemplateStyleNumberKey = keyof typeof CLASSIC_TEMPLATE_NUMBER_LIMITS;
-type RichTextLineStyle = {
-  text: string;
-  fontSize: string;
-};
-type ExperienceItem = {
-  id: string;
-  company: string;
-  role: string;
-  dates: string;
-  details: string;
-};
-type EducationItem = {
-  id: string;
-  school: string;
-  degree: string;
-  dates: string;
-  details: string;
-};
 const CLASSIC_TEMPLATE_HEADING_KEYS = CLASSIC_TEMPLATE_HEADING_FIELDS.map((field) => field.key) as ClassicTemplateHeadingKey[];
 const DEFAULT_CLASSIC_TEMPLATE_STYLE_SETTINGS: ClassicTemplateStyleSettings = {
   bodyFontFamily: '"Cormorant Garamond", Georgia, "Times New Roman", serif',
@@ -339,10 +268,6 @@ const applyClassicTemplateCustomization = (
   const accentStrong = hexToRgba(accent, 0.28);
 
   const cssText = `
-body {
-  padding: 0 !important;
-}
-
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] {
   --hirevo-accent-color: ${accent};
   --hirevo-accent-soft: ${accentSoft};
@@ -366,10 +291,11 @@ body {
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .resume-content {
   color: var(--hirevo-text-color) !important;
   font-family: var(--hirevo-body-font) !important;
-  padding-left: max(12px, calc(var(--page-pad-x) - 2.5mm)) !important;
 }
 
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .body-copy,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .body-copy p,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .body-copy li,
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .summary-copy,
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .cert-copy,
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .project-copy,
@@ -382,25 +308,13 @@ body {
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .reference-meta,
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .experience-list li,
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .fallback-bullets li,
-[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext {
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext p,
+[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext li {
   font-family: var(--hirevo-body-font) !important;
   font-size: var(--hirevo-body-size) !important;
   font-weight: var(--hirevo-body-weight) !important;
   color: var(--hirevo-text-color) !important;
-}
-
-[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext p,
-[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext li,
-[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext span,
-[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext strong,
-[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext em,
-[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext u,
-[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext s,
-[data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext mark {
-  font-family: inherit;
-  font-size: inherit;
-  font-weight: inherit;
-  color: inherit;
 }
 
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .header-name,
@@ -418,8 +332,8 @@ body {
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h4,
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h5,
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h6 {
-  font-family: var(--hirevo-heading-font);
-  color: var(--hirevo-heading-color);
+  font-family: var(--hirevo-heading-font) !important;
+  color: var(--hirevo-heading-color) !important;
 }
 
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .header-name {
@@ -460,10 +374,10 @@ body {
 }
 
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext mark {
-  background: var(--hirevo-highlight-color);
-  color: inherit;
-  padding: 0 0.14em;
-  border-radius: 0.18em;
+  background: var(--hirevo-highlight-color) !important;
+  color: var(--hirevo-text-color) !important;
+  padding: 0 0.14em !important;
+  border-radius: 0.18em !important;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
@@ -474,33 +388,33 @@ body {
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h4,
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h5,
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h6 {
-  margin: 0 0 0.35em;
-  line-height: 1.2;
-  font-weight: var(--hirevo-heading-weight);
+  margin: 0 0 0.35em !important;
+  line-height: 1.2 !important;
+  font-weight: var(--hirevo-heading-weight) !important;
 }
 
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h1 {
-  font-size: var(--hirevo-h1-size);
+  font-size: var(--hirevo-h1-size) !important;
 }
 
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h2 {
-  font-size: var(--hirevo-h2-size);
+  font-size: var(--hirevo-h2-size) !important;
 }
 
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h3 {
-  font-size: var(--hirevo-h3-size);
+  font-size: var(--hirevo-h3-size) !important;
 }
 
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h4 {
-  font-size: var(--hirevo-h4-size);
+  font-size: var(--hirevo-h4-size) !important;
 }
 
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h5 {
-  font-size: var(--hirevo-h5-size);
+  font-size: var(--hirevo-h5-size) !important;
 }
 
 [data-template-slug="${CLASSIC_PORTRAIT_TEMPLATE_SLUG}"] .content-richtext h6 {
-  font-size: var(--hirevo-h6-size);
+  font-size: var(--hirevo-h6-size) !important;
 }
 `;
 
@@ -508,20 +422,6 @@ body {
 };
 
 const isLocalHostname = (hostname: string) => hostname === 'localhost' || hostname === '127.0.0.1';
-const isLocalPdfEndpoint = (endpoint: string) => /localhost:5000|127\.0\.0\.1:5000/i.test(endpoint);
-const isSameOriginPdfEndpoint = (endpoint: string) => /^\/api\/render-resume-pdf$/i.test(endpoint);
-
-const getPdfEndpointHelpMessage = (endpoint: string) => {
-  if (isLocalPdfEndpoint(endpoint)) {
-    return `Cannot reach the PDF service at ${endpoint}. Start the Node backend in c:/Hirevo/server and check whether a browser extension is blocking the request.`;
-  }
-
-  if (isSameOriginPdfEndpoint(endpoint)) {
-    return `Cannot reach the PDF service at ${endpoint}. Redeploy workshour.com and make sure the Vercel PDF function is available.`;
-  }
-
-  return `Cannot reach the PDF service at ${endpoint}. Verify VITE_PDF_API_BASE points to a working /render-resume-pdf endpoint.`;
-};
 
 const buildPdfEndpointCandidates = () => {
   const configuredEndpoint = pdfApiUrl('/render-resume-pdf');
@@ -621,9 +521,7 @@ const parsePdfHttpFailure = (endpoint: string, status: number, data: ArrayBuffer
   const text = bytes.length ? new TextDecoder().decode(bytes).trim() : '';
 
   if (status === 404) {
-    return isSameOriginPdfEndpoint(endpoint)
-      ? `PDF route not found at ${endpoint}. Redeploy workshour.com so the Vercel PDF function is included.`
-      : `PDF route not found at ${endpoint}. Verify that endpoint serves /render-resume-pdf.`;
+    return `PDF route not found at ${endpoint}. Point VITE_PDF_API_BASE to the Node PDF service or run the local backend on port 5000.`;
   }
 
   if (text.startsWith('{') || text.startsWith('[')) {
@@ -717,14 +615,6 @@ const RESUME_SECTION_TITLES: Record<string, string> = {
   references: 'References',
 };
 
-const REQUIRED_EDITOR_SECTION_IDS = new Set([
-  'contact',
-  'personal_info',
-  'education',
-  'experience',
-  'skills',
-]);
-
 const JSON_TEMPLATE_PROTECTED_FIELD_KEYS = new Set([
   'first_name',
   'firstname',
@@ -776,33 +666,93 @@ const formatTemplateFieldLabel = (field: string) => {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
-const LEGACY_DEMO_SEED_MARKERS = [
-  'Muhammad Usman Ahmed',
-  'Software Engineer | Full Stack Developer',
-  'muhammad.usman.ahmed@email.com',
-  '+31 6 4827 1934',
-  'Delft, Zuid-Holland, Netherlands',
-  'www.usmanahmed.dev',
-  'linkedin.com/in/muhammadusmanahmed',
-];
-
-const TEMPLATE_MOCK_CONTENT_MARKERS = [
-  'Highly skilled Web Developer delivering scalable and user-centric web applications through expertise in design, development, and deployment.',
-  'Designed and developed high-quality, professional mobile apps for clients across various industries.',
-  'Highly skilled Web Developer delivering scalable and user-centric web applications',
-  'Designed and developed high-quality, professional mobile apps for clients',
-];
-
-const hasLegacyDemoSeedData = (raw: string) => {
-  const normalized = raw.toLowerCase();
-  const legacyMatches = LEGACY_DEMO_SEED_MARKERS.filter((marker) =>
-    normalized.includes(marker.toLowerCase())
-  ).length;
-  const templateMockMatches = TEMPLATE_MOCK_CONTENT_MARKERS.filter((marker) =>
-    normalized.includes(marker.toLowerCase())
-  ).length;
-  return legacyMatches >= 3 || templateMockMatches >= 2;
+const DEFAULT_RESUME_PROFILE = {
+  contactName: 'Muhammad Usman Ahmed',
+  contactRole: 'Software Engineer | Full Stack Developer',
+  contactEmail: 'muhammad.usman.ahmed@email.com',
+  contactPhone: '+31 6 4827 1934',
+  contactLocation: 'Delft, Zuid-Holland, Netherlands',
+  summaryText:
+    'Results-oriented Software Engineer with over 4 years of experience in designing, developing, and maintaining scalable web and mobile applications. Proficient in modern frontend and backend technologies including React.js, Node.js, TypeScript, and cloud databases. Strong expertise in building AI-powered applications, resume generation systems, and responsive user interfaces with a focus on performance and user experience.',
+  skillsText: [
+    'Programming Languages: JavaScript, TypeScript, Python, Java, SQL',
+    'Frontend: React.js, Next.js, HTML5, CSS3, Tailwind CSS',
+    'Backend: Node.js, Express.js, REST APIs',
+    'Database: PostgreSQL, MySQL, Supabase, Firebase',
+    'Tools & Platforms: Git, GitHub, Docker, Vercel, Netlify',
+  ].join('\n'),
+  projectsText: [
+    'AI Resume Builder Platform - Built an AI-powered resume generation system with smart suggestions, multi-template support, and PDF export.',
+    'Hiring Dashboard Suite - Developed a role-based hiring dashboard with analytics, secure authentication, and scalable API integrations.',
+  ].join('\n'),
 };
+
+const DEFAULT_EXPERIENCE_ITEMS = [
+  {
+    id: 'exp-default-1',
+    company: 'TechVision Solutions - Amsterdam, Netherlands',
+    role: 'Senior Software Engineer',
+    dates: 'March 2023 - Present',
+    details:
+      'Led development of enterprise-level web applications using React.js and Node.js. Architected scalable backend services and RESTful APIs. Improved application performance by 45% through code optimization. Designed secure authentication and role-based access systems. Managed cloud database solutions using Supabase and PostgreSQL. Collaborated with cross-functional teams using Agile methodology. Integrated AI-based content generation modules for job-search platforms.',
+  },
+  {
+    id: 'exp-default-2',
+    company: 'InnovateX Digital - Lahore, Pakistan',
+    role: 'Software Developer',
+    dates: 'July 2021 - February 2023',
+    details:
+      'Developed dynamic web dashboards and admin portals. Built reusable UI components for multiple product teams. Integrated third-party APIs and payment gateways. Maintained high code quality using Git and version control workflows. Reduced page load time by 30%.',
+  },
+];
+
+const DEFAULT_EDUCATION_ITEMS = [
+  {
+    id: 'edu-default-1',
+    school: 'National University of Computer and Emerging Sciences',
+    degree: 'Bachelor of Science in Computer Science (BSCS)',
+    dates: '2020 - 2024',
+    details:
+      'CGPA: 3.78 / 4.00. Relevant coursework: Data Structures & Algorithms, Database Management Systems, Operating Systems, Software Engineering, Artificial Intelligence, Computer Networks, Cloud Computing, Web Engineering.',
+  },
+  {
+    id: 'edu-default-2',
+    school: 'Government College University, Lahore',
+    degree: 'Higher Secondary School Certificate (FSC - Pre-Engineering)',
+    dates: '2018 - 2020',
+    details:
+      'Grade: A+. Marks: 1012 / 1100. Core subjects: Mathematics, Physics, Computer Science, English, Urdu, Pakistan Studies, Islamiat.',
+  },
+  {
+    id: 'edu-default-3',
+    school: 'The Educators School, Lahore',
+    degree: 'Secondary School Certificate (Matric - Science)',
+    dates: '2016 - 2018',
+    details:
+      'Grade: A+. Marks: 1048 / 1100. Core subjects: Mathematics, Physics, Chemistry, Biology, Computer Science, English, Urdu.',
+  },
+];
+
+const DEFAULT_TEMPLATE_FIELD_VALUES = {
+  website: 'www.usmanahmed.dev',
+  portfolio: 'www.usmanahmed.dev',
+  linkedin: 'linkedin.com/in/muhammadusmanahmed',
+  address: 'Delft, Zuid-Holland, Netherlands',
+  city: 'Delft',
+  country: 'Netherlands',
+  languages: 'English - Fluent\nDutch - Intermediate\nUrdu - Native',
+  certifications: 'AWS Cloud Practitioner\nMeta Front-End Developer Certificate\nGoogle IT Support Certificate',
+};
+
+const DEFAULT_CUSTOM_DETAILS = [
+  { id: 'custom-default-1', label: 'LinkedIn', value: 'linkedin.com/in/muhammadusmanahmed' },
+  { id: 'custom-default-2', label: 'Portfolio', value: 'www.usmanahmed.dev' },
+  {
+    id: 'custom-default-3',
+    label: 'Certifications',
+    value: 'AWS Cloud Practitioner, Meta Front-End Developer Certificate, Google IT Support Certificate',
+  },
+];
 
 export const Resume = () => {
   const { user } = useAuth();
@@ -818,39 +768,27 @@ export const Resume = () => {
   const backTarget = isBuilderEditorRoute ? '/resume-builder/templates' : '/resume/templates';
 
   // Resume Builder state
-  const [contactName, setContactName] = useState('');
-  const [contactRole, setContactRole] = useState('');
-  const [contactEmail, setContactEmail] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
-  const [contactLocation, setContactLocation] = useState('');
+  const [contactName, setContactName] = useState(DEFAULT_RESUME_PROFILE.contactName);
+  const [contactRole, setContactRole] = useState(DEFAULT_RESUME_PROFILE.contactRole);
+  const [contactEmail, setContactEmail] = useState(DEFAULT_RESUME_PROFILE.contactEmail);
+  const [contactPhone, setContactPhone] = useState(DEFAULT_RESUME_PROFILE.contactPhone);
+  const [contactLocation, setContactLocation] = useState(DEFAULT_RESUME_PROFILE.contactLocation);
   const [contactPhotoUrl, setContactPhotoUrl] = useState("");
   const [contactPhotoName, setContactPhotoName] = useState("");
-  const [pendingPhotoCropSrc, setPendingPhotoCropSrc] = useState<string | null>(null);
-  const [pendingPhotoCropName, setPendingPhotoCropName] = useState("");
-  const [summaryText, setSummaryText] = useState('');
-  const [skillsText, setSkillsText] = useState('');
+  const [summaryText, setSummaryText] = useState(DEFAULT_RESUME_PROFILE.summaryText);
+  const [skillsText, setSkillsText] = useState(DEFAULT_RESUME_PROFILE.skillsText);
   const [skillsInput, setSkillsInput] = useState("");
-  const [languagesInput, setLanguagesInput] = useState("");
   const [activeEditorTab, setActiveEditorTab] = useState<'edit' | 'customize' | 'review' | 'tailor'>('edit');
   const [hasUnlockedCustomize, setHasUnlockedCustomize] = useState(false);
   const [tailorRole, setTailorRole] = useState('');
   const [tailorKeywords, setTailorKeywords] = useState('');
-  const [isRunningAtsCheck, setIsRunningAtsCheck] = useState(false);
-  const [atsReport, setAtsReport] = useState<AtsReport | null>(null);
-  const [projectsText, setProjectsText] = useState('');
+  const [projectsText, setProjectsText] = useState(DEFAULT_RESUME_PROFILE.projectsText);
   const [additionalText] = useState("");
-  const [customDetails, setCustomDetails] = useState<{ id: string; label: string; value: string }[]>([]);
-  // AI Resume Assistant chat
-  const [showAiChat, setShowAiChat] = useState(false);
-  const [aiChatInput, setAiChatInput] = useState('');
-  const [aiChatLoading, setAiChatLoading] = useState(false);
-  const [aiChatMessages, setAiChatMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([
-    { role: 'assistant', content: "Hi! I'm your AI Resume Assistant.\n\nI can help you:\n- Write stronger bullet points\n- Improve your summary\n- Tailor content for a role\n- Suggest better skills\n\nWhat would you like to improve?" },
-  ]);
-  const aiChatBodyRef = useRef<HTMLDivElement>(null);
-  const aiChatInputRef = useRef<HTMLInputElement | null>(null);
-  const [educationItems, setEducationItems] = useState<EducationItem[]>([]);
-  const [experienceItems, setExperienceItems] = useState<ExperienceItem[]>([]);
+  const [customDetails, setCustomDetails] = useState<{ id: string; label: string; value: string }[]>(
+    () => DEFAULT_CUSTOM_DETAILS.map((item) => ({ ...item }))
+  );
+  const [educationItems, setEducationItems] = useState(() => DEFAULT_EDUCATION_ITEMS.map((item) => ({ ...item })));
+  const [experienceItems, setExperienceItems] = useState(() => DEFAULT_EXPERIENCE_ITEMS.map((item) => ({ ...item })));
   const [sectionOrder, setSectionOrder] = useState<string[]>([
     'contact',
     'summary',
@@ -889,6 +827,7 @@ export const Resume = () => {
   );
   const [uploadingResume, setUploadingResume] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [isFillingDemo, setIsFillingDemo] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [, setSaveStatus] = useState<'saved' | 'saving'>('saved');
   const undoStackRef = useRef<string[]>([]);
@@ -898,7 +837,6 @@ export const Resume = () => {
   const isApplyingHistoryRef = useRef(false);
   const restoreKeyRef = useRef<string | null>(null);
   const defaultTemplateSeedRef = useRef<string | null>(null);
-  const getEditorSnapshotRef = useRef<() => string>(() => '');
 
   const [activeTemplateFilter, setActiveTemplateFilter] = useState('All templates');
   const resumeViewRestoreRef = useRef(false);
@@ -916,7 +854,6 @@ export const Resume = () => {
     templateSourceHtml,
     selectTemplate,
     updateField,
-    replaceFields: replaceTemplateFieldValues,
     refreshTemplates,
   } = useResumeTemplate(user);
 
@@ -933,10 +870,28 @@ export const Resume = () => {
 
   useEffect(() => {
     if (!selectedTemplate) return;
-    defaultTemplateSeedRef.current = `${effectiveTemplateId || 'default'}:${selectedTemplate}`;
+
+    const storageKey = `hirevo:resume-editor:${effectiveTemplateId || 'default'}:${user?.id || 'anon'}`;
+    const hasSavedDraft = isEditorRoute && Boolean(window.localStorage.getItem(storageKey));
+    if (hasSavedDraft) return;
+
+    const applyKey = `${isEditorRoute ? storageKey : 'resume-default'}:${selectedTemplate}`;
+    if (defaultTemplateSeedRef.current === applyKey) return;
+
+    Object.entries(DEFAULT_TEMPLATE_FIELD_VALUES).forEach(([key, value]) => {
+      if (!getTemplateFieldValue(key)) {
+        setTemplateFieldValue(key, value);
+      }
+    });
+
+    defaultTemplateSeedRef.current = applyKey;
   }, [
     effectiveTemplateId,
+    getTemplateFieldValue,
+    isEditorRoute,
     selectedTemplate,
+    setTemplateFieldValue,
+    user?.id,
   ]);
 
   const defaultTemplateFields = useMemo(
@@ -1129,14 +1084,6 @@ export const Resume = () => {
     ? (previewPageSizeMode === 'auto' ? autoDetectedPageSize : previewPageSizeMode)
     : 'a4';
   const activePageSize = PAGE_SIZES[resolvedPageSize];
-  const previewShellBaseStyle = useMemo(() => ({
-    ['--preview-shell-width' as any]: `${activePageSize.width}px`,
-    ['--preview-shell-height' as any]: `${activePageSize.height}px`,
-  }) as CSSProperties, [activePageSize.height, activePageSize.width]);
-  const previewIframeBaseStyle = useMemo(() => ({
-    width: `${activePageSize.width}px`,
-    height: `${activePageSize.height}px`,
-  }) as CSSProperties, [activePageSize.height, activePageSize.width]);
   const pageSizeOptions: Array<'auto' | PreviewPageSize> = ENABLE_PREVIEW_PAGINATION
     ? ['auto', 'a4', 'letter']
     : ['a4'];
@@ -1169,22 +1116,46 @@ export const Resume = () => {
     [templates]
   );
 
+  const fillWithFakeData = useCallback(() => {
+    setIsFillingDemo(true);
+    setActiveEditorTab('edit');
+    setContactName(DEFAULT_RESUME_PROFILE.contactName);
+    setContactRole(DEFAULT_RESUME_PROFILE.contactRole);
+    setContactEmail(DEFAULT_RESUME_PROFILE.contactEmail);
+    setContactPhone(DEFAULT_RESUME_PROFILE.contactPhone);
+    setContactLocation(DEFAULT_RESUME_PROFILE.contactLocation);
+    setSummaryText(DEFAULT_RESUME_PROFILE.summaryText);
+    setSkillsText(DEFAULT_RESUME_PROFILE.skillsText);
+    setProjectsText(DEFAULT_RESUME_PROFILE.projectsText);
+    setContactPhotoUrl('');
+    setContactPhotoName('');
+    setExperienceItems(
+      DEFAULT_EXPERIENCE_ITEMS.map((item, index) => ({
+        ...item,
+        id: `exp-fake-${index + 1}`,
+      }))
+    );
+    setEducationItems(
+      DEFAULT_EDUCATION_ITEMS.map((item, index) => ({
+        ...item,
+        id: `edu-fake-${index + 1}`,
+      }))
+    );
+    setCustomDetails(
+      DEFAULT_CUSTOM_DETAILS.map((item, index) => ({
+        ...item,
+        id: `custom-fake-${index + 1}`,
+      }))
+    );
+    Object.entries(DEFAULT_TEMPLATE_FIELD_VALUES).forEach(([key, value]) => {
+      setTemplateFieldValue(key, value);
+    });
+    setGenerateError(null);
+    setIsFillingDemo(false);
+  }, [setTemplateFieldValue]);
+
   const isTemplateSelection =
     !isEditorRoute && (templateStep === 'choose' || !selectedTemplate);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const keysToRemove: string[] = [];
-    for (let index = 0; index < window.localStorage.length; index += 1) {
-      const key = window.localStorage.key(index);
-      if (!key || !key.startsWith('hirevo:resume-editor:')) continue;
-      const value = window.localStorage.getItem(key);
-      if (value && hasLegacyDemoSeedData(value)) {
-        keysToRemove.push(key);
-      }
-    }
-    keysToRemove.forEach((key) => window.localStorage.removeItem(key));
-  }, []);
 
   useEffect(() => {
     if (resumeViewRestoreRef.current) return;
@@ -1299,39 +1270,19 @@ export const Resume = () => {
     if (!file) {
       setContactPhotoUrl("");
       setContactPhotoName("");
-      setPendingPhotoCropSrc(null);
-      setPendingPhotoCropName("");
       return;
     }
+    setContactPhotoName(file.name);
     const reader = new FileReader();
     reader.onload = () => {
       const result = typeof reader.result === 'string' ? reader.result : '';
-      if (!result) {
-        setPendingPhotoCropSrc(null);
-        setPendingPhotoCropName("");
-        return;
-      }
-      setPendingPhotoCropSrc(result);
-      setPendingPhotoCropName(file.name);
+      setContactPhotoUrl(result);
     };
     reader.onerror = () => {
-      setPendingPhotoCropSrc(null);
-      setPendingPhotoCropName("");
+      setContactPhotoUrl("");
     };
     reader.readAsDataURL(file);
   }, []);
-
-  const handlePhotoCropCancel = useCallback(() => {
-    setPendingPhotoCropSrc(null);
-    setPendingPhotoCropName("");
-  }, []);
-
-  const handlePhotoCropConfirm = useCallback((croppedImage: string) => {
-    setContactPhotoUrl(croppedImage);
-    setContactPhotoName(pendingPhotoCropName);
-    setPendingPhotoCropSrc(null);
-    setPendingPhotoCropName("");
-  }, [pendingPhotoCropName]);
 
   const addExperienceItem = () =>
     setExperienceItems((prev) => [...prev, { id: makeId('exp'), company: '', role: '', dates: '', details: '' }]);
@@ -1366,17 +1317,13 @@ export const Resume = () => {
     const target = event.target as HTMLElement | null;
     if (!target) return;
 
-    if (
-      target.isContentEditable
-      || target.closest('[contenteditable="true"]')
-      || target.closest('.hirevo-rich-text-shell')
-      || target.getAttribute('role') === 'textbox'
-    ) {
-      return;
-    }
-
     const tag = target.tagName.toLowerCase();
-    if (tag === 'textarea' || tag === 'input' || tag === 'select' || tag === 'button' || tag === 'a') return;
+    if (tag === 'textarea' || tag === 'button' || tag === 'a') return;
+
+    if (tag === 'input') {
+      const inputType = ((target as HTMLInputElement).type || '').toLowerCase();
+      if (['button', 'checkbox', 'file', 'radio', 'reset', 'submit'].includes(inputType)) return;
+    }
 
     event.preventDefault();
     moveToNextSection();
@@ -1393,141 +1340,6 @@ export const Resume = () => {
       .split(/\r?\n/)
       .map((item) => item.trim())
       .filter(Boolean);
-
-  const parseRichTextLines = (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed) return [] as string[];
-    if (!/[<>]/.test(trimmed)) return parseNewline(trimmed);
-
-    const htmlWithLineBreaks = trimmed
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/(p|div|li|ul|ol|h[1-6])>/gi, '\n')
-      .replace(/<(p|div|ul|ol|h[1-6])\b[^>]*>/gi, '')
-      .replace(/<li\b[^>]*>/gi, '');
-
-    const textContent = typeof DOMParser === 'undefined'
-      ? htmlWithLineBreaks.replace(/<[^>]+>/g, '')
-      : new DOMParser().parseFromString(htmlWithLineBreaks, 'text/html').body.textContent || '';
-
-    return textContent
-      .split(/\r?\n/)
-      .map((item) => item.replace(/\s+/g, ' ').trim())
-      .filter(Boolean);
-  };
-
-  const parseRichTextInlineText = (value: string) =>
-    parseRichTextLines(value).join(' ').trim();
-
-  const parseRichTextMultilineText = (value: string) =>
-    parseRichTextLines(value).join('\n').trim();
-
-  const escapeEditorHtml = (value: string) =>
-    value
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-
-  const stripLeadingBullet = (value: string) =>
-    value.replace(/^[-*\u2022\u2023\u25e6]+\s*/, '').trim();
-
-  const plainTextToParagraphHtml = (value: string) =>
-    parseNewline(value)
-      .map((line) => `<p>${escapeEditorHtml(line)}</p>`)
-      .join('');
-
-  const plainTextToBulletHtml = (value: string) => {
-    const lines = parseNewline(value)
-      .map(stripLeadingBullet)
-      .filter(Boolean);
-
-    if (lines.length === 0) return '';
-
-    return `<ul>${lines.map((line) => `<li>${escapeEditorHtml(line)}</li>`).join('')}</ul>`;
-  };
-
-  const normalizeImprovedSkillsText = (value: string) =>
-    parseCommaOrNewline(
-      value
-        .split(/\r?\n/)
-        .map((line) => stripLeadingBullet(line))
-        .join('\n')
-    ).join(', ');
-
-  const normalizeTemplateText = (value: string) =>
-    value
-      .replace(/^[-*\u2022\u2023\u25e6]+\s*/, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-  const extractRichTextLineStyles = (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed || !/[<>]/.test(trimmed) || typeof DOMParser === 'undefined') {
-      return [] as RichTextLineStyle[];
-    }
-
-    const doc = new DOMParser().parseFromString(trimmed, 'text/html');
-    const listItems = Array.from(doc.body.querySelectorAll('li'));
-    const lineElements = listItems.length > 0 ? listItems : Array.from(doc.body.children);
-
-    return lineElements
-      .map((element) => {
-        const text = normalizeTemplateText(element.textContent || '');
-        if (!text) return null;
-
-        const fontSizeSource = [
-          element instanceof HTMLElement ? element : null,
-          ...Array.from(element.querySelectorAll<HTMLElement>('[style*="font-size"]')),
-        ]
-          .filter((candidate): candidate is HTMLElement => Boolean(candidate))
-          .find((candidate) => candidate.style.fontSize.trim().length > 0);
-
-        const fontSize = fontSizeSource?.style.fontSize.trim() || '';
-        if (!fontSize) return null;
-
-        return {
-          text,
-          fontSize,
-        };
-      })
-      .filter((item): item is RichTextLineStyle => Boolean(item));
-  };
-
-  const applyRichTextLineStylesToTemplateHtml = useCallback((html: string) => {
-    if (!html || typeof DOMParser === 'undefined') return html;
-
-    const lineStyles = [
-      ...experienceItems.flatMap((item) => extractRichTextLineStyles(item.details)),
-      ...educationItems.flatMap((item) => extractRichTextLineStyles(item.details)),
-    ];
-
-    if (lineStyles.length === 0) return html;
-
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    const candidateElements = Array.from(doc.body.querySelectorAll<HTMLElement>('li, p, span, div'))
-      .filter((element) => normalizeTemplateText(element.textContent || '').length > 0);
-    const usedElements = new Set<HTMLElement>();
-
-    lineStyles.forEach((lineStyle) => {
-      const matches = candidateElements
-        .filter((element) => !usedElements.has(element))
-        .filter((element) => normalizeTemplateText(element.textContent || '') === lineStyle.text)
-        .sort((left, right) => {
-          const leftLength = normalizeTemplateText(left.textContent || '').length;
-          const rightLength = normalizeTemplateText(right.textContent || '').length;
-          return leftLength - rightLength;
-        });
-
-      const match = matches[0];
-      if (!match) return;
-
-      match.style.fontSize = lineStyle.fontSize;
-      usedElements.add(match);
-    });
-
-    return doc.documentElement.outerHTML;
-  }, [educationItems, experienceItems]);
 
   const skillsList = useMemo(() => parseCommaOrNewline(skillsText), [skillsText]);
 
@@ -1561,14 +1373,6 @@ export const Resume = () => {
     const skills = parseCommaOrNewline(skillsText);
     const projects = parseNewline(projectsText);
     const additional = parseNewline(additionalText);
-    const languageSource = [
-      templateFieldValues.languages,
-      templateFieldValues.language,
-      templateFieldValues.languages_text,
-    ]
-      .map((value) => parseRichTextMultilineText((value ?? '').toString()))
-      .find(Boolean) || '';
-    const languageLines = parseRichTextLines(languageSource);
     const customDetailLines = customDetails
       .map((item) => {
         const label = item.label.trim();
@@ -1582,11 +1386,11 @@ export const Resume = () => {
 
     const experienceItemsView = experienceItems
       .map((item) => {
-        const bullets = parseRichTextLines(item.details);
+        const bullets = parseNewline(item.details);
         return {
-          role: parseRichTextInlineText(item.role),
-          company: parseRichTextInlineText(item.company),
-          dates: parseRichTextInlineText(item.dates),
+          role: item.role,
+          company: item.company,
+          dates: item.dates,
           bullets,
           hasBullets: bullets.length > 0,
         };
@@ -1595,11 +1399,11 @@ export const Resume = () => {
 
     const educationItemsView = educationItems
       .map((item) => {
-        const bullets = parseRichTextLines(item.details);
+        const bullets = parseNewline(item.details);
         return {
-          degree: parseRichTextInlineText(item.degree),
-          school: parseRichTextInlineText(item.school),
-          dates: parseRichTextInlineText(item.dates),
+          degree: item.degree,
+          school: item.school,
+          dates: item.dates,
           bullets,
           hasBullets: bullets.length > 0,
         };
@@ -1660,10 +1464,6 @@ export const Resume = () => {
       hasSummary: summaryText.trim().length > 0,
       skills: skillsValue,
       hasSkills: skills.length > 0,
-      languages: templateHasSection('languages') ? languageLines : languageSource,
-      language: languageSource,
-      languages_text: languageSource,
-      hasLanguages: languageLines.length > 0,
       experience: experienceValue,
       hasExperience: experienceItemsView.length > 0,
       education: educationValue,
@@ -1696,128 +1496,6 @@ export const Resume = () => {
     templateSourceHtml,
   ]);
 
-  const buildAtsResumeText = useCallback(() => {
-    const summary = parseRichTextMultilineText(summaryText);
-    const skills = parseCommaOrNewline(skillsText).join(', ');
-    const projects = parseNewline(projectsText).join('\n');
-    const certifications = parseRichTextMultilineText((templateFieldValues.certifications || templateFieldValues.certifications_text || '').toString());
-    const awards = parseRichTextMultilineText((templateFieldValues.awards || templateFieldValues.awards_text || templateFieldValues.achievements || '').toString());
-    const website = (templateFieldValues.website || templateFieldValues.portfolio || '').toString().trim();
-    const linkedIn = (templateFieldValues.linkedin || '').toString().trim();
-
-    const experienceText = experienceItems
-      .map((item) => {
-        const role = parseRichTextInlineText(item.role);
-        const company = parseRichTextInlineText(item.company);
-        const dates = parseRichTextInlineText(item.dates);
-        const details = parseRichTextMultilineText(item.details);
-        return [[role, company].filter(Boolean).join(' - '), dates, details].filter(Boolean).join('\n');
-      })
-      .filter(Boolean)
-      .join('\n\n');
-
-    const educationText = educationItems
-      .map((item) => {
-        const degree = parseRichTextInlineText(item.degree);
-        const school = parseRichTextInlineText(item.school);
-        const dates = parseRichTextInlineText(item.dates);
-        const details = parseRichTextMultilineText(item.details);
-        return [[degree, school].filter(Boolean).join(' - '), dates, details].filter(Boolean).join('\n');
-      })
-      .filter(Boolean)
-      .join('\n\n');
-
-    return [
-      `FULL NAME: ${contactName || 'Not provided'}`,
-      `PROFESSIONAL TITLE: ${contactRole || 'Not provided'}`,
-      `EMAIL: ${contactEmail || 'Not provided'}`,
-      `PHONE: ${contactPhone || 'Not provided'}`,
-      `LOCATION: ${contactLocation || 'Not provided'}`,
-      `LINKEDIN: ${linkedIn || 'Not provided'}`,
-      `PORTFOLIO: ${website || 'Not provided'}`,
-      '',
-      `SUMMARY:\n${summary || 'Not provided'}`,
-      '',
-      `SKILLS:\n${skills || 'Not provided'}`,
-      '',
-      `EXPERIENCE:\n${experienceText || 'Not provided'}`,
-      '',
-      `EDUCATION:\n${educationText || 'Not provided'}`,
-      '',
-      `PROJECTS:\n${projects || 'Not provided'}`,
-      '',
-      `CERTIFICATIONS:\n${certifications || 'Not provided'}`,
-      '',
-      `AWARDS:\n${awards || 'Not provided'}`,
-    ].join('\n');
-  }, [
-    contactName,
-    contactRole,
-    contactEmail,
-    contactPhone,
-    contactLocation,
-    summaryText,
-    skillsText,
-    experienceItems,
-    educationItems,
-    projectsText,
-    templateFieldValues,
-  ]);
-
-  const handleRunAtsCheck = useCallback(async () => {
-    setActiveEditorTab('review');
-    setIsRunningAtsCheck(true);
-    setAtsReport(null);
-    setGenerateError(null);
-
-    try {
-      const localDevHost = typeof window !== 'undefined'
-        && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-      const prefersLocalFallback = localDevHost && !/localhost|127\.0\.0\.1/i.test(API_BASE);
-      const analyzeEndpoints = [
-        apiUrl('/analyze-resume'),
-        ...(prefersLocalFallback ? ['http://localhost:5000/api/analyze-resume'] : []),
-      ];
-
-      const payload = {
-        resumeText: buildAtsResumeText(),
-        jobDescription: [tailorRole.trim(), tailorKeywords.trim()].filter(Boolean).join('\n'),
-      };
-
-      let response: AxiosResponse<AtsReport> | null = null;
-      let lastError: unknown = null;
-
-      for (const endpoint of analyzeEndpoints) {
-        try {
-          response = await axios.post<AtsReport>(endpoint, payload, {
-            timeout: RESUME_UPLOAD_TIMEOUT_MS,
-          });
-          lastError = null;
-          break;
-        } catch (error) {
-          lastError = error;
-        }
-      }
-
-      if (lastError) {
-        throw lastError;
-      }
-
-      if (!response?.data) {
-        throw new Error('ATS analysis did not return a result.');
-      }
-
-      setAtsReport(response.data);
-    } catch (error: any) {
-      const details = typeof error?.response?.data?.details === 'string'
-        ? error.response.data.details
-        : error?.message || 'ATS check failed.';
-      setGenerateError(details);
-    } finally {
-      setIsRunningAtsCheck(false);
-    }
-  }, [buildAtsResumeText, tailorKeywords, tailorRole]);
-
   const buildJsonResumeData = useCallback(() => {
     const skills = parseCommaOrNewline(skillsText).map((name) => ({ name, value: name, bullet: '\u2022' }));
     const projects = parseNewline(projectsText).map((title) => ({ title, name: title, value: title }));
@@ -1837,59 +1515,39 @@ export const Resume = () => {
       templateFieldValues.language,
       templateFieldValues.languages_text,
     ]
-      .map((value) => parseRichTextMultilineText((value ?? '').toString()))
+      .map((value) => (value ?? '').toString().trim())
       .find(Boolean) || '';
-    const languageList = parseRichTextLines(languageSource);
+    const languageList = parseCommaOrNewline(languageSource);
     const languages = languageList.map((name) => ({ name, value: name }));
 
     const experience = experienceItems
-      .map((item) => {
-        const detailLines = parseRichTextLines(item.details);
-        const roleText = parseRichTextInlineText(item.role);
-        const companyText = parseRichTextInlineText(item.company);
-        const datesText = parseRichTextInlineText(item.dates);
-        return {
-          id: item.id,
-          role: roleText,
-          role_html: item.role,
-          company: companyText,
-          company_html: item.company,
-          role_company: [roleText, companyText].filter(Boolean).join(' , '),
-          dates: datesText,
-          dates_html: item.dates,
-          date_range: datesText,
-          date_range_html: item.dates,
-          marker: '\u25cb',
-          highlights: item.details,
-          bullets: detailLines.map((line) => `- ${line}`),
-          bullet_lines: detailLines.map((line) => `\u2022 ${line}`),
-        };
-      })
+      .map((item) => ({
+        id: item.id,
+        role: item.role,
+        company: item.company,
+        role_company: [item.role, item.company].filter(Boolean).join(' , '),
+        dates: item.dates,
+        date_range: item.dates,
+        marker: '\u25cb',
+        highlights: item.details,
+        bullets: parseNewline(item.details).map((line) => `- ${line}`),
+        bullet_lines: parseNewline(item.details).map((line) => `• ${line}`),
+      }))
       .filter((item) =>
         [item.role, item.company, item.dates, item.highlights].some((value) => value && value.toString().trim())
       );
 
     const education = educationItems
-      .map((item) => {
-        const detailLines = parseRichTextLines(item.details);
-        const degreeText = parseRichTextInlineText(item.degree);
-        const schoolText = parseRichTextInlineText(item.school);
-        const datesText = parseRichTextInlineText(item.dates);
-        return {
-          id: item.id,
-          degree: degreeText,
-          degree_html: item.degree,
-          school: schoolText,
-          school_html: item.school,
-          dates: datesText,
-          dates_html: item.dates,
-          date_range: datesText,
-          date_range_html: item.dates,
-          highlights: item.details,
-          bullets: detailLines.map((line) => `- ${line}`),
-          bullet_lines: detailLines.map((line) => `\u2022 ${line}`),
-        };
-      })
+      .map((item) => ({
+        id: item.id,
+        degree: item.degree,
+        school: item.school,
+        dates: item.dates,
+        date_range: item.dates,
+        highlights: item.details,
+        bullets: parseNewline(item.details).map((line) => `- ${line}`),
+        bullet_lines: parseNewline(item.details).map((line) => `• ${line}`),
+      }))
       .filter((item) =>
         [item.degree, item.school, item.dates, item.highlights].some((value) => value && value.toString().trim())
       );
@@ -1933,16 +1591,14 @@ export const Resume = () => {
       || templateFieldValues.certifications_text
       || customDetailItems.map((item) => [item.label, item.value].filter(Boolean).join(': ')).join(' ')
       || ''
-    ).toString();
-    const normalizedCertificationsText = parseRichTextMultilineText(certificationsText);
+    ).toString().trim();
     const awardsText = (
       templateFieldValues.awards
       || templateFieldValues.awards_text
       || templateFieldValues.achievements
       || templateFieldValues.achievements_text
       || ''
-    ).toString();
-    const normalizedAwardsText = parseRichTextMultilineText(awardsText);
+    ).toString().trim();
 
     const referencePrimaryName = (templateFieldValues.reference_primary_name || '').toString().trim();
     const referencePrimaryTitle = (templateFieldValues.reference_primary_title || '').toString().trim();
@@ -1958,8 +1614,6 @@ export const Resume = () => {
     ]
       .filter(Boolean)
       .join('\n');
-    const directReferencesText = parseRichTextMultilineText((templateFieldValues.references || '').toString());
-    const normalizedReferencesText = directReferencesText || referencesText;
     const primaryEducation = education[0] || { degree: '', school: '', dates: '' };
     const skillNames = skills.map((item) => item.name || item.value).filter(Boolean);
     const experienceSlots = [experience[0], experience[1], experience[2]];
@@ -2002,10 +1656,10 @@ export const Resume = () => {
       experience,
       education,
       additional,
-      awards: normalizedAwardsText,
-      awards_text: normalizedAwardsText,
-      achievements: normalizedAwardsText,
-      achievements_text: normalizedAwardsText,
+      awards: awardsText,
+      awards_text: awardsText,
+      achievements: awardsText,
+      achievements_text: awardsText,
       custom_details: customDetailItems,
       customdetails: customDetailItems,
       contact,
@@ -2032,7 +1686,7 @@ export const Resume = () => {
       awards_heading: 'Awards',
       reference_heading: 'Reference',
       references_heading: 'References',
-      references: normalizedReferencesText,
+      references: referencesText,
       reference_phone_label: 'Phone:',
       reference_email_label: 'Email:',
       reference_primary_name: referencePrimaryName,
@@ -2051,8 +1705,8 @@ export const Resume = () => {
       reference_2_title: referenceSecondaryTitle,
       reference_2_phone: referenceSecondaryPhone,
       reference_2_email: referenceSecondaryEmail,
-      certifications: normalizedCertificationsText,
-      certifications_text: normalizedCertificationsText,
+      certifications: certificationsText,
+      certifications_text: certificationsText,
       education_degree: primaryEducation.degree || '',
       education_school: primaryEducation.school || '',
       education_years: primaryEducation.dates || '',
@@ -2100,7 +1754,6 @@ export const Resume = () => {
     projectsText,
     skillsText,
     summaryText,
-    parseRichTextMultilineText,
     templateFieldValues,
   ]);
 
@@ -2289,24 +1942,6 @@ export const Resume = () => {
     setTemplateFieldValue(field, value);
   }, [setTemplateFieldValue]);
 
-  const languageList = useMemo(
-    () => parseRichTextLines(getDetectedFieldValue('languages')),
-    [getDetectedFieldValue]
-  );
-
-  const addLanguage = useCallback(() => {
-    const entries = parseCommaOrNewline(languagesInput);
-    if (entries.length === 0) return;
-    const updated = [...languageList, ...entries];
-    setDetectedFieldValue('languages', updated.join('\n'));
-    setLanguagesInput('');
-  }, [languageList, languagesInput, setDetectedFieldValue]);
-
-  const removeLanguage = useCallback((index: number) => {
-    const updated = languageList.filter((_, idx) => idx !== index);
-    setDetectedFieldValue('languages', updated.join('\n'));
-  }, [languageList, setDetectedFieldValue]);
-
   const isLongDetectedField = useCallback((field: string) => {
     const normalized = normalizeFieldKey(field);
     return (
@@ -2346,9 +1981,8 @@ export const Resume = () => {
   }, []);
 
   const sectionCompletion = useMemo(() => {
-    const getPlainText = (value: string) => parseRichTextInlineText(value);
-    const hasChars = (value: string, minChars = 2) => getPlainText(value).length >= minChars;
-    const hasLongText = (value: string, minChars = 20) => getPlainText(value).length >= minChars;
+    const hasChars = (value: string, minChars = 2) => value.trim().length >= minChars;
+    const hasLongText = (value: string, minChars = 20) => value.trim().length >= minChars;
     const parseItems = (value: string) =>
       value
         .split(/[\n,]+/)
@@ -2360,35 +1994,42 @@ export const Resume = () => {
       const companyOk = hasChars(item.company, 2);
       const datesOk = hasChars(item.dates, 4);
       const detailsOk = hasLongText(item.details, 12);
-      return roleOk && companyOk && datesOk && detailsOk;
+      return (roleOk && companyOk) || (roleOk && detailsOk) || (companyOk && datesOk);
     });
 
     const anyEducationFilled = educationItems.some((item) => {
       const degreeOk = hasChars(item.degree, 2);
       const schoolOk = hasChars(item.school, 2);
-      // Only degree + school are required; dates and details are optional
-      return degreeOk && schoolOk;
+      const datesOk = hasChars(item.dates, 4);
+      const detailsOk = hasLongText(item.details, 12);
+      return (degreeOk && schoolOk) || (degreeOk && detailsOk) || (schoolOk && datesOk);
     });
 
-    const allPersonalInfoFilled = personalInfoFields.length > 0
-      && personalInfoFields.every((field) => hasChars(getDetectedFieldValue(field), 2));
-    const anyLanguagesFilled = languageFields.some((field) => hasChars(getDetectedFieldValue(field), 2));
-    const anyCertificationsFilled = certificationFields.some((field) => hasChars(getDetectedFieldValue(field), 3));
-    const anyAwardsFilled = awardFields.some((field) => hasChars(getDetectedFieldValue(field), 3));
-    const anyReferencesFilled = referenceFields.some((field) => hasChars(getDetectedFieldValue(field), 3));
+    const anyLanguagesFilled = languageFields.some((field) => getDetectedFieldValue(field).trim().length >= 2);
+    const anyCertificationsFilled = certificationFields.some((field) => getDetectedFieldValue(field).trim().length >= 3);
+    const anyAwardsFilled = awardFields.some((field) => getDetectedFieldValue(field).trim().length >= 3);
+    const anyReferencesFilled = referenceFields.some((field) => {
+      const raw = getDetectedFieldValue(field).trim();
+      const normalized = normalizeFieldKey(field);
+      if (raw.length >= 3) return true;
+      return normalized.endsWith('heading') || normalized.endsWith('label');
+    });
+    const anyExperienceStarted = experienceItems.some((item) =>
+      [item.role, item.company, item.dates, item.details].some((value) => value.toString().trim().length > 0)
+    );
     const skillsCount = parseItems(skillsText).length;
 
     return {
       contact: (!showNameField || hasChars(contactName, 2)) && (!showRoleField || hasChars(contactRole, 2)),
-      personal_info: allPersonalInfoFilled,
+      personal_info: true,
       summary: hasLongText(summaryText, 30),
-      experience: anyExperienceFilled,
+      experience: !anyExperienceStarted || anyExperienceFilled,
       education: anyEducationFilled,
       skills: skillsCount >= 2,
-      languages: anyLanguagesFilled,
-      certifications: anyCertificationsFilled,
-      awards: anyAwardsFilled,
-      references: anyReferencesFilled,
+      languages: !getDetectedFieldValue('languages').trim() || anyLanguagesFilled,
+      certifications: !getDetectedFieldValue('certifications').trim() || anyCertificationsFilled,
+      awards: !getDetectedFieldValue('awards').trim() || anyAwardsFilled,
+      references: !referenceFields.some((field) => getDetectedFieldValue(field).trim()) || anyReferencesFilled,
     } as Record<string, boolean>;
   }, [
     awardFields,
@@ -2399,7 +2040,6 @@ export const Resume = () => {
     certificationFields,
     getDetectedFieldValue,
     languageFields,
-    personalInfoFields,
     referenceFields,
     showNameField,
     showRoleField,
@@ -2513,43 +2153,20 @@ export const Resume = () => {
     }
   };
 
-  const handleTemplateSelect = useCallback((template: TemplateListItem) => {
-    const templateSlug = slugifyTemplate(template.name.split('/').pop() || template.name);
-    if (isEditorRoute) {
-      const nextStorageKey = `hirevo:resume-editor:${templateSlug || 'default'}:${user?.id || 'anon'}`;
-      try {
-        window.localStorage.setItem(nextStorageKey, getEditorSnapshotRef.current());
-      } catch {
-        // Ignore storage quota errors so template changes still work.
-      }
-      restoreKeyRef.current = nextStorageKey;
-    }
+  const handleTemplateSelect = (template: TemplateListItem) => {
     selectTemplate(template.name);
     setTemplateStep('edit');
+  };
 
-    if (isBuilderEditorRoute) {
-      const nextParams = new URLSearchParams(searchParams);
-      nextParams.set('template', templateSlug);
-      nextParams.delete('upload');
-      const nextSearch = nextParams.toString();
-      navigate(`/resume-builder/editor${nextSearch ? `?${nextSearch}` : ''}`, { replace: false });
-      return;
-    }
-
-    if (templateId) {
-      navigate(`/resume-editor/${encodeURIComponent(templateSlug)}`, { replace: false });
-    }
-  }, [isBuilderEditorRoute, isEditorRoute, navigate, searchParams, selectTemplate, templateId, user?.id]);
-
-  const handleTemplatePickerSelect = useCallback((template: TemplateListItem) => {
+  const handleTemplatePickerSelect = (template: TemplateListItem) => {
     handleTemplateSelect(template);
     setShowTemplatePicker(false);
-  }, [handleTemplateSelect]);
+  };
 
-  const handleCustomizeTemplateSelect = useCallback((template: TemplateListItem) => {
+  const handleCustomizeTemplateSelect = (template: TemplateListItem) => {
     handleTemplateSelect(template);
     setActiveEditorTab('edit');
-  }, [handleTemplateSelect]);
+  };
 
   const ensureEditModeReady = useCallback(() => {
     if (selectedTemplate) {
@@ -2676,7 +2293,7 @@ export const Resume = () => {
     const body = doc.body;
     if (!body) return;
 
-    if (!ENABLE_PREVIEW_PAGINATION || previewUsesInternalFit(doc)) {
+    if (!ENABLE_PREVIEW_PAGINATION) {
       const originalHtml = body.dataset.originalHtml ?? body.innerHTML;
       body.dataset.originalHtml = originalHtml;
       body.dataset.paginated = 'disabled';
@@ -2716,9 +2333,8 @@ export const Resume = () => {
         padding: 0;
         background: transparent;
         display: flex;
-        justify-content: center;
+        justify-content: flex-start;
         align-items: flex-start;
-        width: 100%;
       }
       .resume-preview-viewport {
         width: ${activePageSize.width}px;
@@ -2744,7 +2360,6 @@ export const Resume = () => {
         overflow: hidden;
         display: flex;
         flex: 0 0 auto;
-        justify-content: center;
       }
       .resume-preview-page-content {
         width: 100%;
@@ -2927,24 +2542,23 @@ export const Resume = () => {
       createPage();
     }
     pagesWrapper.style.transform = 'translateX(0px)';
-  }, [activePageSize.height, activePageSize.width, fitPreviewToPage, previewUsesInternalFit, resolvedPageSize]);
+  }, [activePageSize.height, activePageSize.width, fitPreviewToPage, resolvedPageSize]);
 
   const updatePreviewPaging = useCallback(() => {
-    const frame = previewFrameRef.current;
-    const doc = frame?.contentDocument;
-    if (!ENABLE_PREVIEW_PAGINATION || (doc && previewUsesInternalFit(doc))) {
+    if (!ENABLE_PREVIEW_PAGINATION) {
       setPreviewPageCount(1);
       setPreviewPage(1);
       return;
     }
     const pageHeight = activePageSize.height;
+    const frame = previewFrameRef.current;
     const pages = frame?.contentDocument?.querySelector('.resume-preview-pages');
     const count = pages
       ? Math.max(1, pages.children.length)
       : Math.max(1, Math.ceil((previewContentHeightRef.current || pageHeight) / pageHeight));
     setPreviewPageCount(count);
     setPreviewPage((prev) => Math.min(Math.max(prev, 1), count));
-  }, [activePageSize.height, previewUsesInternalFit]);
+  }, [activePageSize.height]);
 
   const updatePreviewShellScale = useCallback((pageWidth: number, pageHeight: number) => {
     const shell = previewShellRef.current;
@@ -2973,7 +2587,7 @@ export const Resume = () => {
     if (!doc) return;
     const body = doc.body;
     if (!body) return;
-    if (!ENABLE_PREVIEW_PAGINATION || previewUsesInternalFit(doc)) {
+    if (!ENABLE_PREVIEW_PAGINATION) {
       const { width, height } = getPreviewDocumentSize(doc, activePageSize);
       body.dataset.measureWidth = String(width);
       body.dataset.measureHeight = String(height);
@@ -3017,7 +2631,6 @@ export const Resume = () => {
     activePageSize.height,
     activePageSize.width,
     autoDetectedPageSize,
-    previewUsesInternalFit,
     previewPageSizeMode,
     updatePreviewShellScale,
     updatePreviewPaging,
@@ -3052,9 +2665,6 @@ export const Resume = () => {
     applyPreviewPagination();
     const frame = previewFrameRef.current;
     const doc = frame?.contentDocument;
-    if (doc?.body) {
-      doc.body.dataset.hirevoLivePreview = 'true';
-    }
     requestAnimationFrame(() => {
       updatePreviewFrameSize();
       fitPreviewToPage();
@@ -3339,10 +2949,8 @@ export const Resume = () => {
     const serializeHtmlDocument = (doc: Document) => `<!DOCTYPE html>\n${doc.documentElement.outerHTML}`;
 
     if (templateSourceHtml) {
-      const renderedTemplateHtml = applyRichTextLineStylesToTemplateHtml(
-        applyActiveTemplateCustomization(
-          renderTemplateWithSchema(templateSourceHtml, buildTemplateRenderView())
-        )
+      const renderedTemplateHtml = applyActiveTemplateCustomization(
+        renderTemplateWithSchema(templateSourceHtml, buildTemplateRenderView())
       );
 
       if (typeof DOMParser === 'undefined') {
@@ -3447,7 +3055,6 @@ export const Resume = () => {
   }, [
     activeTemplateAccentColor,
     applyActiveTemplateCustomization,
-    applyRichTextLineStylesToTemplateHtml,
     buildTemplateRenderView,
     buildJsonResumeData,
     classicTemplateStyleSettings,
@@ -3457,85 +3064,6 @@ export const Resume = () => {
     selectedTemplateSlug,
     templateSourceHtml,
   ]);
-
-  const scrollAiChatToBottom = () => {
-    setTimeout(() => {
-      if (aiChatBodyRef.current) {
-        aiChatBodyRef.current.scrollTop = aiChatBodyRef.current.scrollHeight;
-      }
-    }, 60);
-  };
-
-  const openAiChat = () => {
-    setShowAiChat(true);
-  };
-
-  useEffect(() => {
-    if (!showAiChat) return;
-    scrollAiChatToBottom();
-    const focusTimer = window.setTimeout(() => {
-      aiChatInputRef.current?.focus();
-    }, 80);
-    return () => window.clearTimeout(focusTimer);
-  }, [showAiChat]);
-
-  const handleAiChatSend = async () => {
-    const text = aiChatInput.trim();
-    if (!text || aiChatLoading) return;
-    const userMsg = { role: 'user' as const, content: text };
-    const updated = [...aiChatMessages, userMsg];
-    setAiChatMessages(updated);
-    setAiChatInput('');
-    setAiChatLoading(true);
-    scrollAiChatToBottom();
-    try {
-      const envCopilotBase = (import.meta.env.VITE_COPILOT_API_BASE || '').trim();
-      const envCopilotEndpoint = normalizeCopilotEndpoint(envCopilotBase);
-      const copilotEndpoints = envCopilotEndpoint
-        ? [envCopilotEndpoint]
-        : [RESUME_COPILOT_PATH];
-
-      let content = '';
-      let lastError: unknown = null;
-
-      for (const endpoint of copilotEndpoints) {
-        try {
-          const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(user?.id ? { 'X-Session-Id': user.id } : {}),
-            },
-            body: JSON.stringify({
-              messages: updated,
-              userProfile: {
-                name: user?.name,
-                profession: user?.profession,
-                country: user?.country,
-                skills: user?.skills ?? [],
-              },
-            }),
-          });
-          const data = await parseApiJson<{ response?: string; reply?: string; message?: string }>(res);
-          content = (data?.response || data?.reply || data?.message || '').trim();
-          if (content) break;
-        } catch (error) {
-          lastError = error;
-        }
-      }
-
-      if (!content) {
-        throw lastError instanceof Error ? lastError : new Error("Sorry, I couldn't get a response. Please try again.");
-      }
-
-      setAiChatMessages(prev => [...prev, { role: 'assistant', content }]);
-    } catch {
-      setAiChatMessages(prev => [...prev, { role: 'assistant', content: 'Network error. Please try again.' }]);
-    } finally {
-      setAiChatLoading(false);
-      scrollAiChatToBottom();
-    }
-  };
 
   const handleDownloadPDF = async () => {
     const filenameBase = contactName
@@ -3561,7 +3089,10 @@ export const Resume = () => {
           || /load failed/i.test(networkMessage)
         ) {
           const target = pdfApiUrl('/render-resume-pdf');
-          return getPdfEndpointHelpMessage(target);
+          const isLocalPdfTarget = /localhost:5000|127\.0\.0\.1:5000/i.test(target);
+          return isLocalPdfTarget
+            ? `Cannot reach the PDF service at ${target}. Start the Node backend in c:/Hirevo/server and check whether a browser extension is blocking the request.`
+            : `Cannot reach the PDF service at ${target}. Verify VITE_PDF_API_BASE points to a Node service that hosts /render-resume-pdf.`;
         }
       }
 
@@ -3601,9 +3132,7 @@ export const Resume = () => {
       const statusCode = (error as { response?: { status?: number } })?.response?.status;
       if (statusCode === 404) {
         const target = pdfApiUrl('/render-resume-pdf');
-        return isSameOriginPdfEndpoint(target)
-          ? `PDF route not found at ${target}. Redeploy workshour.com so the Vercel PDF function is included.`
-          : `PDF route not found at ${target}. Verify that endpoint serves /render-resume-pdf.`;
+        return `PDF route not found at ${target}. Point VITE_PDF_API_BASE to the Node PDF service or run the local backend on port 5000.`;
       }
 
       return (error as { message?: string })?.message || 'Failed to generate PDF.';
@@ -3617,7 +3146,7 @@ export const Resume = () => {
 
       const pdfEndpoints = buildPdfEndpointCandidates();
       if (!pdfEndpoints.length) {
-        throw new Error('No PDF service is configured. Use the built-in Vercel PDF route or set VITE_PDF_API_BASE to a working /render-resume-pdf endpoint.');
+        throw new Error('No PDF service is configured. Set VITE_PDF_API_BASE to a Node backend that hosts /render-resume-pdf.');
       }
 
       let response: Blob | null = null;
@@ -3640,7 +3169,12 @@ export const Resume = () => {
             || /failed to fetch/i.test(networkMessage)
             || /load failed/i.test(networkMessage)
           ) {
-            lastError = new Error(getPdfEndpointHelpMessage(endpoint));
+            const isLocalPdfTarget = /localhost:5000|127\.0\.0\.1:5000/i.test(endpoint);
+            lastError = new Error(
+              isLocalPdfTarget
+                ? `Cannot reach the PDF service at ${endpoint}. Start the Node backend in c:/Hirevo/server and try again.`
+                : `Cannot reach the PDF service at ${endpoint}. Verify VITE_PDF_API_BASE points to a Node service that hosts /render-resume-pdf.`,
+            );
             continue;
           }
           lastError = error;
@@ -3671,10 +3205,8 @@ export const Resume = () => {
   const previewHtml = useMemo(() => {
     if (templateSourceHtml) {
       try {
-        return applyRichTextLineStylesToTemplateHtml(
-          applyActiveTemplateCustomization(
-            renderTemplateWithSchema(templateSourceHtml, buildTemplateRenderView())
-          )
+        return applyActiveTemplateCustomization(
+          renderTemplateWithSchema(templateSourceHtml, buildTemplateRenderView())
         );
       } catch (error) {
         console.error('Preview render failed:', error);
@@ -3682,7 +3214,7 @@ export const Resume = () => {
       }
     }
     return templatePreviewHtml;
-  }, [applyActiveTemplateCustomization, applyRichTextLineStylesToTemplateHtml, buildTemplateRenderView, templatePreviewHtml, templateSourceHtml]);
+  }, [applyActiveTemplateCustomization, buildTemplateRenderView, templatePreviewHtml, templateSourceHtml]);
 
   useEffect(() => {
     if (!previewHtml) return;
@@ -3704,16 +3236,6 @@ export const Resume = () => {
     autoDetectLockedRef.current = false;
     updatePreviewPaging();
   }, [previewHtml, updatePreviewPaging]);
-
-  useEffect(() => {
-    if (!previewHtml) return;
-    const body = previewBodyRef.current;
-    if (body) {
-      body.scrollTop = 0;
-      body.scrollLeft = 0;
-    }
-    setPreviewPage(1);
-  }, [previewHtml]);
 
   useEffect(() => {
     if (!selectedTemplate) return;
@@ -3779,17 +3301,15 @@ export const Resume = () => {
     if (!isEditorRoute) return;
     const match = findTemplateBySlug(effectiveTemplateId);
     if (match) {
-      if (selectedTemplate !== match.name) {
-        selectTemplate(match.name);
-      }
+      selectTemplate(match.name);
       setTemplateStep('edit');
       return;
     }
-    if (templates.length > 0 && !selectedTemplate) {
+    if (templates.length > 0) {
       selectTemplate(templates[0].name);
       setTemplateStep('edit');
     }
-  }, [effectiveTemplateId, findTemplateBySlug, isEditorRoute, selectTemplate, selectedTemplate, templates]);
+  }, [effectiveTemplateId, findTemplateBySlug, isEditorRoute, selectTemplate, templates]);
 
   const getEditorSnapshot = useCallback(() => {
     return JSON.stringify({
@@ -3838,6 +3358,8 @@ export const Resume = () => {
     templateFieldValues,
     unlockedSections,
   ]);
+
+  const getEditorSnapshotRef = useRef(getEditorSnapshot);
 
   useEffect(() => {
     getEditorSnapshotRef.current = getEditorSnapshot;
@@ -3892,22 +3414,13 @@ export const Resume = () => {
       if (typeof next.activeSectionId === 'string' || next.activeSectionId === null) {
         setActiveSectionId(next.activeSectionId as any);
       }
-      if (next.templateFieldValues && typeof next.templateFieldValues === 'object' && !Array.isArray(next.templateFieldValues)) {
-        const restoredFieldValues = Object.fromEntries(
-          Object.entries(next.templateFieldValues as Record<string, unknown>).map(([key, value]) => [
-            key,
-            typeof value === 'string' ? value : value == null ? '' : String(value),
-          ])
-        );
-        replaceTemplateFieldValues(restoredFieldValues);
-      }
     } finally {
       // let state settle before we allow pushing history again
       window.setTimeout(() => {
         isApplyingHistoryRef.current = false;
       }, 0);
     }
-  }, [replaceTemplateFieldValues]);
+  }, []);
 
   const handleUndo = useCallback(() => {
     if (!isEditorRoute) return;
@@ -3985,13 +3498,6 @@ export const Resume = () => {
     restoreKeyRef.current = storageKey;
     const saved = window.localStorage.getItem(storageKey);
     if (saved) {
-      if (hasLegacyDemoSeedData(saved)) {
-        window.localStorage.removeItem(storageKey);
-        const initial = getEditorSnapshotRef.current();
-        undoStackRef.current = [initial];
-        redoStackRef.current = [];
-        return;
-      }
       applyEditorSnapshot(saved);
       undoStackRef.current = [saved];
       redoStackRef.current = [];
@@ -4008,11 +3514,7 @@ export const Resume = () => {
     if (autosaveTimerRef.current) window.clearInterval(autosaveTimerRef.current);
     autosaveTimerRef.current = window.setInterval(() => {
       if (isApplyingHistoryRef.current) return;
-      try {
-        window.localStorage.setItem(storageKey, getEditorSnapshot());
-      } catch {
-        // Ignore storage quota errors so editing can continue even with large embedded photos.
-      }
+      window.localStorage.setItem(storageKey, getEditorSnapshot());
     }, 2500);
     return () => {
       if (autosaveTimerRef.current) window.clearInterval(autosaveTimerRef.current);
@@ -4046,16 +3548,10 @@ export const Resume = () => {
     return Math.round((completed / values.length) * 100);
   }, [sectionCompletion]);
 
-  const requiredDownloadSectionIds = useMemo(() => {
-    // Unlock download when user fills: name + role title (contact) + education
-    const requiredSectionSet = new Set(['contact', 'education']);
-    return availableSections.filter((id) => requiredSectionSet.has(id));
-  }, [availableSections]);
-
   const canDownload = useMemo(() => {
-    if (requiredDownloadSectionIds.length === 0) return false;
-    return requiredDownloadSectionIds.every((id) => sectionCompletion[id]);
-  }, [requiredDownloadSectionIds, sectionCompletion]);
+    if (availableSections.length === 0) return false;
+    return availableSections.every((id) => sectionCompletion[id]);
+  }, [availableSections, sectionCompletion]);
 
   const canCustomize = useMemo(() => {
     if (availableSections.length === 0) return false;
@@ -4068,10 +3564,10 @@ export const Resume = () => {
   }, [canCustomize]);
 
   const incompleteSectionLabels = useMemo(() => {
-    return requiredDownloadSectionIds
+    return availableSections
       .filter((id) => !sectionCompletion[id])
       .map((id) => RESUME_SECTION_TITLES[id] || id);
-  }, [requiredDownloadSectionIds, sectionCompletion]);
+  }, [availableSections, sectionCompletion]);
 
   const isTemplateReadyForDownload = useMemo(() => {
     if (combinedTemplateLoading) return false;
@@ -4133,7 +3629,6 @@ export const Resume = () => {
                     onChange={(next) => setDetectedFieldValue(field, next)}
                     placeholder={`Enter ${label.toLowerCase()}...`}
                     minHeight={110}
-                    toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
                   />
                 ) : (
                   <input
@@ -4202,96 +3697,15 @@ export const Resume = () => {
 
   const previewPanel = (
     <div className="builder-preview-panel">
-      {stepSections.length > 0 && (
-        <div className="preview-progress-card">
-          <div className="preview-progress-track">
-            <div
-              className="preview-stepper"
-              role="list"
-              aria-label="Resume builder progress"
-              style={{ gridTemplateColumns: `repeat(${stepSections.length}, minmax(0, 1fr))` }}
-            >
-              {stepSections.map((sectionId, index) => {
-                const isComplete = Boolean(sectionCompletion[sectionId]);
-                const isActive = sectionId === currentStepId;
-                const sectionTitle = RESUME_SECTION_TITLES[sectionId] || sectionId;
-                const statusLabel = isComplete ? 'Complete' : isActive ? 'Editing now' : 'Pending';
-
-                return (
-                  <button
-                    key={`preview-step-${sectionId}`}
-                    type="button"
-                    role="listitem"
-                    className={`preview-step ${isComplete ? 'is-complete' : ''} ${isActive ? 'is-active' : ''} ${!isComplete && isActive ? 'has-logo-marker' : ''}`}
-                    onClick={() => setActiveSectionId(sectionId)}
-                    aria-current={isActive ? 'step' : undefined}
-                  >
-                    <span className="preview-step-line preview-step-line-left" aria-hidden="true" />
-                    <span className="preview-step-line preview-step-line-right" aria-hidden="true" />
-                    <span className={`preview-step-marker ${!isComplete && isActive ? 'is-logo' : ''}`}>
-                      {isComplete ? (
-                        '✓'
-                      ) : isActive ? (
-                        <svg
-                          viewBox="0 0 24 24"
-                          aria-hidden="true"
-                          focusable="false"
-                          className="preview-step-marker-logo"
-                        >
-                          <path
-                            d="M6.25 2.75h8.35a1.75 1.75 0 0 1 1.24.51l3.4 3.4a1.75 1.75 0 0 1 .51 1.24v10.85a2.5 2.5 0 0 1-2.5 2.5h-11a2.5 2.5 0 0 1-2.5-2.5v-13.5a2.5 2.5 0 0 1 2.5-2.5Z"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.75"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <path
-                            d="M14.5 2.75V6.5A1.5 1.5 0 0 0 16 8h3.75"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.75"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <circle cx="10.1" cy="10.2" r="2.15" fill="currentColor" />
-                          <path
-                            d="M6.95 15.1c.95-1.95 2.05-2.9 3.2-2.9 1.18 0 2.3.95 3.25 2.9"
-                            fill="currentColor"
-                          />
-                          <path
-                            d="M14.8 11.6h3.1M7.25 17.35h10.6M7.25 20h7.2"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.6"
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                      ) : (
-                        index + 1
-                      )}
-                    </span>
-                    <span className="preview-step-label">{sectionTitle}</span>
-                    <span className="preview-step-status">{statusLabel}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
       <div className="preview-card" ref={previewCardRef}>
         <div className="preview-card-body">
           <div className="preview-scroll" ref={previewBodyRef} onScroll={updatePreviewPaging}>
             {previewHtml ? (
-              <div className="preview-iframe-shell" ref={previewShellRef} style={previewShellBaseStyle}>
+              <div className="preview-iframe-shell" ref={previewShellRef}>
                 <iframe
                   title="Resume preview"
                   srcDoc={previewHtml}
                   className="preview-iframe"
-                  style={previewIframeBaseStyle}
-                  width={activePageSize.width}
-                  height={activePageSize.height}
                   scrolling="no"
                   ref={previewFrameRef}
                   onLoad={handlePreviewLoad}
@@ -4303,7 +3717,7 @@ export const Resume = () => {
               </div>
             )}
           </div>
-          {previewPageCount > 1 && (
+          {(previewPageCount > 1 || ENABLE_PREVIEW_PAGINATION) && (
             <div className="preview-overlay">
               <button
                 type="button"
@@ -4849,12 +4263,10 @@ export const Resume = () => {
                 </button>
                 <button
                   type="button"
-                  className={`resume-topbar-pill ats-topbar-pill ${activeEditorTab === 'review' ? 'is-active' : ''}`}
-                  onClick={handleRunAtsCheck}
-                  disabled={isRunningAtsCheck}
-                  title="Run ATS analysis"
+                  className={`resume-topbar-pill ${activeEditorTab === 'review' ? 'is-active' : ''}`}
+                  onClick={() => setActiveEditorTab('review')}
                 >
-                  ATS Check
+                  AI Review
                 </button>
                 <button
                   type="button"
@@ -4867,8 +4279,14 @@ export const Resume = () => {
               </div>
               <div className="resume-topbar-right">
                 {isEditorRoute && (
-                  // Fake data buttons intentionally removed.
-                  null
+                  <button
+                    type="button"
+                    className="resume-topbar-outline"
+                    onClick={fillWithFakeData}
+                    disabled={isFillingDemo || downloadingPdf}
+                  >
+                    {isFillingDemo ? 'Filling...' : 'Fake Data'}
+                  </button>
                 )}
                 <button
                   type="button"
@@ -4914,7 +4332,14 @@ export const Resume = () => {
                     Selected Template: <span className="font-semibold text-gray-800">{selectedTemplateLabel}</span>
                   </div>
                   <div className="resume-toolbar-actions">
-                    {/* Fake data buttons intentionally removed. */}
+                    <button
+                      type="button"
+                      className="resume-action-btn ghost"
+                      onClick={fillWithFakeData}
+                      disabled={isFillingDemo}
+                    >
+                      {isFillingDemo ? 'Filling...' : 'Fill Fake Data'}
+                    </button>
                     <button
                       type="button"
                       onClick={() => navigate('/resume/templates')}
@@ -4982,7 +4407,10 @@ export const Resume = () => {
                 )}
                 {isStepMode && showStepChrome && currentStepId && (
                   <div className="step-header">
-                    <div id={SECTION_RICH_TEXT_TOOLBAR_HOST_ID} className="step-rich-text-toolbar-host" />
+                    <div className="step-header-title">
+                      <span className="step-count">Step {currentStepIndex + 1} of {totalSteps}</span>
+                      <h3>{RESUME_SECTION_TITLES[currentStepId] || 'Section'}</h3>
+                    </div>
                   </div>
                 )}
                 <div className="space-y-5">
@@ -5004,7 +4432,7 @@ export const Resume = () => {
                                 <div className="form-group">
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Professional Title</label>
                                   <input
-                                    placeholder="Senior Software Engineer"
+                                    placeholder="e.g. Software Engineer"
                                     className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                     value={contactRole}
                                     onChange={(e) => setContactRole(e.target.value)}
@@ -5050,7 +4478,7 @@ export const Resume = () => {
                                   <div className="form-group">
                                     <label className="block text-sm font-semibold mb-2 text-gray-700">First Name</label>
                                     <input
-                                      placeholder="Alex"
+                                      placeholder="It's"
                                       className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                       value={contactNameParts.first}
                                       onChange={(e) => updateContactNameParts(e.target.value, contactNameParts.last)}
@@ -5059,7 +4487,7 @@ export const Resume = () => {
                                   <div className="form-group">
                                     <label className="block text-sm font-semibold mb-2 text-gray-700">Last Name</label>
                                     <input
-                                      placeholder="Morgan"
+                                      placeholder="Coder"
                                       className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                       value={contactNameParts.last}
                                       onChange={(e) => updateContactNameParts(contactNameParts.first, e.target.value)}
@@ -5072,7 +4500,7 @@ export const Resume = () => {
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Email</label>
                                   <input
                                     type="email"
-                                    placeholder="alex.morgan@email.com"
+                                    placeholder="you@email.com"
                                     className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                     value={contactEmail}
                                     onChange={(e) => setContactEmail(e.target.value)}
@@ -5084,7 +4512,7 @@ export const Resume = () => {
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Phone</label>
                                   <input
                                     type="tel"
-                                    placeholder="+1 (555) 123-4567"
+                                    placeholder="(555) 555-1234"
                                     className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                     value={contactPhone}
                                     onChange={(e) => setContactPhone(e.target.value)}
@@ -5096,7 +4524,7 @@ export const Resume = () => {
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Portfolio</label>
                                   <input
                                     type="url"
-                                    placeholder="www.alexmorgan.dev"
+                                    placeholder="www.yourportfolio.com"
                                     className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                     value={getTemplateFieldValue('website') || getTemplateFieldValue('portfolio')}
                                     onChange={(e) => setTemplateFieldValue('portfolio', e.target.value)}
@@ -5108,7 +4536,7 @@ export const Resume = () => {
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">LinkedIn URL</label>
                                   <input
                                     type="url"
-                                    placeholder="linkedin.com/in/alexmorgan"
+                                    placeholder="linkedin.com/in/you"
                                     className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                     value={getTemplateFieldValue('linkedin')}
                                     onChange={(e) => setTemplateFieldValue('linkedin', e.target.value)}
@@ -5142,7 +4570,7 @@ export const Resume = () => {
                                 <div className="form-group">
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">City / Address</label>
                                   <input
-                                    placeholder="Lahore, Pakistan"
+                                    placeholder="City / Address"
                                     className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
                                     value={contactLocation}
                                     onChange={(e) => setContactLocation(e.target.value)}
@@ -5166,7 +4594,7 @@ export const Resume = () => {
                               <button
                                 type="button"
                                 className="ask-ai-btn"
-                                onClick={openAiChat}
+                                onClick={() => setActiveEditorTab('review')}
                               >
                                 Ask AI writer
                               </button>
@@ -5177,18 +4605,11 @@ export const Resume = () => {
                       summary: (
                         <div className="form-group">
                           <label className="block text-sm font-semibold mb-2 text-gray-700">Professional Summary / Objective</label>
-                          <ImproveTextAction
-                            text={parseRichTextMultilineText(summaryText)}
-                            type="summary"
-                            onAccept={(value) => setSummaryText(plainTextToParagraphHtml(value))}
-                            className="mb-3"
-                          />
                           <RichTextEditor
                             value={summaryText}
                             onChange={setSummaryText}
                             placeholder="Write your professional summary or objective..."
                             minHeight={160}
-                            toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
                           />
                         </div>
                       ),
@@ -5210,54 +4631,38 @@ export const Resume = () => {
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="form-group">
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Role</label>
-                                  <RichTextEditor
-                                    value={item.role}
-                                    onChange={(value) => updateExperienceItem(item.id, { role: value })}
+                                  <input
                                     placeholder="e.g. Senior Developer"
-                                    minHeight={58}
-                                    compact
-                                    spellCheck={false}
-                                    toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
+                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                    value={item.role}
+                                    onChange={(e) => updateExperienceItem(item.id, { role: e.target.value })}
                                   />
                                 </div>
                                 <div className="form-group">
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Company</label>
-                                  <RichTextEditor
-                                    value={item.company}
-                                    onChange={(value) => updateExperienceItem(item.id, { company: value })}
+                                  <input
                                     placeholder="Company name"
-                                    minHeight={58}
-                                    compact
-                                    spellCheck={false}
-                                    toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
+                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                    value={item.company}
+                                    onChange={(e) => updateExperienceItem(item.id, { company: e.target.value })}
                                   />
                                 </div>
                                 <div className="form-group md:col-span-2">
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Dates</label>
-                                  <RichTextEditor
-                                    value={item.dates}
-                                    onChange={(value) => updateExperienceItem(item.id, { dates: value })}
+                                  <input
                                     placeholder="e.g. Jan 2021 - Present"
-                                    minHeight={54}
-                                    compact
-                                    spellCheck={false}
-                                    toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
+                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                    value={item.dates}
+                                    onChange={(e) => updateExperienceItem(item.id, { dates: e.target.value })}
                                   />
                                 </div>
                                 <div className="form-group md:col-span-2">
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Details (one bullet per line)</label>
-                                  <ImproveTextAction
-                                    text={parseRichTextMultilineText(item.details)}
-                                    type="experience"
-                                    onAccept={(value) => updateExperienceItem(item.id, { details: plainTextToBulletHtml(value) })}
-                                    className="mb-3"
-                                  />
                                   <RichTextEditor
                                     value={item.details}
                                     onChange={(value) => updateExperienceItem(item.id, { details: value })}
-                                    placeholder="Describe your responsibilities and achievements, one bullet per line."
+                                    placeholder="Built X feature...\nImproved Y by 20%..."
                                     minHeight={140}
-                                    toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
                                   />
                                 </div>
                               </div>
@@ -5289,38 +4694,29 @@ export const Resume = () => {
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="form-group">
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Degree</label>
-                                  <RichTextEditor
-                                    value={item.degree}
-                                    onChange={(value) => updateEducationItem(item.id, { degree: value })}
+                                  <input
                                     placeholder="e.g. BSc Computer Science"
-                                    minHeight={58}
-                                    compact
-                                    spellCheck={false}
-                                    toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
+                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                    value={item.degree}
+                                    onChange={(e) => updateEducationItem(item.id, { degree: e.target.value })}
                                   />
                                 </div>
                                 <div className="form-group">
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">School</label>
-                                  <RichTextEditor
-                                    value={item.school}
-                                    onChange={(value) => updateEducationItem(item.id, { school: value })}
+                                  <input
                                     placeholder="University name"
-                                    minHeight={58}
-                                    compact
-                                    spellCheck={false}
-                                    toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
+                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                    value={item.school}
+                                    onChange={(e) => updateEducationItem(item.id, { school: e.target.value })}
                                   />
                                 </div>
                                 <div className="form-group md:col-span-2">
                                   <label className="block text-sm font-semibold mb-2 text-gray-700">Dates</label>
-                                  <RichTextEditor
-                                    value={item.dates}
-                                    onChange={(value) => updateEducationItem(item.id, { dates: value })}
+                                  <input
                                     placeholder="e.g. 2016 - 2020"
-                                    minHeight={54}
-                                    compact
-                                    spellCheck={false}
-                                    toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
+                                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                                    value={item.dates}
+                                    onChange={(e) => updateEducationItem(item.id, { dates: e.target.value })}
                                   />
                                 </div>
                                 <div className="form-group md:col-span-2">
@@ -5330,7 +4726,6 @@ export const Resume = () => {
                                     onChange={(value) => updateEducationItem(item.id, { details: value })}
                                     placeholder="Honors, GPA, coursework..."
                                     minHeight={120}
-                                    toolbarHostId={SECTION_RICH_TEXT_TOOLBAR_HOST_ID}
                                   />
                                 </div>
                               </div>
@@ -5347,12 +4742,6 @@ export const Resume = () => {
                       skills: (
                         <div className="form-group">
                           <label className="block text-sm font-semibold mb-2 text-gray-700">Skills</label>
-                          <ImproveTextAction
-                            text={skillsText}
-                            type="skills"
-                            onAccept={(value) => setSkillsText(normalizeImprovedSkillsText(value))}
-                            className="mb-3"
-                          />
                           <div className="skills-editor">
                             <div className="skills-input-row">
                               <input
@@ -5394,53 +4783,13 @@ export const Resume = () => {
                           </div>
                         </div>
                       ),
-                      languages: (
-                        <div className="form-group">
-                          <label className="block text-sm font-semibold mb-2 text-gray-700">Languages</label>
-                          <div className="skills-editor">
-                            <div className="skills-input-row">
-                              <input
-                                placeholder="Add a language (e.g. Urdu)"
-                                className="skills-input"
-                                value={languagesInput}
-                                onChange={(e) => setLanguagesInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    addLanguage();
-                                  }
-                                }}
-                              />
-                              <button type="button" className="add-skill-btn" onClick={addLanguage}>
-                                Add language
-                              </button>
-                            </div>
-                            {languageList.length > 0 ? (
-                              <div className="skills-chip-list">
-                                {languageList.map((language, index) => (
-                                  <span key={`${language}-${index}`} className="skills-chip">
-                                    {language}
-                                    <button
-                                      type="button"
-                                      className="skills-chip-remove"
-                                      aria-label={`Remove ${language}`}
-                                      onClick={() => removeLanguage(index)}
-                                    >
-                                      Ã—
-                                    </button>
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="skills-empty">Add your first language to get started.</div>
-                            )}
-                            <div className="skills-helper">Tip: You can paste multiple languages separated by commas.</div>
-                          </div>
-                        </div>
-                      ),
                       personal_info: renderDetectedFieldSection(
                         personalInfoFields,
                         'These details are optional. Fill only what you want shown on the resume.'
+                      ),
+                      languages: renderDetectedFieldSection(
+                        languageFields,
+                        'This template includes language placeholders. Add one language per line or use your preferred format.'
                       ),
                       certifications: renderDetectedFieldSection(
                         certificationFields,
@@ -5463,7 +4812,6 @@ export const Resume = () => {
                     if (isStepMode && sectionId !== currentStepId) return null;
                     const isExpanded = activeSectionId === sectionId;
                     const isComplete = sectionCompletion[sectionId];
-                    const isOptionalSection = !REQUIRED_EDITOR_SECTION_IDS.has(sectionId);
 
                     return (
                       <div
@@ -5480,12 +4828,7 @@ export const Resume = () => {
                           onClick={() => setActiveSectionId(sectionId)}
                         >
                           <span className="drag-handle">::</span>
-                          <div className="builder-section-title-group">
-                            <h3>{sectionTitle}</h3>
-                            {isOptionalSection && (
-                              <span className="section-optional-badge">Optional</span>
-                            )}
-                          </div>
+                          <h3>{sectionTitle}</h3>
                           <span className="ai-help-btn">
                             Get help with writing
                           </span>
@@ -5565,169 +4908,25 @@ export const Resume = () => {
                     <div className="tab-panel-header">
                       <div>
                         <h2>AI Review</h2>
+                        <p>See what’s missing and improve your resume quality.</p>
                       </div>
                       <div className="review-score">
                         <span>Score</span>
-                        <strong>{atsReport ? `${atsReport.overall_score}%` : '--'}</strong>
+                        <strong>{resumeScore}%</strong>
                       </div>
                     </div>
                     <div className="tab-panel-body">
-                      {isRunningAtsCheck && (
-                        <div className="ats-loading-shell" aria-live="polite" aria-busy="true">
-                          <div className="ats-loading-card">
-                            <div className="ats-loading-doc">
-                              <span className="ats-loading-line ats-loading-line-wide" />
-                              <span className="ats-loading-line" />
-                              <span className="ats-loading-line ats-loading-line-short" />
-                              <span className="ats-loading-line ats-loading-line-wide" />
-                              <span className="ats-loading-line" />
-                              <span className="ats-loading-line ats-loading-line-short" />
-                              <div className="ats-loading-scan" />
+                      <div className="tab-section">
+                        <h3>Completion checklist</h3>
+                        <div className="review-list">
+                          {availableSections.map((sectionId) => (
+                            <div key={`review-${sectionId}`} className={`review-item ${sectionCompletion[sectionId] ? 'complete' : 'missing'}`}>
+                              <span>{RESUME_SECTION_TITLES[sectionId] || sectionId}</span>
+                              <strong>{sectionCompletion[sectionId] ? 'Complete' : 'Needs attention'}</strong>
                             </div>
-                            <div className="ats-loading-copy">
-                              <h3>Analyzing your resume</h3>
-                              <p>Checking formatting, keywords, contact details, structure, and content quality through the ATS API.</p>
-                            </div>
-                          </div>
+                          ))}
                         </div>
-                      )}
-                      {!isRunningAtsCheck && atsReport && (
-                        <>
-                          <div className="tab-section">
-                            <h3>ATS report</h3>
-                            <div className="ats-review-grid">
-                              <div className="ats-review-score-card">
-                                <span>Overall ATS score</span>
-                                <strong>{atsReport.overall_score}/100</strong>
-                                <p>{atsReport.score_band}</p>
-                              </div>
-                              <div className="ats-review-score-list">
-                                <div><span>Format</span><strong>{atsReport.categories.format.score}%</strong></div>
-                                <div><span>Keywords</span><strong>{atsReport.categories.keywords.score}%</strong></div>
-                                <div><span>Contact</span><strong>{atsReport.categories.contact_info.score}%</strong></div>
-                                <div><span>Length</span><strong>{atsReport.categories.length.score}%</strong></div>
-                                <div><span>Content</span><strong>{atsReport.categories.content_quality.score}%</strong></div>
-                              </div>
-                            </div>
-                            {(atsReport.score_band_message || atsReport.pass_probability) && (
-                              <div className="ats-summary-strip">
-                                {atsReport.score_band_message ? (
-                                  <p className="tab-section-copy">{atsReport.score_band_message}</p>
-                                ) : <span />}
-                                {atsReport.pass_probability ? (
-                                  <div className="ats-pass-chip">
-                                    <span>Pass probability</span>
-                                    <strong>{atsReport.pass_probability}</strong>
-                                  </div>
-                                ) : null}
-                              </div>
-                            )}
-                          </div>
-                          {!!atsReport.strengths?.length && (
-                            <div className="tab-section">
-                              <h3>Strengths</h3>
-                              <div className="review-list">
-                                {atsReport.strengths.map((item) => (
-                                  <div key={item} className="review-item complete">
-                                    <span>{item}</span>
-                                    <strong>Strength</strong>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          <div className="tab-section">
-                            <h3>Top recommendations</h3>
-                            <div className="review-list">
-                              {atsReport.top_recommendations.map((item) => (
-                                <div key={item} className="review-item missing">
-                                  <span>{item}</span>
-                                  <strong>Action needed</strong>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                          {!!atsReport.quick_wins?.length && (
-                            <div className="tab-section">
-                              <h3>Quick wins</h3>
-                              <div className="review-list">
-                                {atsReport.quick_wins.map((item) => (
-                                  <div key={item} className="review-item complete">
-                                    <span>{item}</span>
-                                    <strong>Fast fix</strong>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          {!!atsReport.top_3_priorities?.length && (
-                            <div className="tab-section">
-                              <h3>Top 3 priorities</h3>
-                              <div className="review-list">
-                                {atsReport.top_3_priorities.map((item) => (
-                                  <div key={item} className="review-item missing">
-                                    <span>{item}</span>
-                                    <strong>Priority</strong>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          <div className="tab-section">
-                            <h3>Missing keywords</h3>
-                            {atsReport.missing_keywords.length > 0 ? (
-                              <div className="ats-keyword-list">
-                                {atsReport.missing_keywords.map((keyword) => (
-                                  <span key={keyword}>{keyword}</span>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="tab-section-copy">No major keyword gaps detected for the current resume context.</p>
-                            )}
-                          </div>
-                          <div className="tab-section">
-                            <h3>Category fixes</h3>
-                            <div className="ats-fix-grid">
-                              {[
-                                { label: 'Format', data: atsReport.categories.format },
-                                { label: 'Keywords', data: atsReport.categories.keywords },
-                                { label: 'Contact', data: atsReport.categories.contact_info },
-                                { label: 'Length', data: atsReport.categories.length },
-                                { label: 'Content', data: atsReport.categories.content_quality },
-                              ].map((item) => (
-                                <div key={item.label} className="ats-fix-card">
-                                  <div className="ats-fix-card-header">
-                                    <span>{item.label}</span>
-                                    <strong>{item.data.status || 'Review'}</strong>
-                                  </div>
-                                  <p>{item.data.fix || 'Review this category for improvement opportunities.'}</p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="tab-section">
-                            <h3>Improved summary</h3>
-                            <p className="tab-section-copy">{atsReport.improved_summary}</p>
-                          </div>
-                          <div className="tab-section">
-                            <h3>Improved bullet points</h3>
-                            <div className="review-list">
-                              {atsReport.improved_bullet_points.map((item) => (
-                                <div key={item} className="review-item complete">
-                                  <span>{item}</span>
-                                  <strong>Suggested</strong>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </>
-                      )}
-                      {!isRunningAtsCheck && !atsReport && (
-                        <div className="tab-section">
-                          <h3>No ATS report yet</h3>
-                          <p className="tab-section-copy">Click `ATS Check` to fetch live ATS analysis from the API.</p>
-                        </div>
-                      )}
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -5843,16 +5042,6 @@ export const Resume = () => {
           </aside>
         </div>
       )}
-
-      <ImageCropModal
-        isOpen={Boolean(pendingPhotoCropSrc)}
-        imageSrc={pendingPhotoCropSrc}
-        imageName={pendingPhotoCropName}
-        outputSize={300}
-        title="Crop profile photo"
-        onCancel={handlePhotoCropCancel}
-        onConfirm={handlePhotoCropConfirm}
-      />
 
       <style>{`
         .resume-editor-layout {
@@ -6568,12 +5757,7 @@ export const Resume = () => {
           border-radius: 999px;
           font-size: 0.82rem;
           font-weight: 600;
-        }
-
-        .resume-topbar-pill:disabled {
-          opacity: 0.65;
-          cursor: not-allowed;
-        }
+         }
 
         .resume-topbar-pill.is-active {
           border-color: #e2e8f0;
@@ -7366,7 +6550,6 @@ export const Resume = () => {
           overflow-y: auto;
           overflow-x: hidden;
           overscroll-behavior: contain;
-          scroll-padding-top: 120px;
           padding-right: 6px;
           gap: 16px;
           scrollbar-width: none;
@@ -7629,201 +6812,13 @@ export const Resume = () => {
           box-shadow: 0 10px 20px -18px rgba(15, 23, 42, 0.4);
         }
 
-        .ai-chip:disabled {
-          opacity: 0.65;
-          cursor: not-allowed;
-        }
-
-        .ats-trigger-chip {
-          border-color: rgba(15, 118, 110, 0.2);
-          background: rgba(20, 184, 166, 0.1);
-          color: #0f766e;
-        }
-
         .builder-preview-panel {
           min-width: 0;
           display: flex;
           flex-direction: column;
-          gap: 14px;
           min-height: 0;
           height: 100%;
           overflow: hidden;
-        }
-
-        .preview-progress-card {
-          border: 1px solid #d9e2f2;
-          border-radius: 18px;
-          background:
-            radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 34%),
-            linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-          box-shadow: 0 18px 40px -30px rgba(15, 23, 42, 0.28);
-          padding: 8px 4px 8px;
-          overflow: hidden;
-        }
-
-        .preview-progress-track {
-          display: block;
-        }
-
-        .preview-stepper {
-          display: grid;
-          gap: 0;
-          overflow: visible;
-          padding-bottom: 0;
-        }
-
-        .preview-step {
-          position: relative;
-          border: none;
-          background: transparent;
-          min-width: 0;
-          padding: 0 4px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 4px;
-          text-align: center;
-          cursor: pointer;
-          color: #64748b;
-        }
-
-        .preview-step-line {
-          position: absolute;
-          top: 10px;
-          height: 2px;
-          border-radius: 999px;
-          background: #dbe4f0;
-          transition: background 0.2s ease;
-          pointer-events: none;
-        }
-
-        .preview-step-line-left {
-          left: 0;
-          right: calc(50% + 11px);
-        }
-
-        .preview-step-line-right {
-          left: calc(50% + 11px);
-          right: 0;
-        }
-
-        .preview-step.has-logo-marker .preview-step-line-left {
-          right: calc(50% + 7px);
-          background: linear-gradient(90deg, #60a5fa 0%, #2563eb 100%);
-        }
-
-        .preview-step.has-logo-marker .preview-step-line-right {
-          left: calc(50% + 7px);
-        }
-
-        .preview-step:first-child .preview-step-line-left,
-        .preview-step:last-child .preview-step-line-right {
-          display: none;
-        }
-
-        .preview-step-marker {
-          position: relative;
-          z-index: 1;
-          width: 22px;
-          height: 22px;
-          border-radius: 50%;
-          border: 1.5px solid #cbd5e1;
-          background: #ffffff;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 0.64rem;
-          font-weight: 800;
-          color: #94a3b8;
-          box-shadow: 0 10px 20px -18px rgba(15, 23, 42, 0.3);
-          transition: all 0.2s ease;
-        }
-
-        .preview-step-marker-logo {
-          width: 26px;
-          height: 26px;
-          display: block;
-          color: #0f5b66;
-        }
-
-        .preview-step-marker.is-logo {
-          width: 30px;
-          height: 30px;
-          border: none;
-          border-radius: 0;
-          background: transparent;
-          box-shadow: none;
-          transform: translateY(-4px);
-        }
-
-        .preview-step-label {
-          font-size: 0.56rem;
-          line-height: 1.02;
-          font-weight: 700;
-          color: #334155;
-          overflow-wrap: anywhere;
-        }
-
-        .preview-step-status {
-          font-size: 0.47rem;
-          line-height: 1;
-          font-weight: 600;
-          color: #94a3b8;
-          overflow-wrap: anywhere;
-        }
-
-        .preview-step.is-complete .preview-step-marker {
-          border-color: #2563eb;
-          background: #2563eb;
-          color: #ffffff;
-        }
-
-        .preview-step.is-complete .preview-step-line-left,
-        .preview-step.is-complete .preview-step-line-right {
-          background: linear-gradient(90deg, #60a5fa 0%, #2563eb 100%);
-        }
-
-        .preview-step.is-active .preview-step-marker {
-          border-color: #2563eb;
-          color: #2563eb;
-          background: #ffffff;
-          box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
-        }
-
-        .preview-step.is-active .preview-step-marker.is-logo {
-          border: none;
-          background: transparent;
-          box-shadow: none;
-          color: #0f5b66;
-        }
-
-        .preview-step.is-active .preview-step-label,
-        .preview-step.is-complete .preview-step-label {
-          color: #0f172a;
-        }
-
-        .preview-step.is-active .preview-step-status {
-          color: #2563eb;
-        }
-
-        .preview-step.is-complete .preview-step-status {
-          color: #16a34a;
-        }
-
-        .preview-step:hover .preview-step-marker,
-        .preview-step:focus-visible .preview-step-marker {
-          border-color: #2563eb;
-          color: #2563eb;
-        }
-
-        .preview-step:hover .preview-step-marker.is-logo,
-        .preview-step:focus-visible .preview-step-marker.is-logo {
-          border: none;
-          color: #0f5b66;
-        }
-
-        .preview-step:focus-visible {
-          outline: none;
         }
 
         .preview-card {
@@ -7975,28 +6970,14 @@ export const Resume = () => {
 
         .step-header {
           display: flex;
-          flex-direction: column;
-          align-items: stretch;
-          justify-content: flex-start;
-          gap: 16px;
-          position: sticky;
-          top: 0;
-          z-index: 20;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
           padding: 14px 18px;
           border: 1px solid #e2e8f0;
           border-radius: 16px;
-          background: rgba(255, 255, 255, 0.96);
-          backdrop-filter: blur(10px);
-          -webkit-backdrop-filter: blur(10px);
+          background: #ffffff;
           box-shadow: 0 18px 30px -26px rgba(15, 23, 42, 0.35);
-        }
-
-        .step-rich-text-toolbar-host {
-          width: 100%;
-        }
-
-        .step-rich-text-toolbar-host:empty {
-          display: none;
         }
 
         .step-header-title {
@@ -8023,271 +7004,12 @@ export const Resume = () => {
         .step-header-actions {
           display: flex;
           gap: 8px;
-          justify-content: flex-end;
-        }
-
-        .ats-review-grid {
-          display: grid;
-          grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-          gap: 16px;
-        }
-
-        .ats-review-score-card {
-          border: 1px solid #dbe5ef;
-          border-radius: 18px;
-          background: #f8fafc;
-          padding: 18px;
-          display: grid;
-          gap: 8px;
-        }
-
-        .ats-review-score-card span {
-          font-size: 0.78rem;
-          font-weight: 700;
-          color: #64748b;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        }
-
-        .ats-review-score-card strong {
-          font-size: 2rem;
-          line-height: 1;
-          color: #0f172a;
-        }
-
-        .ats-review-score-card p {
-          margin: 0;
-          color: #475569;
-          font-weight: 600;
-        }
-
-        .ats-review-score-list {
-          display: grid;
-          gap: 10px;
-        }
-
-        .ats-review-score-list div {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          border: 1px solid #e2e8f0;
-          border-radius: 14px;
-          background: #ffffff;
-          padding: 12px 14px;
-        }
-
-        .ats-review-score-list span {
-          color: #475569;
-          font-weight: 600;
-        }
-
-        .ats-review-score-list strong {
-          color: #0f172a;
-          font-size: 1rem;
-        }
-
-        .ats-summary-strip {
-          margin-top: 14px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 14px;
-          flex-wrap: wrap;
-        }
-
-        .ats-pass-chip {
-          display: inline-flex;
-          flex-direction: column;
-          align-items: flex-start;
-          gap: 2px;
-          padding: 10px 12px;
-          border-radius: 12px;
-          border: 1px solid #dbeafe;
-          background: #f8fbff;
-        }
-
-        .ats-pass-chip span {
-          font-size: 0.72rem;
-          font-weight: 700;
-          color: #64748b;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        }
-
-        .ats-pass-chip strong {
-          font-size: 1rem;
-          color: #0f172a;
-        }
-
-        .ats-keyword-list {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-
-        .ats-keyword-list span {
-          padding: 6px 10px;
-          border-radius: 999px;
-          border: 1px solid #bfdbfe;
-          background: #eff6ff;
-          color: #1e3a8a;
-          font-size: 0.78rem;
-          font-weight: 700;
-        }
-
-        .tab-section-copy {
-          margin: 0;
-          color: #475569;
-          line-height: 1.65;
-        }
-
-        .ats-loading-shell {
-          min-height: 360px;
-          display: grid;
-          place-items: center;
-        }
-
-        .ats-loading-card {
-          width: min(100%, 720px);
-          border: 1px solid #dbe5ef;
-          border-radius: 24px;
-          background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-          box-shadow: 0 24px 40px -32px rgba(15, 23, 42, 0.28);
-          padding: 28px;
-          display: grid;
-          gap: 20px;
-          justify-items: center;
-        }
-
-        .ats-loading-doc {
-          width: min(100%, 320px);
-          height: 220px;
-          position: relative;
-          border-radius: 18px;
-          border: 1px solid #dbe5ef;
-          background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-          padding: 22px 20px;
-          overflow: hidden;
-        }
-
-        .ats-loading-doc::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          right: 0;
-          width: 46px;
-          height: 46px;
-          background: linear-gradient(135deg, #eef2ff 0%, #ffffff 70%);
-          clip-path: polygon(100% 0, 0 0, 100% 100%);
-          border-left: 1px solid #dbe5ef;
-          border-bottom: 1px solid #dbe5ef;
-        }
-
-        .ats-loading-line {
-          display: block;
-          height: 10px;
-          border-radius: 999px;
-          background: linear-gradient(90deg, #e2e8f0 0%, #f8fafc 50%, #e2e8f0 100%);
-          background-size: 200% 100%;
-          animation: atsShimmer 1.4s linear infinite;
-          margin-bottom: 14px;
-          width: 76%;
-        }
-
-        .ats-loading-line-wide {
-          width: 92%;
-        }
-
-        .ats-loading-line-short {
-          width: 58%;
-        }
-
-        .ats-loading-scan {
-          position: absolute;
-          left: 12px;
-          right: 12px;
-          height: 3px;
-          border-radius: 999px;
-          background: linear-gradient(90deg, rgba(37, 99, 235, 0), rgba(37, 99, 235, 0.95), rgba(37, 99, 235, 0));
-          box-shadow: 0 0 18px rgba(37, 99, 235, 0.35);
-          animation: atsScan 2.2s ease-in-out infinite;
-        }
-
-        .ats-loading-copy {
-          text-align: center;
-          max-width: 520px;
-        }
-
-        .ats-loading-copy h3 {
-          margin: 0 0 8px;
-          color: #0f172a;
-          font-size: 1.2rem;
-        }
-
-        .ats-loading-copy p {
-          margin: 0;
-          color: #64748b;
-          line-height: 1.7;
-        }
-
-        @keyframes atsShimmer {
-          0% { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
-        }
-
-        @keyframes atsScan {
-          0% { top: 18px; opacity: 0.3; }
-          50% { top: calc(100% - 24px); opacity: 1; }
-          100% { top: 18px; opacity: 0.3; }
-        }
-
-        .ats-fix-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 12px;
-        }
-
-        .ats-fix-card {
-          border: 1px solid #e2e8f0;
-          border-radius: 14px;
-          background: #ffffff;
-          padding: 14px;
-          display: grid;
-          gap: 10px;
-        }
-
-        .ats-fix-card-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-        }
-
-        .ats-fix-card-header span {
-          font-size: 0.9rem;
-          font-weight: 700;
-          color: #0f172a;
-        }
-
-        .ats-fix-card-header strong {
-          font-size: 0.76rem;
-          font-weight: 700;
-          color: #64748b;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        }
-
-        .ats-fix-card p {
-          margin: 0;
-          color: #475569;
-          line-height: 1.6;
         }
 
         .step-footer {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+          display: flex;
           align-items: center;
+          justify-content: space-between;
           gap: 12px;
           padding: 12px 16px;
           border: 1px solid #e2e8f0;
@@ -8311,16 +7033,7 @@ export const Resume = () => {
         .step-dots {
           display: flex;
           align-items: center;
-          justify-content: center;
           gap: 6px;
-        }
-
-        .step-footer > .btn:first-child {
-          justify-self: start;
-        }
-
-        .step-footer > .btn:last-child {
-          justify-self: end;
         }
 
         .step-dot {
@@ -8454,27 +7167,6 @@ export const Resume = () => {
 
         .builder-section-header h3 {
           font-size: 1.15rem;
-        }
-
-        .builder-section-title-group {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          min-width: 0;
-        }
-
-        .section-optional-badge {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: 4px 10px;
-          border-radius: 999px;
-          background: #eff6ff;
-          color: #2563eb;
-          font-size: 0.72rem;
-          font-weight: 700;
-          letter-spacing: 0.02em;
-          white-space: nowrap;
         }
 
         .builder-section-body {
@@ -8639,97 +7331,19 @@ export const Resume = () => {
         }
 
         @media (max-width: 768px) {
-          .ats-review-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .ats-fix-grid {
-            grid-template-columns: 1fr;
-          }
-
-          /* ── Topbar: stack left / tabs / actions into 3 rows ── */
           .resume-topbar {
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
-            gap: 6px;
-            padding: 10px 12px;
-            margin: 0;
+            grid-template-columns: 1fr;
+            margin: 10px 14px 0;
+            justify-items: start;
           }
 
-          .resume-topbar-left {
-            flex-wrap: nowrap;
-            min-width: 0;
-            gap: 8px;
-          }
-
-          .topbar-title-group {
-            flex: 1;
-            min-width: 0;
-            gap: 6px;
-          }
-
-          .resume-topbar-title {
-            font-size: 0.82rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 200px;
-          }
-
-          .topbar-language {
-            display: none;
-          }
-
-          /* Tab pills: scrollable row, no wrapping */
-          .resume-topbar-center {
-            display: flex;
-            overflow-x: auto;
-            scrollbar-width: none;
-            -webkit-overflow-scrolling: touch;
-            justify-content: flex-start;
-            padding: 3px;
-            gap: 3px;
-          }
-
-          .resume-topbar-center::-webkit-scrollbar {
-            display: none;
-          }
-
-          .resume-topbar-pill {
-            flex-shrink: 0;
-            padding: 5px 12px;
-            font-size: 0.78rem;
-            white-space: nowrap;
-          }
-
-          /* Action buttons: fill available width */
+          .resume-topbar-center,
           .resume-topbar-right {
             justify-content: flex-start;
+          }
+
+          .resume-topbar-right {
             flex-wrap: wrap;
-            gap: 8px;
-          }
-
-          .resume-topbar-outline {
-            flex: 1;
-            min-width: 100px;
-            text-align: center;
-            font-size: 0.8rem;
-            padding: 8px 10px;
-          }
-
-          .resume-topbar-download {
-            flex: 1;
-            min-width: 100px;
-            justify-content: center;
-            font-size: 0.8rem;
-            padding: 8px 10px;
-          }
-
-          /* Workspace: account for taller stacked topbar (~148px) */
-          .resume-workspace.is-editor {
-            margin-top: 148px;
-            height: calc(100svh - 148px);
           }
 
           .page-header {
@@ -8764,17 +7378,11 @@ export const Resume = () => {
 
           .resume-builder-grid {
             grid-template-columns: 1fr;
-            height: auto;
           }
 
           /* Mobile Builder Layout Logic */
           .builder-panel {
             display: flex;
-            padding-right: 0;
-          }
-
-          .builder-preview-panel {
-            display: none;
           }
 
           .builder-preview {
@@ -9488,204 +8096,6 @@ export const Resume = () => {
           color: #e2e8f0 !important;
         }
 
-        [data-theme="dark"] .resume-page .resume-tab-panel,
-        [data-theme="dark"] .resume-page .template-drawer-panel,
-        [data-theme="dark"] .resume-page .resume-topbar,
-        [data-theme="dark"] .resume-page .resume-workspace,
-        [data-theme="dark"] .resume-page .preview-progress-shell,
-        [data-theme="dark"] .resume-page .preview-card,
-        [data-theme="dark"] .resume-page .preview-card-body,
-        [data-theme="dark"] .resume-page .step-header,
-        [data-theme="dark"] .resume-page .step-footer,
-        [data-theme="dark"] .resume-page .review-item,
-        [data-theme="dark"] .resume-page .rte-shell {
-          border-color: #334155;
-          background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
-          box-shadow: 0 18px 34px -24px rgba(2, 6, 23, 0.88);
-          color: #e2e8f0;
-        }
-
-        [data-theme="dark"] .resume-page .resume-page.is-editor-route,
-        [data-theme="dark"] .resume-page.is-editor-route,
-        [data-theme="dark"] .resume-page.is-editor-route .resume-workspace {
-          background: #0b1220;
-          color-scheme: dark;
-        }
-
-        [data-theme="dark"] .resume-page .resume-workspace.is-editor {
-          background: #0b1220;
-          box-shadow: none;
-        }
-
-        [data-theme="dark"] .resume-page .template-drawer-header h2,
-        [data-theme="dark"] .resume-page .resume-topbar-title,
-        [data-theme="dark"] .resume-page .step-header-title h3,
-        [data-theme="dark"] .resume-page .preview-step.is-active .preview-step-label,
-        [data-theme="dark"] .resume-page .preview-step.is-complete .preview-step-label,
-        [data-theme="dark"] .resume-page .builder-section-header,
-        [data-theme="dark"] .resume-page .preview-pager,
-        [data-theme="dark"] .resume-page .rte-toolbar button,
-        [data-theme="dark"] .resume-page .rte-content,
-        [data-theme="dark"] .resume-page .customize-download-copy strong,
-        [data-theme="dark"] .resume-page .review-item,
-        [data-theme="dark"] .resume-page .review-item strong {
-          color: #e5eef8;
-        }
-
-        [data-theme="dark"] .resume-page .template-drawer-header p,
-        [data-theme="dark"] .resume-page .topbar-language,
-        [data-theme="dark"] .resume-page .preview-step,
-        [data-theme="dark"] .resume-page .preview-step-status,
-        [data-theme="dark"] .resume-page .preview-empty,
-        [data-theme="dark"] .resume-page .step-count,
-        [data-theme="dark"] .resume-page .review-item span,
-        [data-theme="dark"] .resume-page .step-footer-note,
-        [data-theme="dark"] .resume-page .resume-topbar-pill,
-        [data-theme="dark"] .resume-page .resume-topbar-outline,
-        [data-theme="dark"] .resume-page .resume-topbar-icon,
-        [data-theme="dark"] .resume-page .template-drawer-close {
-          color: #94a3b8;
-        }
-
-        [data-theme="dark"] .resume-page .template-drawer-close,
-        [data-theme="dark"] .resume-page .topbar-app-btn,
-        [data-theme="dark"] .resume-page .topbar-back-btn,
-        [data-theme="dark"] .resume-page .resume-topbar-pill.is-active,
-        [data-theme="dark"] .resume-page .resume-topbar-colorbar,
-        [data-theme="dark"] .resume-page .resume-topbar-outline,
-        [data-theme="dark"] .resume-page .resume-topbar-icon,
-        [data-theme="dark"] .resume-page .preview-pager,
-        [data-theme="dark"] .resume-page .preview-pager-btn,
-        [data-theme="dark"] .resume-page .builder-section-header,
-        [data-theme="dark"] .resume-page .rte-toolbar,
-        [data-theme="dark"] .resume-page .rte-toolbar button {
-          border-color: #334155;
-          background: #0f172a;
-        }
-
-        [data-theme="dark"] .resume-page .resume-topbar-center {
-          border-color: #334155;
-          background: #0b1220;
-        }
-
-        [data-theme="dark"] .resume-page .resume-topbar-pill.is-active {
-          box-shadow: 0 8px 16px -12px rgba(2, 6, 23, 0.8);
-        }
-
-        [data-theme="dark"] .resume-page .template-drawer-close:hover,
-        [data-theme="dark"] .resume-page .topbar-back-btn:hover,
-        [data-theme="dark"] .resume-page .resume-topbar-outline:hover,
-        [data-theme="dark"] .resume-page .resume-topbar-icon:hover,
-        [data-theme="dark"] .resume-page .preview-pager-btn:hover,
-        [data-theme="dark"] .resume-page .rte-toolbar button:hover {
-          border-color: #2dd4bf;
-          color: #5eead4;
-        }
-
-        [data-theme="dark"] .resume-page .flag {
-          border-color: #334155;
-          background: #0f172a;
-          color: #e2e8f0;
-        }
-
-        [data-theme="dark"] .resume-page .dot-grid span {
-          background: #94a3b8;
-        }
-
-        [data-theme="dark"] .resume-page .topbar-color-swatch,
-        [data-theme="dark"] .resume-page .topbar-color-custom {
-          box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.08);
-        }
-
-        [data-theme="dark"] .resume-page .topbar-color-swatch.is-selected,
-        [data-theme="dark"] .resume-page .topbar-color-custom.is-selected {
-          border-color: #5eead4;
-          box-shadow: inset 0 0 0 2px rgba(15, 23, 42, 0.95);
-        }
-
-        [data-theme="dark"] .resume-page .topbar-color-custom {
-          background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-        }
-
-        [data-theme="dark"] .resume-page .resume-topbar-download {
-          box-shadow: 0 10px 20px -14px rgba(37, 99, 235, 0.7);
-        }
-
-        [data-theme="dark"] .resume-page .resume-topbar-download:disabled {
-          background: #334155;
-          color: #cbd5e1;
-        }
-
-        [data-theme="dark"] .resume-page .resume-topbar-download:disabled .caret {
-          border-top-color: #cbd5e1;
-        }
-
-        [data-theme="dark"] .resume-page .preview-step-line {
-          background: #334155;
-        }
-
-        [data-theme="dark"] .resume-page .preview-step-marker {
-          border-color: #475569;
-          background: #0f172a;
-          color: #94a3b8;
-          box-shadow: 0 10px 20px -18px rgba(2, 6, 23, 0.6);
-        }
-
-        [data-theme="dark"] .resume-page .preview-step-marker-logo,
-        [data-theme="dark"] .resume-page .preview-step.is-active .preview-step-marker.is-logo,
-        [data-theme="dark"] .resume-page .preview-step:hover .preview-step-marker.is-logo,
-        [data-theme="dark"] .resume-page .preview-step:focus-visible .preview-step-marker.is-logo {
-          color: #5eead4;
-        }
-
-        [data-theme="dark"] .resume-page .preview-step-label {
-          color: #cbd5e1;
-        }
-
-        [data-theme="dark"] .resume-page .preview-step.is-active .preview-step-marker {
-          background: #0f172a;
-          box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
-        }
-
-        [data-theme="dark"] .resume-page .preview-overlay {
-          background: rgba(15, 23, 42, 0.9);
-          box-shadow: 0 18px 30px -22px rgba(2, 6, 23, 0.75);
-        }
-
-        [data-theme="dark"] .resume-page .preview-overlay-btn,
-        [data-theme="dark"] .resume-page .preview-overlay-size {
-          background: rgba(255, 255, 255, 0.08);
-        }
-
-        [data-theme="dark"] .resume-page .step-footer-note {
-          background: rgba(154, 52, 18, 0.16);
-          border: 1px solid rgba(251, 146, 60, 0.3);
-          color: #fdba74;
-        }
-
-        [data-theme="dark"] .resume-page .step-dot {
-          background: #334155;
-        }
-
-        [data-theme="dark"] .resume-page .section-optional-badge {
-          background: rgba(37, 99, 235, 0.18);
-          color: #93c5fd;
-        }
-
-        [data-theme="dark"] .resume-page .builder-section-body,
-        [data-theme="dark"] .resume-page .rte-toolbar,
-        [data-theme="dark"] .resume-page .resume-topbar,
-        [data-theme="dark"] .resume-page .template-drawer-panel,
-        [data-theme="dark"] .resume-page .template-drawer-close,
-        [data-theme="dark"] .resume-page .step-header,
-        [data-theme="dark"] .resume-page .step-footer {
-          border-color: #334155;
-        }
-
-        [data-theme="dark"] .resume-page .rte-content:empty:before {
-          color: rgba(148, 163, 184, 0.52);
-        }
-
         @keyframes resume-rise {
           from { opacity: 0; transform: translateY(12px) scale(0.99); }
           to { opacity: 1; transform: translateY(0) scale(1); }
@@ -9734,281 +8144,7 @@ export const Resume = () => {
             transition: none !important;
           }
         }
-
-        /* ===== 480px – small phones ===== */
-        @media (max-width: 480px) {
-          .resume-topbar {
-            padding: 8px 10px;
-          }
-
-          .resume-topbar-title {
-            font-size: 0.77rem;
-            max-width: 160px;
-          }
-
-          .resume-topbar-outline,
-          .resume-topbar-download {
-            font-size: 0.75rem;
-            padding: 7px 8px;
-          }
-
-          .resume-topbar-icon {
-            width: 34px;
-            height: 34px;
-          }
-
-          /* Workspace: account for 3-row stacked topbar + added AI btn (~160px) */
-          .resume-workspace.is-editor {
-            margin-top: 162px;
-            height: calc(100svh - 162px);
-          }
-
-          /* Step footer dots */
-          .step-footer {
-            padding: 10px 12px;
-            gap: 8px;
-          }
-
-          .step-dots {
-            gap: 4px;
-          }
-
-          .step-dot {
-            width: 6px;
-            height: 6px;
-          }
-
-          .step-dot.active {
-            width: 14px;
-          }
-
-          /* iOS Safari: prevent auto-zoom on input focus */
-          .resume-page .form-group input,
-          .resume-page .form-group textarea,
-          .resume-page .form-group select,
-          .resume-page .tab-input,
-          .resume-page .tab-textarea,
-          .resume-page .skills-input {
-            font-size: 16px !important;
-          }
-        }
-
-        /* ===== 375px – iPhone SE / extra-small ===== */
-        @media (max-width: 375px) {
-          .resume-topbar-title {
-            max-width: 120px;
-          }
-
-          .resume-topbar-center {
-            gap: 2px;
-          }
-
-          .resume-topbar-pill {
-            padding: 5px 10px;
-            font-size: 0.74rem;
-          }
-
-          .resume-topbar-right {
-            gap: 6px;
-          }
-
-          .resume-topbar-outline,
-          .resume-topbar-download {
-            font-size: 0.72rem;
-            padding: 6px 8px;
-            min-width: 80px;
-          }
-
-          .step-dot {
-            width: 5px;
-            height: 5px;
-          }
-
-          .step-dot.active {
-            width: 12px;
-          }
-
-          .builder-section-header h3 {
-            font-size: 1rem;
-          }
-
-          .resume-workspace.is-editor {
-            margin-top: 157px;
-            height: calc(100svh - 157px);
-          }
-        }
-
-        /* ── AI Resume Assistant Panel ── */
-        .resume-ai-chat-panel {
-          position: fixed;
-          top: 0; right: 0; bottom: 0;
-          width: min(380px, 100vw);
-          background: #fff;
-          border-left: 1px solid #e2e8f0;
-          box-shadow: -16px 0 48px rgba(15,23,42,0.14);
-          display: flex;
-          flex-direction: column;
-          z-index: 1400;
-          transform: translateX(100%);
-          transition: transform 0.32s cubic-bezier(0.22,1,0.36,1);
-        }
-        .resume-ai-chat-panel.is-open { transform: translateX(0); }
-        .rai-head {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 14px 16px;
-          border-bottom: 1px solid #e2e8f0;
-          background: #f8fafc;
-          flex-shrink: 0;
-        }
-        .rai-head-icon {
-          width: 34px; height: 34px;
-          border-radius: 10px;
-          background: linear-gradient(135deg,#14b8a6,#0f766e);
-          color: #fff;
-          display: grid; place-items: center;
-          flex-shrink: 0;
-        }
-        .rai-head-title { font-size: 0.9rem; font-weight: 700; color: #0f172a; margin: 0; }
-        .rai-head-sub { font-size: 0.72rem; color: #64748b; margin: 0; }
-        .rai-close {
-          margin-left: auto;
-          width: 32px; height: 32px;
-          border: none; background: none;
-          border-radius: 8px; cursor: pointer;
-          display: grid; place-items: center;
-          color: #64748b;
-          transition: background 0.15s;
-        }
-        .rai-close:hover { background: #f1f5f9; color: #0f172a; }
-        .rai-messages {
-          flex: 1;
-          min-height: 0;
-          overflow-y: auto;
-          padding: 14px;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .rai-msg {
-          max-width: 88%;
-          padding: 9px 12px;
-          border-radius: 12px;
-          font-size: 0.84rem;
-          line-height: 1.65;
-          white-space: pre-wrap;
-        }
-        .rai-msg.user {
-          align-self: flex-end;
-          background: linear-gradient(135deg,#14b8a6,#0f766e);
-          color: #fff;
-          border-bottom-right-radius: 4px;
-        }
-        .rai-msg.assistant {
-          align-self: flex-start;
-          background: #f1f5f9;
-          color: #0f172a;
-          border-bottom-left-radius: 4px;
-        }
-        .rai-typing {
-          align-self: flex-start;
-          display: flex; gap: 4px;
-          padding: 9px 12px;
-          background: #f1f5f9;
-          border-radius: 12px;
-          border-bottom-left-radius: 4px;
-        }
-        .rai-typing span {
-          width: 6px; height: 6px;
-          border-radius: 50%;
-          background: #94a3b8;
-          animation: rai-bounce 1.2s ease-in-out infinite;
-        }
-        .rai-typing span:nth-child(2) { animation-delay: 0.2s; }
-        .rai-typing span:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes rai-bounce {
-          0%,60%,100% { transform: translateY(0); }
-          30% { transform: translateY(-5px); }
-        }
-        .rai-input-row {
-          padding: 12px 14px;
-          border-top: 1px solid #e2e8f0;
-          display: flex;
-          gap: 8px;
-          flex-shrink: 0;
-        }
-        .rai-input-row input {
-          flex: 1; min-width: 0;
-          border: 1px solid #e2e8f0;
-          border-radius: 10px;
-          padding: 9px 12px;
-          font-size: 16px;
-          outline: none;
-          background: #f8fafc;
-          font-family: inherit;
-        }
-        .rai-input-row input:focus { border-color: #14b8a6; background: #fff; }
-        .rai-send-btn {
-          width: 38px; height: 38px;
-          border-radius: 10px;
-          border: none;
-          background: linear-gradient(135deg,#14b8a6,#0f766e);
-          color: #fff;
-          cursor: pointer;
-          display: grid; place-items: center;
-          flex-shrink: 0;
-          transition: opacity 0.2s;
-        }
-        .rai-send-btn:disabled { opacity: 0.45; cursor: default; }
       `}</style>
-
-      {/* ── AI Resume Assistant Slide-in Panel ── */}
-      <div
-        className={`resume-ai-chat-panel ${showAiChat ? 'is-open' : ''}`}
-        role="dialog"
-        aria-label="AI Resume Assistant"
-        aria-modal="false"
-      >
-        <div className="rai-head">
-          <div className="rai-head-icon"><Bot size={16} /></div>
-          <div>
-            <p className="rai-head-title">AI Resume Assistant</p>
-            <p className="rai-head-sub">Ask anything about your resume</p>
-          </div>
-          <button className="rai-close" onClick={() => setShowAiChat(false)} aria-label="Close">
-            <X size={16} />
-          </button>
-        </div>
-        <div className="rai-messages" ref={aiChatBodyRef}>
-          {aiChatMessages.map((msg, i) => (
-            <div key={i} className={`rai-msg ${msg.role}`}>{msg.content}</div>
-          ))}
-          {aiChatLoading && (
-            <div className="rai-typing">
-              <span /><span /><span />
-            </div>
-          )}
-        </div>
-        <div className="rai-input-row">
-          <input
-            ref={aiChatInputRef}
-            type="text"
-            placeholder="Ask about bullet points, skills, summaries..."
-            value={aiChatInput}
-            onChange={e => setAiChatInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleAiChatSend()}
-          />
-          <button
-            className="rai-send-btn"
-            onClick={handleAiChatSend}
-            disabled={!aiChatInput.trim() || aiChatLoading}
-            aria-label="Send"
-          >
-            <Send size={16} />
-          </button>
-        </div>
-      </div>
     </div>
   );
 };
